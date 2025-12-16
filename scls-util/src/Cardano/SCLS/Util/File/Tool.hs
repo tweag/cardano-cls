@@ -133,7 +133,8 @@ mergeFiles outputFile sourceFiles = do
       )
       mempty
       files
-  withNamespaceHandles :: Map Namespace [FilePath] -> ([(Namespace, [Handle])] -> IO a) -> IO a
+  -- Open file handles for each namespace's files, execute the given action,
+  -- and ensure all handles are closed afterwards.
   withNamespaceHandles nsToFiles =
     bracket
       ( Map.foldrWithKey
