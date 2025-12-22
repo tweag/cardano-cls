@@ -24,6 +24,7 @@ library
     Cardano.SCLS.Util.File
     Cardano.SCLS.Util.File.Info
     Cardano.SCLS.Util.File.Tool
+    Cardano.SCLS.Util.Info
     Cardano.SCLS.Util.Result
     Cardano.SCLS.Util.Verify
 
