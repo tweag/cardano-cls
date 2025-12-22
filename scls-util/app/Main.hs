@@ -6,9 +6,8 @@ module Main where
 
 import Cardano.SCLS.Util.Checksum
 import Cardano.SCLS.Util.Debug
-import Cardano.SCLS.Util.Info
+import Cardano.SCLS.Util.File
 import Cardano.SCLS.Util.Result
-import Cardano.SCLS.Util.Tool
 import Cardano.SCLS.Util.Verify
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
@@ -24,12 +23,8 @@ data Options = Options
 
 data Command
   = Checksum ChecksumCmd
-  | Check FilePath
-  | Info FilePath
-  | ListNamespaces FilePath
-  | Split FilePath FilePath
-  | Merge FilePath [FilePath]
-  | Extract FilePath FilePath ExtractOptions
+  | Verify FilePath
+  | File FilePath FileCmd
   | Debug CommandDebug
 
 data CommandDebug
@@ -55,42 +50,50 @@ parseOptions =
           <> command
             "verify"
             ( info
-                (Check <$> fileArg)
+                (Verify <$> fileArg)
                 (progDesc "Check the integrity and validity of an SCLS file")
             )
           <> command
-            "info"
+            "file"
             ( info
-                (Info <$> fileArg)
-                (progDesc "Display SCLS file information")
-            )
-          <> command
-            "list-ns"
-            ( info
-                (ListNamespaces <$> fileArg)
-                (progDesc "List all namespaces in the file")
-            )
-          <> command
-            "split"
-            ( info
-                (Split <$> fileArg <*> dirArg)
-                (progDesc "Split SCLS file into separate files by namespace")
-            )
-          <> command
-            "merge"
-            ( info
-                (Merge <$> fileArg <*> some (argument str (metavar "FILES")))
-                (progDesc "Merge multiple SCLS files into one (last file is output)")
-            )
-          <> command
-            "extract"
-            ( info
-                (Extract <$> fileArg <*> (argument str (metavar "OUTPUT_FILE" <> help "Output file for extracted data")) <*> extractOptions)
-                (progDesc "Extract specific data into a new SCLS file")
+                (File <$> fileArg <*> hsubparser fileCmd)
+                (progDesc "File manipulation commands")
             )
           <> command "debug" (info (Debug <$> debugCommand) (progDesc "Debugging utilities"))
       )
  where
+  fileCmd :: Mod CommandFields FileCmd
+  fileCmd =
+    command
+      "list-ns"
+      ( info
+          (pure ListNamespaces)
+          (progDesc "List all namespaces in the file")
+      )
+      <> command
+        "split"
+        ( info
+            (Split <$> dirArg)
+            (progDesc "Split SCLS file into separate files by namespace")
+        )
+      <> command
+        "merge"
+        ( info
+            (Merge <$> many (argument str (metavar "FILES")))
+            (progDesc "Merge multiple SCLS files into one")
+        )
+      <> command
+        "extract"
+        ( info
+            (Extract <$> (argument str (metavar "OUTPUT_FILE" <> help "Output file for extracted data")) <*> extractOptions)
+            (progDesc "Extract specific data into a new SCLS file")
+        )
+      <> command
+        "info"
+        ( info
+            (pure Info)
+            (progDesc "Display SCLS file information")
+        )
   quietSwitch =
     switch
       ( long "quiet"
@@ -201,17 +204,8 @@ main = do
 runCommand :: Command -> IO Result
 runCommand = \case
   Checksum checksumCmd -> runChecksumCmd checksumCmd
-  Info file -> displayInfo file
-  ListNamespaces file -> listNamespaces file
-  Split file outputDir -> splitFile file outputDir
-  Merge _ [] -> do
-    putStrLn "Error: No files provided"
-    pure OtherError
-  Merge outputFile allFiles ->
-    mergeFiles outputFile allFiles
-  Extract file outputDir options ->
-    extract file outputDir options
-  Check file -> check file
+  File fileName fileCmd -> runFileCmd fileName fileCmd
+  Verify file -> check file
   Debug debugCmd -> case debugCmd of
     GenerateDebugFile outputFile namespaceEntries -> generateDebugFile outputFile namespaceEntries
     PrintHex file chunkNo entryNo -> printHexEntries file chunkNo entryNo

@@ -28,7 +28,7 @@ splitCommandTests = describe "split command" do
       (sourceFile, namespaces) <- generateTestFile dir
       let outputDir = dir </> "split"
 
-      (exitCode, _, _) <- runSclsUtil ["split", sourceFile, outputDir]
+      (exitCode, _, _) <- runSclsUtil ["file", sourceFile, "split", outputDir]
 
       exitCode `shouldBe` ExitSuccess
 
@@ -47,7 +47,7 @@ splitCommandTests = describe "split command" do
       (sourceFile, namespaces) <- generateTestFile dir
       let outputDir = dir </> "split"
 
-      (exitCode, _, _) <- runSclsUtil ["split", sourceFile, outputDir]
+      (exitCode, _, _) <- runSclsUtil ["file", sourceFile, "split", outputDir]
 
       annotate "exit code" $ exitCode `shouldBe` ExitSuccess
 
@@ -67,7 +67,7 @@ splitCommandTests = describe "split command" do
   it "fails for non-existent file" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       let outputDir = dir </> "split"
-      (exitCode, _, _) <- runSclsUtil ["split", "/nonexistent/file.scls", outputDir]
+      (exitCode, _, _) <- runSclsUtil ["file", "/nonexistent/file.scls", "split", outputDir]
 
       exitCode `shouldBe` ExitFailure 1
 
@@ -78,7 +78,7 @@ splitCommandTests = describe "split command" do
 
       let namespacesToExtract = [namespaces !! 0, namespaces !! 2]
 
-      (exitCode, _, _) <- runSclsUtil ["extract", sourceFile, outputFile, "--namespaces", T.unpack $ T.intercalate "," (Namespace.asText <$> namespacesToExtract)]
+      (exitCode, _, _) <- runSclsUtil ["file", sourceFile, "extract", outputFile, "--namespaces", T.unpack $ T.intercalate "," (Namespace.asText <$> namespacesToExtract)]
 
       exitCode `shouldBe` ExitSuccess
 

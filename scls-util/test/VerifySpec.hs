@@ -17,11 +17,11 @@ verifyCommandTests = describe "check command" do
   it "verify command verifies a valid SCLS file" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       -- arrange
-      (generateExitCode, _stdout, _) <- runSclsUtil ["debug", dir </> "output.scls", "--namespace", "utxo/v0:10"]
+      (generateExitCode, _stdout, _) <- runSclsUtil ["debug", "generate", dir </> "output.scls", "--namespace", "utxo/v0:10"]
       generateExitCode `shouldBe` ExitSuccess
       -- act
 
-      (verifyExitCode, _stdout, _) <- runSclsUtil ["verify", dir </> "output.scls"]
+      (verifyExitCode, _stdout, _) <- runSclsUtil ["checksum", dir </> "output.scls"]
 
       -- assert
       verifyExitCode `shouldBe` ExitSuccess

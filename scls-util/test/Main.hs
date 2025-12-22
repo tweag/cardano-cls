@@ -7,6 +7,7 @@ import InfoSpec
 import MergeSpec
 import SplitSpec
 import Test.Hspec
+import VerifySpec
 
 main :: IO ()
 main = hspec $ do
@@ -17,3 +18,4 @@ main = hspec $ do
     listNsCommandTests
     splitCommandTests
     mergeCommandTests
+    verifyCommandTests

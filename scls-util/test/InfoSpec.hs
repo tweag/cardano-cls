@@ -26,14 +26,14 @@ infoCommandTests = describe "info command" do
   it "displays file information" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, _) <- generateTestFile dir
-      (exitCode, _, _) <- runSclsUtil ["info", fileName]
+      (exitCode, _, _) <- runSclsUtil ["file", fileName, "info"]
 
       exitCode `shouldBe` ExitSuccess
 
   it "lists all namespaces with their hashes" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, namespaces) <- generateTestFile dir
-      (exitCode, stdout, _) <- runSclsUtil ["info", fileName]
+      (exitCode, stdout, _) <- runSclsUtil ["file", fileName, "info"]
 
       exitCode `shouldBe` ExitSuccess
 
@@ -41,7 +41,7 @@ infoCommandTests = describe "info command" do
         stdout `shouldContain` Namespace.asString ns
 
   it "fails for non-existent file" do
-    (exitCode, stdout, stderr) <- runSclsUtil ["info", "/nonexistent/file.scls"]
+    (exitCode, stdout, stderr) <- runSclsUtil ["file", "/nonexistent/file.scls", "info"]
 
     exitCode `shouldBe` ExitFailure 1
 
@@ -53,7 +53,7 @@ listNsCommandTests = describe "list-ns command" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, expectedNamespaces) <- generateTestFile dir
 
-      (exitCode, stdout, _) <- runSclsUtil ["list-ns", fileName]
+      (exitCode, stdout, _) <- runSclsUtil ["file", fileName, "list-ns"]
 
       exitCode `shouldBe` ExitSuccess
 
@@ -61,7 +61,7 @@ listNsCommandTests = describe "list-ns command" do
         stdout `shouldContain` Namespace.asString ns
 
   it "fails for non-existent file" do
-    (exitCode, stdout, stderr) <- runSclsUtil ["list-ns", "/nonexistent/file.scls"]
+    (exitCode, stdout, stderr) <- runSclsUtil ["file", "/nonexistent/file.scls", "list-ns"]
 
     exitCode `shouldBe` ExitFailure 1
 
@@ -78,7 +78,7 @@ listNsCommandTests = describe "list-ns command" do
           (SlotNo 1)
           (defaultSerializationPlan & addChunks (S.each []))
 
-      (exitCode, stdout, _) <- runSclsUtil ["list-ns", fileName]
+      (exitCode, stdout, _) <- runSclsUtil ["file", fileName, "list-ns"]
 
       exitCode `shouldBe` ExitSuccess
 

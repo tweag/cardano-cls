@@ -1,7 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.SCLS.Util.Info (listNamespaces, displayInfo) where
+module Cardano.SCLS.Util.File.Info (listNamespaces, displayInfo) where
 
 import Cardano.SCLS.Internal.Reader
 import Cardano.SCLS.Internal.Record.Manifest
