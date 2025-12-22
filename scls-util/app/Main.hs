@@ -4,12 +4,12 @@
 
 module Main where
 
-import Cardano.SCLS.Util.Check
 import Cardano.SCLS.Util.Checksum
 import Cardano.SCLS.Util.Debug
 import Cardano.SCLS.Util.Info
 import Cardano.SCLS.Util.Result
 import Cardano.SCLS.Util.Tool
+import Cardano.SCLS.Util.Verify
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
 import Data.Text (Text)
@@ -53,6 +53,12 @@ parseOptions =
               (progDesc "Verify root hash of chunks")
           )
           <> command
+            "verify"
+            ( info
+                (Check <$> fileArg)
+                (progDesc "Check the integrity and validity of an SCLS file")
+            )
+          <> command
             "info"
             ( info
                 (Info <$> fileArg)
@@ -81,12 +87,6 @@ parseOptions =
             ( info
                 (Extract <$> fileArg <*> (argument str (metavar "OUTPUT_FILE" <> help "Output file for extracted data")) <*> extractOptions)
                 (progDesc "Extract specific data into a new SCLS file")
-            )
-          <> command
-            "check"
-            ( info
-                (Check <$> fileArg)
-                (progDesc "Check the integrity and validity of an SCLS file")
             )
           <> command "debug" (info (Debug <$> debugCommand) (progDesc "Debugging utilities"))
       )

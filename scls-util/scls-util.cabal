@@ -19,12 +19,12 @@ library
   import: warnings
   hs-source-dirs: src
   exposed-modules:
-    Cardano.SCLS.Util.Check
     Cardano.SCLS.Util.Checksum
     Cardano.SCLS.Util.Debug
     Cardano.SCLS.Util.Info
     Cardano.SCLS.Util.Result
     Cardano.SCLS.Util.Tool
+    Cardano.SCLS.Util.Verify
 
   build-depends:
     FailT,

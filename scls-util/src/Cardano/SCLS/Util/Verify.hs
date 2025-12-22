@@ -10,7 +10,7 @@ This module provides functionality to verify chunks in an SCLS file by:
 - Verifying entry counts
 - Validating chunk data against CDDL schemas (for known namespaces)
 -}
-module Cardano.SCLS.Util.Check (
+module Cardano.SCLS.Util.Verify (
   check,
   CheckResult (..),
   ChunkCheckResult (..),
@@ -22,7 +22,7 @@ import Cardano.SCLS.CBOR.Canonical.Encoder (toCanonicalCBOR)
 import Cardano.SCLS.CDDL (NamespaceInfo (..), namespaces)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (..))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
-import Cardano.SCLS.Internal.Hash (Digest (..), digest)
+import Cardano.SCLS.Internal.Hash (Digest (..), digest, digestToString)
 import Cardano.SCLS.Internal.Reader (extractNamespaceList, streamChunkEntries, withRecordData)
 import Cardano.SCLS.Internal.Record.Chunk (Chunk (..))
 import Cardano.SCLS.Util.Result
@@ -257,7 +257,7 @@ validateCDDLAgainst cddl (seqNum, GenericCBOREntry (ChunkEntry _key cTerm)) =
 formatError :: CheckError -> String
 formatError = \case
   ChecksumMismatch expected actual ->
-    "Checksum mismatch: expected " ++ show expected ++ ", got " ++ show actual
+    "Checksum mismatch: expected " ++ digestToString expected ++ ", got " ++ digestToString actual
   EntryCountMismatch expected actual ->
     "Entry count mismatch: expected " ++ show expected ++ ", got " ++ show actual
   CDDLValidationError idx err term ->
