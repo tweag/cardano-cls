@@ -6,6 +6,7 @@
 
 module ChecksumSpec (checksumCommandTests, verifyNsCommandTests) where
 
+import Cardano.SCLS.Internal.Hash (digestToString)
 import Cardano.SCLS.Internal.Reader (
   extractNamespaceHash,
   extractRootHash,
@@ -27,7 +28,7 @@ checksumCommandTests = describe "checksum command" do
 
       exitCode `shouldBe` ExitSuccess
 
-      stdout `shouldContain` (show h)
+      stdout `shouldContain` digestToString h
 
   it "fails for non-existent file" do
     (exitCode, _, _) <- runSclsUtil ["checksum", "/nonexistent/file.scls"]
@@ -46,7 +47,7 @@ verifyNsCommandTests = describe "checksum command with namespace" do
 
         exitCode `shouldBe` ExitSuccess
 
-        stdout `shouldContain` (show h)
+        stdout `shouldContain` digestToString h
 
   it "fails for non-existent namespace" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do

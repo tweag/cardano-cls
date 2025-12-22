@@ -3,6 +3,7 @@ module Cardano.SCLS.Internal.Hash (
   digest,
   hashDigestSize,
   digestFromByteString,
+  digestToString,
 ) where
 
 import Crypto.Hash qualified as CH
@@ -11,11 +12,17 @@ import Data.MemPack
 
 type HashAlgorithm = CH.Blake2b_224
 
+-- | Size of the hash digest in bytes.
 hashDigestSize :: Int
 hashDigestSize = CH.hashDigestSize (undefined :: HashAlgorithm)
 
+-- | Create a Digest from a byte array, if valid.
 digestFromByteString :: (BA.ByteArrayAccess ba) => ba -> Maybe Digest
 digestFromByteString = fmap Digest . CH.digestFromByteString
+
+-- | Convert Digest to its string representation.
+digestToString :: Digest -> String
+digestToString (Digest h) = show h
 
 newtype Digest = Digest (CH.Digest HashAlgorithm)
   deriving (Eq, Ord, Show, Read)

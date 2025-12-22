@@ -4,7 +4,7 @@
 
 module Cardano.SCLS.Util.Checksum (ChecksumCmd (..), runChecksumCmd) where
 
-import Cardano.SCLS.Internal.Hash (Digest (..))
+import Cardano.SCLS.Internal.Hash (Digest (..), digestToString)
 import Cardano.SCLS.Internal.Reader
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
@@ -39,7 +39,7 @@ checksumRoot filePath noVerify isQuiet = do
       storedHash <- extractRootHash filePath
       if noVerify
         then do
-          output $ "Hash: " ++ show storedHash
+          output $ "Hash: " ++ digestToString storedHash
           pure Ok
         else do
           namespaces <- extractNamespaceList filePath
@@ -48,12 +48,12 @@ checksumRoot filePath noVerify isQuiet = do
           if storedHash == computedHash
             then do
               output "Root hash verification PASSED"
-              output $ "Hash: " ++ show storedHash
+              output $ "Hash: " ++ digestToString storedHash
               pure Ok
             else do
               output "Root hash verification FAILED"
-              output $ "Expected: " ++ show storedHash
-              output $ "Computed: " ++ show computedHash
+              output $ "Expected: " ++ digestToString storedHash
+              output $ "Computed: " ++ digestToString computedHash
               pure VerifyFailure
     \(e :: SomeException) -> do
       outputErr $ "Error: " ++ show e
@@ -84,24 +84,24 @@ checksumNamespace filePath namespace noVerify isQuiet = do
     do
       extractNamespaceHash namespace filePath >>= \case
         Nothing -> do
-          output $ "Namespace not found"
+          outputErr $ "Namespace not found"
           pure VerifyFailure
         Just storedHash -> do
           if noVerify
             then do
-              output $ "Hash: " ++ show storedHash
+              output $ "Hash: " ++ digestToString storedHash
               pure Ok
             else do
               computedHash <- computeNamespaceHash filePath namespace
               if storedHash == computedHash
                 then do
                   output $ "Namespace hash verification PASSED"
-                  output $ "Hash: " ++ show storedHash
+                  output $ "Hash: " ++ digestToString storedHash
                   pure Ok
                 else do
                   output $ "Namespace hash verification FAILED"
-                  output $ "Expected: " ++ show storedHash
-                  output $ "Computed: " ++ show computedHash
+                  output $ "Expected: " ++ digestToString storedHash
+                  output $ "Computed: " ++ digestToString computedHash
                   pure VerifyFailure
     \(e :: SomeException) -> do
       outputErr $ "Error: " ++ show e
