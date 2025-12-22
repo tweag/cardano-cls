@@ -4,7 +4,7 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TypeApplications #-}
 
-module VerifySpec (verifyCommandTests, verifyNsCommandTests) where
+module ChecksumSpec (checksumCommandTests, verifyNsCommandTests) where
 
 import Cardano.SCLS.Internal.Reader (
   extractNamespaceHash,
@@ -17,12 +17,12 @@ import System.Exit (ExitCode (..))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 
-verifyCommandTests :: Spec
-verifyCommandTests = describe "verify command" do
+checksumCommandTests :: Spec
+checksumCommandTests = describe "checksum command" do
   it "verifies a valid SCLS file" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, _) <- generateTestFile dir
-      (exitCode, stdout, _) <- runSclsUtil ["verify", fileName]
+      (exitCode, stdout, _) <- runSclsUtil ["checksum", fileName]
       h <- extractRootHash fileName
 
       exitCode `shouldBe` ExitSuccess
@@ -30,7 +30,7 @@ verifyCommandTests = describe "verify command" do
       stdout `shouldContain` (show h)
 
   it "fails for non-existent file" do
-    (exitCode, _, _) <- runSclsUtil ["verify", "/nonexistent/file.scls"]
+    (exitCode, _, _) <- runSclsUtil ["checksum", "/nonexistent/file.scls"]
 
     exitCode `shouldBe` ExitFailure 1
 

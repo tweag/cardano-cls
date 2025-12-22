@@ -20,11 +20,11 @@ library
   hs-source-dirs: src
   exposed-modules:
     Cardano.SCLS.Util.Check
+    Cardano.SCLS.Util.Checksum
     Cardano.SCLS.Util.Debug
     Cardano.SCLS.Util.Info
     Cardano.SCLS.Util.Result
     Cardano.SCLS.Util.Tool
-    Cardano.SCLS.Util.Verify
 
   build-depends:
     FailT,
@@ -77,11 +77,11 @@ test-suite scls-util-test
   main-is: Main.hs
   other-modules:
     CheckSpec
+    ChecksumSpec
     Common
     InfoSpec
     MergeSpec
     SplitSpec
-    VerifySpec
 
   build-depends:
     base >=4.18 && <5,

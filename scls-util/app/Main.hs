@@ -5,11 +5,11 @@
 module Main where
 
 import Cardano.SCLS.Util.Check
+import Cardano.SCLS.Util.Checksum
 import Cardano.SCLS.Util.Debug
 import Cardano.SCLS.Util.Info
 import Cardano.SCLS.Util.Result
 import Cardano.SCLS.Util.Tool
-import Cardano.SCLS.Util.Verify
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
 import Data.Text (Text)
@@ -23,7 +23,7 @@ data Options = Options
   }
 
 data Command
-  = Verify FilePath
+  = Checksum FilePath
   | Check FilePath
   | VerifyNamespace FilePath Text
   | Info FilePath
@@ -42,10 +42,10 @@ parseOptions =
   Options
     <$> hsubparser
       ( command
-          "verify"
+          "checksum"
           ( info
-              (Verify <$> fileArg)
-              (progDesc "Verify root hash of chunks")
+              (Checksum <$> fileArg)
+              (progDesc "Extract checksum")
           )
           <> command
             "verify-ns"
@@ -169,14 +169,21 @@ parseOptions =
 -- | Main entry point
 main :: IO ()
 main = do
-  opts <- execParser $ info (parseOptions <**> helper) fullDesc
+  opts <-
+    execParser $
+      info
+        (parseOptions <**> helper)
+        ( fullDesc
+            <> progDesc "SCLS Utility Tool is used to inspect and manipulate SCLS files."
+            <> header "scls-util - A utility for working with SCLS files"
+        )
   result <- runCommand (optCommand opts)
   exitWith $ toErrorCode result
 
 -- | Execute the selected command
 runCommand :: Command -> IO Result
 runCommand = \case
-  Verify file -> verifyRoot file
+  Checksum file -> verifyRoot file
   VerifyNamespace file ns -> verifyNamespace file (Namespace.fromText ns)
   Info file -> displayInfo file
   ListNamespaces file -> listNamespaces file

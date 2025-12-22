@@ -1,7 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Cardano.SCLS.Util.Verify (verifyRoot, verifyNamespace) where
+module Cardano.SCLS.Util.Checksum (verifyRoot, verifyNamespace) where
 
 import Cardano.SCLS.Internal.Hash (Digest (..))
 import Cardano.SCLS.Internal.Reader
@@ -14,6 +14,13 @@ import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
 import Data.MemPack.Extra
 import Streaming.Prelude qualified as S
+
+data VerifyCmd = VerifyCmd
+  { vcFilePath :: FilePath
+  , vcNamespace :: Maybe [Namespace]
+  , vcQuiet :: Bool
+  }
+  deriving (Show, Eq)
 
 verifyRoot :: FilePath -> IO Result
 verifyRoot filePath = do
