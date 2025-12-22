@@ -1,7 +1,8 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RecordWildCards #-}
 
-module Cardano.SCLS.Util.Checksum (verifyRoot, verifyNamespace) where
+module Cardano.SCLS.Util.Checksum (ChecksumCmd (..), runChecksumCmd) where
 
 import Cardano.SCLS.Internal.Hash (Digest (..))
 import Cardano.SCLS.Internal.Reader
@@ -14,36 +15,56 @@ import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
 import Data.MemPack.Extra
 import Streaming.Prelude qualified as S
+import System.IO (hPutStrLn, stderr)
 
-data VerifyCmd = VerifyCmd
+data ChecksumCmd = ChecksumCmd
   { vcFilePath :: FilePath
-  , vcNamespace :: Maybe [Namespace]
+  , vcNamespace :: Maybe Namespace
+  , vcNoVerify :: Bool
   , vcQuiet :: Bool
   }
   deriving (Show, Eq)
 
-verifyRoot :: FilePath -> IO Result
-verifyRoot filePath = do
-  putStrLn $ "Verifying root hash for: " ++ filePath
+runChecksumCmd :: ChecksumCmd -> IO Result
+runChecksumCmd ChecksumCmd{..} =
+  case vcNamespace of
+    Nothing -> checksumRoot vcFilePath vcNoVerify vcQuiet
+    Just namespace -> checksumNamespace vcFilePath namespace vcNoVerify vcQuiet
+
+checksumRoot :: FilePath -> Bool -> Bool -> IO Result
+checksumRoot filePath noVerify isQuiet = do
+  output $ "Verifying root hash for: " ++ filePath
   catch
     do
       storedHash <- extractRootHash filePath
-      namespaces <- extractNamespaceList filePath
-      computedHash <- computeRootHash filePath namespaces
-
-      if storedHash == computedHash
+      if noVerify
         then do
-          putStrLn "Root hash verification PASSED"
-          putStrLn $ "Hash: " ++ show storedHash
+          output $ "Hash: " ++ show storedHash
           pure Ok
         else do
-          putStrLn "Root hash verification FAILED"
-          putStrLn $ "Expected: " ++ show storedHash
-          putStrLn $ "Computed: " ++ show computedHash
-          pure VerifyFailure
+          namespaces <- extractNamespaceList filePath
+          computedHash <- computeRootHash filePath namespaces
+
+          if storedHash == computedHash
+            then do
+              output "Root hash verification PASSED"
+              output $ "Hash: " ++ show storedHash
+              pure Ok
+            else do
+              output "Root hash verification FAILED"
+              output $ "Expected: " ++ show storedHash
+              output $ "Computed: " ++ show computedHash
+              pure VerifyFailure
     \(e :: SomeException) -> do
-      putStrLn $ "Error: " ++ show e
+      outputErr $ "Error: " ++ show e
       pure OtherError
+ where
+  output
+    | isQuiet = \_ -> pure ()
+    | otherwise = putStrLn
+  outputErr
+    | isQuiet = \_ -> pure ()
+    | otherwise = hPutStrLn stderr
 
 computeRootHash :: FilePath -> [Namespace] -> IO Digest
 computeRootHash filePath namespaces = do
@@ -56,31 +77,42 @@ computeRootHash filePath namespaces = do
     nsHash <- computeNamespaceHash fp ns
     pure $ MT.add state nsHash
 
-verifyNamespace :: FilePath -> Namespace -> IO Result
-verifyNamespace filePath namespace = do
-  putStrLn $ "Verifying hash for namespace: " ++ Namespace.asString namespace
+checksumNamespace :: FilePath -> Namespace -> Bool -> Bool -> IO Result
+checksumNamespace filePath namespace noVerify isQuiet = do
+  output $ "Verifying hash for namespace: " ++ Namespace.asString namespace
   catch
     do
       extractNamespaceHash namespace filePath >>= \case
         Nothing -> do
-          putStrLn $ "Namespace not found"
+          output $ "Namespace not found"
           pure VerifyFailure
         Just storedHash -> do
-          computedHash <- computeNamespaceHash filePath namespace
-
-          if storedHash == computedHash
+          if noVerify
             then do
-              putStrLn $ "Namespace hash verification PASSED"
-              putStrLn $ "Hash: " ++ show storedHash
+              output $ "Hash: " ++ show storedHash
               pure Ok
             else do
-              putStrLn $ "Namespace hash verification FAILED"
-              putStrLn $ "Expected: " ++ show storedHash
-              putStrLn $ "Computed: " ++ show computedHash
-              pure VerifyFailure
+              computedHash <- computeNamespaceHash filePath namespace
+              if storedHash == computedHash
+                then do
+                  output $ "Namespace hash verification PASSED"
+                  output $ "Hash: " ++ show storedHash
+                  pure Ok
+                else do
+                  output $ "Namespace hash verification FAILED"
+                  output $ "Expected: " ++ show storedHash
+                  output $ "Computed: " ++ show computedHash
+                  pure VerifyFailure
     \(e :: SomeException) -> do
-      putStrLn $ "Error: " ++ show e
+      outputErr $ "Error: " ++ show e
       pure OtherError
+ where
+  output
+    | isQuiet = \_ -> pure ()
+    | otherwise = putStrLn
+  outputErr
+    | isQuiet = \_ -> pure ()
+    | otherwise = hPutStrLn stderr
 
 computeNamespaceHash :: FilePath -> Namespace -> IO Digest
 computeNamespaceHash filePath namespace = do

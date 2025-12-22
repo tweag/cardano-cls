@@ -23,9 +23,8 @@ data Options = Options
   }
 
 data Command
-  = Checksum FilePath
+  = Checksum ChecksumCmd
   | Check FilePath
-  | VerifyNamespace FilePath Text
   | Info FilePath
   | ListNamespaces FilePath
   | Split FilePath FilePath
@@ -44,15 +43,15 @@ parseOptions =
       ( command
           "checksum"
           ( info
-              (Checksum <$> fileArg)
-              (progDesc "Extract checksum")
+              ( fmap Checksum $
+                  ChecksumCmd
+                    <$> fileArg
+                    <*> optional namespace
+                    <*> noVerify
+                    <*> quietSwitch
+              )
+              (progDesc "Verify root hash of chunks")
           )
-          <> command
-            "verify-ns"
-            ( info
-                (VerifyNamespace <$> fileArg <*> namespaceArg)
-                (progDesc "Verify hash for a specific namespace")
-            )
           <> command
             "info"
             ( info
@@ -92,6 +91,17 @@ parseOptions =
           <> command "debug" (info (Debug <$> debugCommand) (progDesc "Debugging utilities"))
       )
  where
+  quietSwitch =
+    switch
+      ( long "quiet"
+          <> short 'q'
+          <> help "Suppress output except"
+      )
+  noVerify =
+    switch
+      ( long "no-verify"
+          <> help "Skip verification step"
+      )
   fileArg =
     argument
       str
@@ -100,6 +110,13 @@ parseOptions =
     argument
       str
       (metavar "OUTPUT_DIR" <> help "Output directory for split files")
+  namespace =
+    strOption
+      ( long "namespace"
+          <> short 'n'
+          <> metavar "NAMESPACE"
+          <> help "Namespace identifier"
+      )
   namespaceArg =
     argument
       str
@@ -183,8 +200,7 @@ main = do
 -- | Execute the selected command
 runCommand :: Command -> IO Result
 runCommand = \case
-  Checksum file -> verifyRoot file
-  VerifyNamespace file ns -> verifyNamespace file (Namespace.fromText ns)
+  Checksum checksumCmd -> runChecksumCmd checksumCmd
   Info file -> displayInfo file
   ListNamespaces file -> listNamespaces file
   Split file outputDir -> splitFile file outputDir

@@ -35,13 +35,13 @@ checksumCommandTests = describe "checksum command" do
     exitCode `shouldBe` ExitFailure 1
 
 verifyNsCommandTests :: Spec
-verifyNsCommandTests = describe "verify-ns command" do
+verifyNsCommandTests = describe "checksum command with namespace" do
   it "verifies all namespaces correctly" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, namespaces) <- generateTestFile dir
 
       forM_ namespaces \ns -> do
-        (exitCode, stdout, _) <- runSclsUtil ["verify-ns", fileName, Namespace.asString ns]
+        (exitCode, stdout, _) <- runSclsUtil ["checksum", fileName, "-n", Namespace.asString ns]
         Just h <- extractNamespaceHash ns fileName
 
         exitCode `shouldBe` ExitSuccess
@@ -51,6 +51,6 @@ verifyNsCommandTests = describe "verify-ns command" do
   it "fails for non-existent namespace" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, _) <- generateTestFile dir
-      (exitCode, _, _) <- runSclsUtil ["verify-ns", fileName, "nonexistent"]
+      (exitCode, _, _) <- runSclsUtil ["checksum", fileName, "-n", "nonexistent"]
 
       exitCode `shouldBe` ExitFailure 65
