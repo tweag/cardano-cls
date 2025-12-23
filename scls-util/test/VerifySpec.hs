@@ -13,7 +13,7 @@ import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 
 verifyCommandTests :: Spec
-verifyCommandTests = describe "check command" do
+verifyCommandTests = describe "verify command" do
   it "verify command verifies a valid SCLS file" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       -- arrange
