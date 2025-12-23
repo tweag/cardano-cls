@@ -17,7 +17,6 @@ import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Codec.CBOR.Encoding qualified as CBOR
-import Codec.CBOR.Term qualified as CBOR
 import Codec.CBOR.Write qualified as CBOR
 import Control.Exception (SomeException, catch)
 import Control.Monad (foldM)
@@ -49,7 +48,7 @@ splitFile sourceFile outputDir SplitOptions{..} = do
     do
       createDirectoryIfMissing True outputDir
       hdr <- withHeader sourceFile pure
-      namespaces <- extractNamespaceList sourceFile
+      fileNamespaces <- extractNamespaceList sourceFile
 
       mapM_
         ( \ns -> do
@@ -62,10 +61,10 @@ splitFile sourceFile outputDir SplitOptions{..} = do
                 -- namespace-specific data should be sorted, so we can assume that and dump directly
                 dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
         )
-        namespaces
+        fileNamespaces
 
       output $ "Split complete. Generated these files:"
-      mapM_ (putStrLn . ("  - " ++) . (outputDir </>) . Namespace.humanFileNameFor) namespaces
+      mapM_ (putStrLn . ("  - " ++) . (outputDir </>) . Namespace.humanFileNameFor) fileNamespaces
       pure Ok
     \(e :: SomeException) -> do
       putStrLn $ "Error: " ++ show e
@@ -196,7 +195,7 @@ unpack sourceFile unpackOutputFile unpackNamespace UnpackOptions{..} = do
                     & S.mapM_ \(GenericCBOREntry (ChunkEntry (ByteStringSized k) b)) ->
                       BL.hPut outputHandle $
                         CBOR.toLazyByteString $
-                          CBOR.encodeListLen 2 <> CBOR.encodeBytes k <> CBOR.encodeTerm (getRawTerm b)
+                          CBOR.encodeListLen 2 <> CBOR.encodeBytes k <> CBOR.encodePreEncoded (getEncodedBytes b)
             pure Ok
     \(e :: SomeException) -> do
       putStrLn $ "Error: " ++ show e
