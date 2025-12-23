@@ -47,7 +47,7 @@ parseOptions =
                           <*> noVerify
                           <*> quietSwitch
                     )
-                    (progDesc "Verify root hash of chunks")
+                    (progDesc "Display and verify root hash or namespace hashes")
                 )
                 <> command
                   "verify"
