@@ -1,18 +1,20 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
 
-module Cardano.SCLS.Util.File (FileCmd (..), ExtractOptions (..), runFileCmd) where
+module Cardano.SCLS.Util.File (FileCmd (..), ExtractOptions (..), runFileCmd, SplitOptions (..), UnpackOptions (..)) where
 
 import Cardano.SCLS.Util.File.Info
 import Cardano.SCLS.Util.File.Tool
 import Cardano.SCLS.Util.Result
+import Data.Text qualified as T
 
 data FileCmd
   = ListNamespaces
   | Merge [FilePath]
   | Extract FilePath ExtractOptions
-  | Split FilePath
+  | Split FilePath SplitOptions
   | Info
+  | Unpack FilePath T.Text UnpackOptions
 
 runFileCmd :: FilePath -> FileCmd -> IO Result
 runFileCmd fileName = \case
@@ -22,6 +24,8 @@ runFileCmd fileName = \case
     mergeFiles fileName inputFiles
   Extract outputFile extractOptions -> do
     extract fileName outputFile extractOptions
-  Split outputDir -> do
-    splitFile fileName outputDir
+  Split outputDir splitOptions -> do
+    splitFile fileName outputDir splitOptions
   Info -> displayInfo fileName
+  Unpack unpackDest namespace unpackOptions -> do
+    unpack fileName unpackDest namespace unpackOptions

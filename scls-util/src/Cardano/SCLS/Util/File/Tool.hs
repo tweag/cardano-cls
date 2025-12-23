@@ -1,8 +1,11 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
 
-module Cardano.SCLS.Util.File.Tool (splitFile, mergeFiles, extract, ExtractOptions (..)) where
+module Cardano.SCLS.Util.File.Tool (splitFile, mergeFiles, extract, ExtractOptions (..), unpack, UnpackOptions (..), SplitOptions (..)) where
 
+import Cardano.SCLS.CDDL
+import Cardano.SCLS.Internal.Entry.CBOREntry
+import Cardano.SCLS.Internal.Entry.ChunkEntry
 import Cardano.SCLS.Internal.Reader
 import Cardano.SCLS.Internal.Record.Hdr (Hdr (..))
 import Cardano.SCLS.Internal.Serializer.Dump
@@ -13,21 +16,35 @@ import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
+import Codec.CBOR.Encoding qualified as CBOR
+import Codec.CBOR.Term qualified as CBOR
+import Codec.CBOR.Write qualified as CBOR
 import Control.Exception (SomeException, catch)
 import Control.Monad (foldM)
+import Data.ByteString.Lazy qualified as BL
 import Data.Function ((&))
 import Data.Map.Strict qualified as Map
 import Data.MemPack.Extra
+import Data.Text qualified as T
+import GHC.TypeLits hiding (withSomeSNat)
+import GHC.TypeNats (withSomeSNat)
 import Streaming qualified as S
 import Streaming.Prelude qualified as S
 import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>))
 import System.IO
 
-splitFile :: FilePath -> FilePath -> IO Result
-splitFile sourceFile outputDir = do
-  putStrLn $ "Splitting file: " ++ sourceFile
-  putStrLn $ "Output directory: " ++ outputDir
+data FileFormat = SclsFormat | CBorFormat
+  deriving (Eq, Show)
+
+data SplitOptions = SplitOptions
+  { splitIsQuiet :: Bool
+  }
+
+splitFile :: FilePath -> FilePath -> SplitOptions -> IO Result
+splitFile sourceFile outputDir SplitOptions{..} = do
+  output $ "Splitting file: " ++ sourceFile
+  output $ "Output directory: " ++ outputDir
   catch
     do
       createDirectoryIfMissing True outputDir
@@ -37,7 +54,7 @@ splitFile sourceFile outputDir = do
       mapM_
         ( \ns -> do
             let outputFile = outputDir </> Namespace.humanFileNameFor ns
-            putStrLn $ "  Creating " ++ outputFile ++ " for namespace " ++ Namespace.asString ns
+            output $ "  Creating " ++ outputFile ++ " for namespace " ++ Namespace.asString ns
 
             withBinaryFile outputFile WriteMode $ \handle -> do
               withNamespacedData @RawBytes sourceFile ns $ \stream -> do
@@ -47,12 +64,16 @@ splitFile sourceFile outputDir = do
         )
         namespaces
 
-      putStrLn $ "Split complete. Generated these files:"
+      output $ "Split complete. Generated these files:"
       mapM_ (putStrLn . ("  - " ++) . (outputDir </>) . Namespace.humanFileNameFor) namespaces
       pure Ok
     \(e :: SomeException) -> do
       putStrLn $ "Error: " ++ show e
       pure OtherError
+ where
+  output
+    | splitIsQuiet = \_ -> pure ()
+    | otherwise = putStrLn
 
 mergeFiles :: FilePath -> [FilePath] -> IO Result
 mergeFiles _ [] = do
@@ -109,12 +130,13 @@ mergeFiles outputFile sourceFiles = do
 
 data ExtractOptions = ExtractOptions
   { extractNamespaces :: Maybe [Namespace]
+  , extractIsQuiet :: Bool
   }
 
 extract :: FilePath -> FilePath -> ExtractOptions -> IO Result
 extract sourceFile outputFile ExtractOptions{..} = do
-  putStrLn $ "Extracting from file: " ++ sourceFile
-  putStrLn $ "Output file: " ++ outputFile
+  output $ "Extracting from file: " ++ sourceFile
+  output $ "Output file: " ++ outputFile
   catch
     do
       Hdr{..} <- withHeader sourceFile pure
@@ -144,3 +166,42 @@ extract sourceFile outputFile ExtractOptions{..} = do
     \(e :: SomeException) -> do
       putStrLn $ "Error: " ++ show e
       pure OtherError
+ where
+  output
+    | extractIsQuiet = \_ -> pure ()
+    | otherwise = putStrLn
+
+data UnpackOptions = UnpackOptions
+  { unpackIsQuiet :: Bool
+  }
+
+unpack :: FilePath -> FilePath -> T.Text -> UnpackOptions -> IO Result
+unpack sourceFile unpackOutputFile unpackNamespace UnpackOptions{..} = do
+  output $ "Converting file: " ++ sourceFile
+  output $ "Output file: " ++ unpackOutputFile
+  catch
+    do
+      let namespace = Namespace.fromText unpackNamespace
+
+      withBinaryFile unpackOutputFile WriteMode $ \outputHandle -> do
+        case Map.lookup unpackNamespace namespaces of
+          Nothing -> do
+            putStrLn $ "Unknown namespace: " ++ Namespace.asString namespace
+            pure OtherError
+          Just NamespaceInfo{namespaceKeySize = keySize} -> do
+            withSomeSNat keySize \(snat :: SNat n) -> do
+              withKnownNat snat do
+                withNamespacedData @(GenericCBOREntry n) sourceFile namespace $ \stream -> do
+                  stream
+                    & S.mapM_ \(GenericCBOREntry (ChunkEntry (ByteStringSized k) b)) ->
+                      BL.hPut outputHandle $
+                        CBOR.toLazyByteString $
+                          CBOR.encodeListLen 2 <> CBOR.encodeBytes k <> CBOR.encodeTerm (getRawTerm b)
+            pure Ok
+    \(e :: SomeException) -> do
+      putStrLn $ "Error: " ++ show e
+      pure OtherError
+ where
+  output
+    | unpackIsQuiet = \_ -> pure ()
+    | otherwise = putStrLn

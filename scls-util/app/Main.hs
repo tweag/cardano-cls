@@ -101,7 +101,7 @@ parseOptions =
       <> command
         "split"
         ( info
-            (File.Split <$> dirArg)
+            (File.Split <$> dirArg <*> splitOptions)
             (progDesc "Split SCLS file into separate files by namespace")
         )
       <> command
@@ -121,6 +121,16 @@ parseOptions =
         ( info
             (pure File.Info)
             (progDesc "Display SCLS file information")
+        )
+      <> command
+        "unpack"
+        ( info
+            ( File.Unpack
+                <$> fileArg
+                <*> namespaceArg
+                <*> unpackOptions
+            )
+            (progDesc "Unpack data from a specific namespace into a raw file")
         )
   quietSwitch =
     switch
@@ -156,6 +166,14 @@ parseOptions =
   extractOptions =
     File.ExtractOptions
       <$> namespaceOption
+      <*> quietSwitch
+  splitOptions :: Parser File.SplitOptions
+  splitOptions =
+    File.SplitOptions
+      <$> quietSwitch
+  unpackOptions =
+    File.UnpackOptions
+      <$> quietSwitch
   namespaceOption =
     optional $
       option
