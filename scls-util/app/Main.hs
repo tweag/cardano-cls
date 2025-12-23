@@ -136,7 +136,7 @@ parseOptions =
     switch
       ( long "quiet"
           <> short 'q'
-          <> help "Suppress output except"
+          <> help "Suppress output"
       )
   noVerify =
     switch
