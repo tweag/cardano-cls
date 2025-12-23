@@ -82,7 +82,7 @@ parseOptions =
                                     )
                               )
                         )
-                        (progDesc "Display about SCLS format")
+                        (progDesc "Display information about SCLS format")
                     )
                   <> command "debug" (info (Debug <$> debugCommand) (progDesc "Debugging utilities"))
                   <> commandGroup "Command groups"
