@@ -134,7 +134,7 @@ check filePath = do
         putStrLn "Warning!\n Some namespaces failed to resolve CDDL schemas:"
         for_ (Map.toList failedNamespaces) $ \(ns, err) -> do
           putStrLn $ "  - Namespace: " ++ T.unpack ns ++ ", Error: " ++ show err
-        putStrLn "It should never be happen, please contact upstream as the file verification may not work as inteded"
+        putStrLn "It should never be happen, please contact upstream as the file verification may not work as intended"
 
       let unknownNs = filter (\ns -> not $ Map.member (Namespace.asText ns) knownNamespaces) fileNamespaces
 
