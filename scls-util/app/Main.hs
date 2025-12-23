@@ -6,7 +6,8 @@ module Main where
 
 import Cardano.SCLS.Util.Checksum
 import Cardano.SCLS.Util.Debug
-import Cardano.SCLS.Util.File
+import Cardano.SCLS.Util.File qualified as File
+import Cardano.SCLS.Util.Info qualified as Info
 import Cardano.SCLS.Util.Result
 import Cardano.SCLS.Util.Verify
 import Cardano.Types.Namespace (Namespace (..))
@@ -24,8 +25,9 @@ data Options = Options
 data Command
   = Checksum ChecksumCmd
   | Verify FilePath
-  | File FilePath FileCmd
+  | File FilePath File.FileCmd
   | Debug CommandDebug
+  | Info Info.InfoCmd
 
 data CommandDebug
   = GenerateDebugFile FilePath [(Namespace, Maybe Int)]
@@ -34,64 +36,90 @@ data CommandDebug
 parseOptions :: Parser Options
 parseOptions =
   Options
-    <$> hsubparser
-      ( command
-          "checksum"
-          ( info
-              ( fmap Checksum $
-                  ChecksumCmd
-                    <$> fileArg
-                    <*> optional namespace
-                    <*> noVerify
-                    <*> quietSwitch
+    <$> ( hsubparser
+            ( command
+                "checksum"
+                ( info
+                    ( fmap Checksum $
+                        ChecksumCmd
+                          <$> fileArg
+                          <*> optional namespace
+                          <*> noVerify
+                          <*> quietSwitch
+                    )
+                    (progDesc "Verify root hash of chunks")
+                )
+                <> command
+                  "verify"
+                  ( info
+                      (Verify <$> fileArg)
+                      (progDesc "Check the integrity and validity of an SCLS file")
+                  )
+            )
+            <|> hsubparser
+              ( command
+                  "file"
+                  ( info
+                      (File <$> fileArg <*> hsubparser fileCmd)
+                      (progDesc "File manipulation commands")
+                  )
+                  <> command
+                    "info"
+                    ( info
+                        ( Info
+                            <$> hsubparser
+                              ( command
+                                  "namespaces"
+                                  ( info
+                                      (pure Info.Namespaces)
+                                      (progDesc "List all supported namespaces")
+                                  )
+                                  <> command
+                                    "cddl"
+                                    ( info
+                                        (Info.CDDL <$> namespaceArg)
+                                        (progDesc "Display CDDL specification for a given namespace")
+                                    )
+                              )
+                        )
+                        (progDesc "Display about SCLS format")
+                    )
+                  <> command "debug" (info (Debug <$> debugCommand) (progDesc "Debugging utilities"))
+                  <> commandGroup "Command groups"
+                  <> hidden
               )
-              (progDesc "Verify root hash of chunks")
-          )
-          <> command
-            "verify"
-            ( info
-                (Verify <$> fileArg)
-                (progDesc "Check the integrity and validity of an SCLS file")
-            )
-          <> command
-            "file"
-            ( info
-                (File <$> fileArg <*> hsubparser fileCmd)
-                (progDesc "File manipulation commands")
-            )
-          <> command "debug" (info (Debug <$> debugCommand) (progDesc "Debugging utilities"))
-      )
+        )
  where
-  fileCmd :: Mod CommandFields FileCmd
+  fileCmd :: Mod CommandFields File.FileCmd
   fileCmd =
     command
       "list-ns"
       ( info
-          (pure ListNamespaces)
+          (pure File.ListNamespaces)
           (progDesc "List all namespaces in the file")
       )
       <> command
         "split"
         ( info
-            (Split <$> dirArg)
+            (File.Split <$> dirArg)
             (progDesc "Split SCLS file into separate files by namespace")
         )
       <> command
         "merge"
         ( info
-            (Merge <$> many (argument str (metavar "FILES")))
+            (File.Merge <$> many (argument str (metavar "FILES")))
             (progDesc "Merge multiple SCLS files into one")
         )
       <> command
         "extract"
         ( info
-            (Extract <$> (argument str (metavar "OUTPUT_FILE" <> help "Output file for extracted data")) <*> extractOptions)
+            (File.Extract <$> (argument str (metavar "OUTPUT_FILE" <> help "Output file for extracted data")) <*> extractOptions)
             (progDesc "Extract specific data into a new SCLS file")
         )
       <> command
         "info"
         ( info
-            (pure Info)
+            (pure File.Info)
             (progDesc "Display SCLS file information")
         )
   quietSwitch =
@@ -124,9 +152,9 @@ parseOptions =
     argument
       str
       (metavar "NAMESPACE" <> help "Namespace identifier")
-  extractOptions :: Parser ExtractOptions
+  extractOptions :: Parser File.ExtractOptions
   extractOptions =
-    ExtractOptions
+    File.ExtractOptions
       <$> namespaceOption
   namespaceOption =
     optional $
@@ -204,7 +232,8 @@ main = do
 runCommand :: Command -> IO Result
 runCommand = \case
   Checksum checksumCmd -> runChecksumCmd checksumCmd
-  File fileName fileCmd -> runFileCmd fileName fileCmd
+  File fileName fileCmd -> File.runFileCmd fileName fileCmd
+  Info infoCmd -> Info.runInfoCmd infoCmd
   Verify file -> check file
   Debug debugCmd -> case debugCmd of
     GenerateDebugFile outputFile namespaceEntries -> generateDebugFile outputFile namespaceEntries
