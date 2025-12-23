@@ -30,8 +30,8 @@ runInfoCmd = \case
         return OtherError
       Just NamespaceInfo{namespaceSpec = hddl} -> do
         let cddl = Cuddle.toCDDLNoRoot hddl
-        let h = stdout
-        hPutDoc h (pretty cddl)
+        let outputHandle = stdout
+        hPutDoc outputHandle (pretty cddl)
         -- Write an empty line at the end of the file
-        hPutStrLn h ""
+        hPutStrLn outputHandle ""
         return Ok
