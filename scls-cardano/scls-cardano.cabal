@@ -1,4 +1,4 @@
-cabal-version: 3.14
+cabal-version: 3.4
 name: scls-cardano
 version: 0.1.0.0
 synopsis: CDDL Namespace Definitions and Serialisation Code
@@ -45,7 +45,7 @@ library
     cuddle >=1.1,
     heredoc >=0.2,
     scls-core,
-    text
+    text,
 
   hs-source-dirs:
     cddl-src
@@ -64,7 +64,7 @@ library validate
     containers,
     cuddle >=1.1,
     scls-cardano,
-    text
+    text,
 
   hs-source-dirs:
     cddl-validate
@@ -107,7 +107,7 @@ executable gen-cddl
     filepath >=1.4,
     prettyprinter,
     scls-cardano,
-    text
+    text,
 
 test-suite scls-util-test
   import: warnings
