@@ -28,7 +28,6 @@ in {
         packages.scls-util.components.library.doCoverage = true;
         packages.merkle-tree-incremental.components.library.doCoverage = true;
       }];
-      ghc98.compiler-nix-name = "ghc98";
       ghc912.compiler-nix-name = "ghc912";
       ghc910-mempack-1 = {
         cabalProjectLocal = ''

@@ -10,6 +10,8 @@ build-type: Simple
 extra-source-files:
   README.md
 
+tested-with: ghc ==9.14.1 || ==9.12.1 || ==9.10.2
+
 common warnings
   ghc-options: -Wall
 

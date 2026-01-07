@@ -101,7 +101,7 @@ mkMachine bufferSize params = do
                   else do
                     frozenData <- freezeByteArrayPinned storage 0 offset
                     pure (final, Just (bMkItem params frozenData entriesCount))
-              Append @a input -> do
+              Append (input :: a) -> do
                 let entry = Entry $ bEncodeEntry @item params input
                 let l = packedByteCount entry
                 if offset + l <= bufferSize -- if we fit the current buffer we just need to write data and continue

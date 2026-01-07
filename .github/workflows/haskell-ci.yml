@@ -28,6 +28,11 @@ jobs:
     strategy:
       matrix:
         include:
+          - compiler: ghc-9.14.1
+            compilerKind: ghc
+            compilerVersion: 9.14.1
+            setup-method: ghcup
+            allow-failure: true
           - compiler: ghc-9.12.1
             compilerKind: ghc
             compilerVersion: 9.12.1
@@ -36,11 +41,6 @@ jobs:
           - compiler: ghc-9.10.2
             compilerKind: ghc
             compilerVersion: 9.10.2
-            setup-method: ghcup
-            allow-failure: false
-          - compiler: ghc-9.8.4
-            compilerKind: ghc
-            compilerVersion: 9.8.4
             setup-method: ghcup
             allow-failure: false
       fail-fast: false
@@ -189,7 +189,41 @@ jobs:
           echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
           echo "package merkle-tree-incremental" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
+          # allow for ghc
           cat >> cabal.project <<EOF
+          -- Changes required for the ghc 9.14
+          allow-newer:
+            aeson-2.2.3.0:containers,
+            aeson-2.2.3.0:template-haskell,
+            aeson-2.2.3.0:time,
+            async-2.2.5:base,
+            boring-0.2.2:base,
+            cborg-0.2.10.0:base,
+            cborg-0.2.10.0:containers,
+            foldable1-classes-compat-0.1.2:base,
+            free-5.2:template-haskell,
+            indexed-traversable-0.1.4:base,
+            indexed-traversable-0.1.4:containers,
+            indexed-traversable-instances-0.1.2:base,
+            lens-5.3.5:template-haskell,
+            optics-core-0.4.1.1:containers,
+            ordered-containers-0.2.4:containers,
+            pqueue-1.6.0.0:base,
+            semialign-1.3.1:base,
+            semialign-1.3.1:containers,
+            text-iso8601-0.1.1:time,
+            these-1.2.1:base,
+            time-compat-1.9.8:base,
+            time-compat-1.9.8:time,
+            time-iso8601-0.1.1:time,
+            tree-diff-0.3.4:base,
+            tree-diff-0.3.4:containers,
+            tree-diff-0.3.4:time,
+            tree-diff-0.3.4:QuickCheck,
+            quickcheck-instances-0.3.33:base,
+            quickcheck-instances-0.3.33:containers,
+            quickcheck-instances-0.3.33:QuickCheck,
+            uuid-types-1.0.6:template-haskell,
           EOF
           $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(scls-cardano|scls-core|scls-format|scls-cbor|mempack-scls|merkle-tree-incremental)$/; }' >> cabal.project.local
           cat cabal.project
