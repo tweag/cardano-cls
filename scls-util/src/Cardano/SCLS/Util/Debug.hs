@@ -10,7 +10,6 @@ import Cardano.SCLS.CDDL
 import Cardano.SCLS.Internal.Reader
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.External.Impl qualified as External (serialize)
-import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
@@ -25,6 +24,7 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
   buildResolvedCTree,
  )
 import Codec.CBOR.Cuddle.Huddle
+import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
 import Control.Monad (replicateM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Base16 qualified as Base16
@@ -35,14 +35,16 @@ import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.MemPack.Extra
 import Data.Text qualified as T
+import GHC.TypeNats (KnownNat)
 import Streaming.Prelude qualified as S
 import System.Random.Stateful (applyAtomicGen, globalStdGen, uniformByteStringM)
 
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
+import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
+import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol))
 import Cardano.SCLS.Util.Result
-import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
-import GHC.TypeNats
+import Cardano.Types.Namespace (Namespace)
 
 -- | Generate a scls file with random data for debugging purposes.
 generateDebugFile :: FilePath -> [(Namespace, Maybe Int)] -> IO Result
@@ -55,44 +57,41 @@ generateDebugFile outputFile namespaceEntries = do
       ( defaultSerializationPlan
           & addChunks do
             S.each
-              ( namespaceEntries <&> \(namespace, mCount) ->
-                  case Map.lookup (Namespace.asText namespace) namespaces of
+              ( namespaceEntries <&> \(namespace, mCount) -> do
+                  let namespaceSymbol = namespaceSymbolFromText (Namespace.asText namespace)
+                  case namespaceSymbol >>= (\ns -> (fmap ((,) ns)) (Map.lookup ns namespaces)) of
                     Nothing -> error $ "Unknown namespace: " ++ Namespace.asString namespace
-                    Just NamespaceInfo{..} -> do
+                    Just ((SomeNamespaceSymbol p), namespaceSpec) -> do
                       case buildMonoCTree =<< buildResolvedCTree (buildRefCTree $ asMap $ mapCDDLDropExt $ toCDDL namespaceSpec) of
                         Left err -> error $ "Failed to parse cuddle specification: " ++ show err
                         Right mt ->
-                          withSomeSNat namespaceKeySize \(snat :: SNat n) -> do
-                            withKnownNat snat do
-                              ( namespace
-                                  S.:> (generateNamespaceEntries @n (fromMaybe 16 mCount) mt & S.map SomeCBOREntry)
-                                )
+                          ( namespace
+                              S.:> (generateNamespaceEntries p (fromMaybe 16 mCount) mt & S.map SomeCBOREntry)
+                          )
               )
       )
   pure Ok
 
-generateNamespaceEntries :: forall n. (KnownNat n) => Int -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry n)) IO ()
-generateNamespaceEntries count spec = replicateM_ count do
-  let size = fromSNat @n SNat
+generateNamespaceEntries :: (KnownNat (NamespaceKeySize ns)) => proxy ns -> Int -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry (NamespaceKeySize ns))) IO ()
+generateNamespaceEntries (_ :: proxy ns) count spec = replicateM_ count do
+  let size = namespaceKeySize @ns
   keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
   term <- liftIO $ applyAtomicGen (generateCBORTerm' spec (Name (T.pack "record_entry"))) globalStdGen
-  S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @n keyIn) (mkCBORTerm term)
+  S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm term)
 
 printHexEntries :: FilePath -> T.Text -> Int -> IO Result
 printHexEntries filePath ns_name@(Namespace.fromText -> ns) entryNo = do
-  case Map.lookup ns_name namespaces of
+  case namespaceSymbolFromText ns_name of
     Nothing -> do
       putStrLn "Can't decode namespace, I don't know its key size"
       pure OtherError
-    Just (NamespaceInfo _spec ks) -> do
-      withSomeSNat ks \(snat :: SNat n) -> do
-        withKnownNat snat do
-          withNamespacedData @(ChunkEntry (ByteStringSized n) RawBytes) filePath ns $ \stream -> do
-            stream
-              & S.drop entryNo
-              & S.take 1
-              & S.mapM_ \ChunkEntry{chunkEntryKey = ByteStringSized k, chunkEntryValue = RawBytes b} -> do
-                B8.putStrLn $ "Key: " <> Base16.encode k
-                putStrLn "Data (hex):"
-                B8.putStrLn $ Base16.encode b
+    Just (SomeNamespaceSymbol (_ :: proxy ns)) -> do
+      withNamespacedData @(ChunkEntry (ByteStringSized (NamespaceKeySize ns)) RawBytes) filePath ns $ \stream -> do
+        stream
+          & S.drop entryNo
+          & S.take 1
+          & S.mapM_ \ChunkEntry{chunkEntryKey = ByteStringSized k, chunkEntryValue = RawBytes b} -> do
+            B8.putStrLn $ "Key: " <> Base16.encode k
+            putStrLn "Data (hex):"
+            B8.putStrLn $ Base16.encode b
       pure Ok

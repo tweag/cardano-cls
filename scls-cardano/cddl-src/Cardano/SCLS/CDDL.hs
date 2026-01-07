@@ -6,8 +6,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.SCLS.CDDL (
-  NamespaceInfo (..),
   namespaces,
+  namespaceSymbolFromText,
 ) where
 
 import Cardano.SCLS.Namespace.Blocks qualified as Blocks
@@ -21,25 +21,24 @@ import Cardano.SCLS.Namespace.Pots qualified as Pots
 import Cardano.SCLS.Namespace.Snapshots qualified as Snapshots
 import Cardano.SCLS.Namespace.UTxO qualified as UTxO
 import Cardano.SCLS.NamespaceKey qualified as Spec
+import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (..), toString)
 import Codec.CBOR.Cuddle.Huddle (Huddle, HuddleItem (HIRule), Rule, collectFromInit)
+import Data.List (find)
 import Data.Map.Strict qualified as Map
 import Data.Proxy
 import Data.Text (Text)
 import Data.Text qualified as T
-import GHC.TypeLits (KnownNat, KnownSymbol, symbolVal)
-import GHC.TypeNats (fromSNat, pattern SNat)
-import Numeric.Natural (Natural)
+import GHC.TypeLits (KnownNat, KnownSymbol)
 
--- | Various information about supported namespaces.
-data NamespaceInfo = NamespaceInfo
-  { namespaceSpec :: !Huddle
-  -- ^ Specification for the namespace entries.
-  , namespaceKeySize :: !Natural
-  -- ^ Size of the keys in the namespace.
-  }
+{- | Lookup a namespace symbol from its text representation.
+| Returns 'Nothing' if the namespace is not known.
+-}
+namespaceSymbolFromText :: Text -> Maybe SomeNamespaceSymbol
+namespaceSymbolFromText t =
+  find (\ns -> T.pack (toString ns) == t) (Map.keys namespaces)
 
 -- | List of the namespaces known to the SCLS utilities.
-namespaces :: Map.Map Text NamespaceInfo
+namespaces :: Map.Map SomeNamespaceSymbol Huddle
 namespaces =
   Map.fromList
     [ mkDefinition @"utxo/v0" UTxO.record_entry
@@ -54,15 +53,10 @@ namespaces =
     , mkDefinition @"gov/proposals/v0" GovProposals.record_entry
     ]
 
-mkDefinition :: forall ns. (KnownSymbol ns, KnownNat (Spec.NamespaceKeySize ns)) => Rule -> (Text, NamespaceInfo)
-mkDefinition r =
-  ( n
-  , NamespaceInfo
-      (collectFromInit [HIRule r])
-      (fromSNat $ SNat @(Spec.NamespaceKeySize ns))
-  )
+mkDefinition :: forall ns. (KnownSymbol ns, KnownNat (Spec.NamespaceKeySize ns)) => Rule -> (SomeNamespaceSymbol, Huddle)
+mkDefinition r = (n, (collectFromInit [HIRule r]))
  where
-  n = T.pack (symbolVal (Proxy @ns))
+  n = SomeNamespaceSymbol (Proxy @ns)
 
 type instance Spec.NamespaceKeySize "utxo/v0" = 34
 type instance Spec.NamespaceKeySize "blocks/v0" = 36 -- 28 bytes for key, and 8 for epoch in BE

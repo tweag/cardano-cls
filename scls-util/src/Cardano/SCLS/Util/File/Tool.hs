@@ -11,6 +11,8 @@ import Cardano.SCLS.Internal.Record.Hdr (Hdr (..))
 import Cardano.SCLS.Internal.Serializer.Dump
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan, mkSortedSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.External.Impl (serialize)
+import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
+import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol))
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
@@ -25,8 +27,6 @@ import Data.Function ((&))
 import Data.Map.Strict qualified as Map
 import Data.MemPack.Extra
 import Data.Text qualified as T
-import GHC.TypeLits hiding (withSomeSNat)
-import GHC.TypeNats (withSomeSNat)
 import Streaming qualified as S
 import Streaming.Prelude qualified as S
 import System.Directory (createDirectoryIfMissing)
@@ -183,19 +183,17 @@ unpack sourceFile unpackOutputFile unpackNamespace UnpackOptions{..} = do
       let namespace = Namespace.fromText unpackNamespace
 
       withBinaryFile unpackOutputFile WriteMode $ \outputHandle -> do
-        case Map.lookup unpackNamespace namespaces of
+        case namespaceSymbolFromText unpackNamespace of
           Nothing -> do
             putStrLn $ "Unknown namespace: " ++ Namespace.asString namespace
             pure OtherError
-          Just NamespaceInfo{namespaceKeySize = keySize} -> do
-            withSomeSNat keySize \(snat :: SNat n) -> do
-              withKnownNat snat do
-                withNamespacedData @(GenericCBOREntry n) sourceFile namespace $ \stream -> do
-                  stream
-                    & S.mapM_ \(GenericCBOREntry (ChunkEntry (ByteStringSized k) b)) ->
-                      BL.hPut outputHandle $
-                        CBOR.toLazyByteString $
-                          CBOR.encodeListLen 2 <> CBOR.encodeBytes k <> CBOR.encodePreEncoded (getEncodedBytes b)
+          Just (SomeNamespaceSymbol (_ :: proxy ns)) -> do
+            withNamespacedData @(GenericCBOREntry (NamespaceKeySize ns)) sourceFile namespace $ \stream -> do
+              stream
+                & S.mapM_ \(GenericCBOREntry (ChunkEntry (ByteStringSized k) b)) ->
+                  BL.hPut outputHandle $
+                    CBOR.toLazyByteString $
+                      CBOR.encodeListLen 2 <> CBOR.encodeBytes k <> CBOR.encodePreEncoded (getEncodedBytes b)
             pure Ok
     \(e :: SomeException) -> do
       putStrLn $ "Error: " ++ show e

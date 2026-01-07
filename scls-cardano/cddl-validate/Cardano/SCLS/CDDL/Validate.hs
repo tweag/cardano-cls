@@ -8,6 +8,7 @@ module Cardano.SCLS.CDDL.Validate (
 ) where
 
 import Cardano.SCLS.CDDL
+import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol)
 import Codec.CBOR.Cuddle.CBOR.Validator (CBORTermResult (..), validateCBOR)
 import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.CTree (CTreeRoot (..))
@@ -26,11 +27,11 @@ import Data.Map.Strict qualified as Map
 import Data.Text (Text)
 
 -- | Pre-compiled CDDL specifications for all supported namespaces.
-invalidSpecs :: Map.Map Text NameResolutionFailure
-validSpecs :: Map.Map Text (CTreeRoot Codec.CBOR.Cuddle.CDDL.Resolve.MonoReferenced)
+invalidSpecs :: Map.Map SomeNamespaceSymbol NameResolutionFailure
+validSpecs :: Map.Map SomeNamespaceSymbol (CTreeRoot Codec.CBOR.Cuddle.CDDL.Resolve.MonoReferenced)
 (invalidSpecs, validSpecs) = Map.mapEither
   do
-    \NamespaceInfo{..} -> do
+    \namespaceSpec -> do
       case buildMonoCTree =<< buildResolvedCTree (buildRefCTree $ asMap $ mapCDDLDropExt $ toCDDL namespaceSpec) of
         Left e -> Left e
         Right tree -> Right tree
@@ -39,5 +40,5 @@ validSpecs :: Map.Map Text (CTreeRoot Codec.CBOR.Cuddle.CDDL.Resolve.MonoReferen
 -- | Validate raw bytes against a rule in the namespace.
 validateBytesAgainst :: ByteString -> Text -> Text -> Maybe CBORTermResult
 validateBytesAgainst bytes namespace name = do
-  cddl <- Map.lookup namespace validSpecs
+  cddl <- namespaceSymbolFromText namespace >>= flip Map.lookup validSpecs
   pure $ validateCBOR bytes (Name name) (mapIndex cddl)
