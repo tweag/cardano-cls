@@ -102,24 +102,24 @@ gov_pparams_out =
         , "key_deposit" ==> coin
         , "max_tx_size" ==> VUInt `sized` (4 :: Word64)
         , "drep_deposit" ==> coin
+        , "max_val_size" ==> VUInt `sized` (4 :: Word64)
         , "pool_deposit" ==> coin
+        , "drep_activity" ==> epoch_interval
         , "min_pool_cost" ==> coin
         , "max_block_size" ==> VUInt `sized` (4 :: Word64)
-        , "max_val_size" ==> VUInt `sized` (4 :: Word64)
         , "max_tx_ex_units" ==> ex_units
         , "protocol_version" ==> protocol_version
         , "coin_per_utxo_byte" ==> coin
         , "gov_action_deposit" ==> coin
         , "max_block_ex_units" ==> ex_units
         , "min_committee_size" ==> VUInt `sized` (2 :: Word64)
+        , "gov_action_lifetime" ==> epoch_interval
         , "committee_term_limit" ==> epoch_interval
         , "collateral_percentage" ==> VUInt `sized` (2 :: Word64)
-        , "drep_voting_thresholds" ==> drep_voting_thresholds
-        , "gov_action_lifetime" ==> epoch_interval
         , "max_block_header_size" ==> VUInt `sized` (2 :: Word64)
         , "max_collateral_inputs" ==> VUInt `sized` (2 :: Word64)
+        , "drep_voting_thresholds" ==> drep_voting_thresholds
         , "pool_voting_thresholds" ==> pool_voting_thresholds
-        , "drep_activity" ==> epoch_interval
         , "min_fee_ref_script_cost_per_byte" ==> (nonnegative_interval / VNil)
         ]
 

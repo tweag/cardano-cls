@@ -55,11 +55,11 @@ proposal :: Rule
 proposal =
   "proposal"
     =:= mp
-      [ "proposed_in" ==> epoch_no
+      [ "drep_votes" ==> mp [0 <+ asKey credential ==> coin]
+      , "proposed_in" ==> epoch_no
       , "expires_after" ==> epoch_no
-      , "drep_votes" ==> mp [0 <+ asKey credential ==> coin]
-      , "stake_pool_votes" ==> mp [0 <+ asKey pool_keyhash ==> coin]
       , "committee_votes" ==> mp [0 <+ asKey committee_cold_credential ==> coin]
+      , "stake_pool_votes" ==> mp [0 <+ asKey pool_keyhash ==> coin]
       , "proposal_procedure" ==> proposal_procedure
       ]
 
@@ -69,8 +69,8 @@ proposal_procedure =
     =:= mp
       [ "anchor" ==> anchor
       , "deposit" ==> coin
-      , "return_address" ==> reward_account
       , "gov_action" ==> gov_action
+      , "return_address" ==> reward_account
       ]
 
 gov_action :: Rule
@@ -153,8 +153,8 @@ gov_params_update =
         , "key_deposit" ==> (coin / VNil)
         , "max_tx_size" ==> (VUInt `sized` (4 :: Word64) / VNil)
         , "drep_deposit" ==> (coin / VNil)
-        , "pool_deposit" ==> (coin / VNil)
         , "max_val_size" ==> (VUInt `sized` (4 :: Word64) / VNil)
+        , "pool_deposit" ==> (coin / VNil)
         , "drep_activity" ==> (epoch_interval / VNil)
         , "min_pool_cost" ==> (coin / VNil)
         , "max_block_size" ==> (VUInt `sized` (4 :: Word64) / VNil)
@@ -163,12 +163,12 @@ gov_params_update =
         , "gov_action_deposit" ==> (coin / VNil)
         , "max_block_ex_units" ==> (ex_units / VNil)
         , "min_committee_size" ==> (VUInt `sized` (2 :: Word64) / VNil)
+        , "gov_action_lifetime" ==> (epoch_interval / VNil)
         , "committee_term_limit" ==> (epoch_interval / VNil)
         , "collateral_percentage" ==> (VUInt `sized` (2 :: Word64) / VNil)
-        , "drep_voting_thresholds" ==> (drep_voting_thresholds / VNil)
-        , "gov_action_lifetime" ==> (epoch_interval / VNil)
         , "max_block_header_size" ==> (VUInt `sized` (2 :: Word64) / VNil)
         , "max_collateral_inputs" ==> (VUInt `sized` (2 :: Word64) / VNil)
+        , "drep_voting_thresholds" ==> (drep_voting_thresholds / VNil)
         , "pool_voting_thresholds" ==> (pool_voting_thresholds / VNil)
         , "min_fee_ref_script_cost_per_byte" ==> (nonnegative_interval / VNil)
         ]

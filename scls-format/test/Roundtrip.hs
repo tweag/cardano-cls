@@ -6,7 +6,8 @@ module Roundtrip (
   tests,
 ) where
 
-import Cardano.SCLS.CDDL (NamespaceInfo (..), namespaces)
+import Cardano.SCLS.CBOR.Canonical.Encoder (canonicalizeTerm)
+import Cardano.SCLS.CDDL (namespaces)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (ChunkEntry))
 import Cardano.SCLS.Internal.Hash (Digest (..))
@@ -18,6 +19,8 @@ import Cardano.SCLS.Internal.Serializer.Dump.Plan (SerializationPlan, addChunks,
 import Cardano.SCLS.Internal.Serializer.External.Impl qualified as External (serialize)
 import Cardano.SCLS.Internal.Serializer.HasKey (nubByKey, sortByKey)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
+import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
+import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (..), toString)
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
@@ -31,9 +34,6 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
  )
 import Codec.CBOR.Cuddle.Huddle (toCDDL)
 import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
-import Codec.CBOR.Read
-import Codec.CBOR.Term
-import Codec.CBOR.Write
 import Control.Monad (replicateM)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
@@ -43,7 +43,6 @@ import Data.MemPack.Extra
 import Data.Text qualified as T
 import Data.Time (getCurrentTime)
 import Data.Time.Format.ISO8601 (ISO8601 (iso8601Format), formatParseM)
-import GHC.TypeNats
 import Streaming.Prelude qualified as S
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
@@ -61,8 +60,8 @@ mkRoundtripTestsFor :: String -> SerializeF -> Spec
 mkRoundtripTestsFor groupName serialize =
   describe groupName $ do
     sequence_
-      [ context (Namespace.asString n) $ it "should succeed with stream roundtrip" $ roundtrip n (namespaceKeySize ns, mapCDDLDropExt $ toCDDL (namespaceSpec ns))
-      | (Namespace.fromText -> n, ns) <- Map.toList namespaces
+      [ context (toString n) $ it "should succeed with stream roundtrip" $ roundtrip n (mapCDDLDropExt $ toCDDL namespaceSpec)
+      | (n, namespaceSpec) <- Map.toList namespaces
       ]
     it "should write/read manifest comment" $ do
       withSystemTempDirectory "scls-format-test-XXXXXX" $ \fn -> do
@@ -101,18 +100,18 @@ mkRoundtripTestsFor groupName serialize =
           )
           fileName
  where
-  roundtrip namespace (kSize, cddl) = do
+  roundtrip (SomeNamespaceSymbol (p :: proxy ns)) cddl = do
     case buildMonoCTree =<< buildResolvedCTree (buildRefCTree $ asMap cddl) of
       Left err -> expectationFailure $ "Failed to build CTree: " ++ show err
       Right mt -> withSystemTempDirectory "scls-format-test-XXXXXX" $ \fn -> do
+        let kSize = namespaceKeySize @ns
+            namespace = Namespace.fromSymbol p
         entries <-
-          withSomeSNat kSize \(snat :: SNat n) -> do
-            withKnownNat snat do
-              fmap nubByKey $ replicateM 1024 $ do
-                key <- uniformByteStringM (fromIntegral kSize) globalStdGen
-                term <- applyAtomicGen (generateCBORTerm' mt (Name (T.pack "record_entry"))) globalStdGen
-                Right (_, canonicalTerm) <- pure $ deserialiseFromBytes decodeTerm $ toLazyByteString (encodeTerm term)
-                pure $! SomeCBOREntry (GenericCBOREntry $ ChunkEntry (ByteStringSized @n key) (mkCBORTerm canonicalTerm))
+          fmap nubByKey $ replicateM 1024 $ do
+            key <- uniformByteStringM kSize globalStdGen
+            term <- applyAtomicGen (generateCBORTerm' mt (Name (T.pack "record_entry"))) globalStdGen
+            Right canonicalTerm <- pure $ canonicalizeTerm p term
+            pure $! SomeCBOREntry (GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) key) (mkCBORTerm canonicalTerm))
         mEntries <-
           replicateM 1024 $ do
             MetadataEntry
@@ -136,18 +135,16 @@ mkRoundtripTestsFor groupName serialize =
                 $ hdr
                   `shouldBe` mkHdr Mainnet (SlotNo 1)
           )
-        withSomeSNat kSize \(snat :: SNat n) -> do
-          withKnownNat snat do
-            withNamespacedData
-              fileName
-              namespace
-              ( \stream -> do
-                  decoded_data <- S.toList_ stream
-                  annotate
-                    "Stream roundtrip successful"
-                    $ [SomeCBOREntry e | (e :: GenericCBOREntry n) <- decoded_data]
-                      `shouldBe` (sortByKey entries)
-              )
+        withNamespacedData
+          fileName
+          namespace
+          ( \stream -> do
+              decoded_data <- S.toList_ stream
+              annotate
+                "Stream roundtrip successful"
+                $ [SomeCBOREntry e | (e :: GenericCBOREntry (NamespaceKeySize ns)) <- decoded_data]
+                  `shouldBe` (sortByKey entries)
+          )
         -- Check roundtrip of root hash
         file_digest <- extractRootHash fileName
         expected_digest <-

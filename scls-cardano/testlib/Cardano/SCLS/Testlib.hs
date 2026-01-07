@@ -109,7 +109,7 @@ propTypeConformsToSpec t = \a ->
 propNamespaceEntryIsCanonical :: forall ns. (KnownSymbol ns, KnownNamespace ns, Arbitrary (NamespaceEntry ns)) => NamespaceEntry ns -> IO ()
 propNamespaceEntryIsCanonical = \a ->
   let encodedData = toFlatTerm (getRawEncoding $ encodeEntry @ns a)
-   in case fromFlatTerm (decodeTerm) encodedData of
+   in case fromFlatTerm decodeTerm encodedData of
         Right decodedAsTerm -> annotate "(b, t) = decode @Term (encode x)" $ do
           let encodedTerm = toFlatTerm (getRawEncoding $ toCanonicalCBOR (Proxy @ns) decodedAsTerm)
           encodedTerm `shouldBe` encodedData
