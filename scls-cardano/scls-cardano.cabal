@@ -25,6 +25,7 @@ library
   import: warnings
   exposed-modules:
     Cardano.SCLS.CDDL
+    Cardano.SCLS.NamespaceSymbol
 
   other-modules:
     Cardano.SCLS.Common
