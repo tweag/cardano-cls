@@ -135,7 +135,7 @@ check filePath = do
         putStrLn "Warning!\n Some namespaces failed to resolve CDDL schemas:"
         for_ (Map.toList failedNamespaces) $ \(ns, err) -> do
           putStrLn $ "  - Namespace: " ++ toString ns ++ ", Error: " ++ show err
-        putStrLn "It should never be happen, please contact upstream as the file verification may not work as intended"
+        putStrLn "This should never happen, please contact upstream as the file verification may not work as intended"
 
       let unknownNs = filter (isNothing . namespaceSymbolFromText . Namespace.asText) fileNamespaces
 
