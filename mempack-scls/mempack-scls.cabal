@@ -15,6 +15,7 @@ copyright: 2025 (c) Modus Create, Inc.
 category: Codec
 build-type: Simple
 extra-doc-files: CHANGELOG.md
+tested-with: ghc ==9.14.1 || ==9.12.1 || ==9.10.2
 
 flag use-mempack-1
   description: Use the old mempack package

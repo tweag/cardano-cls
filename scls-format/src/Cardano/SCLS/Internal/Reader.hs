@@ -110,7 +110,7 @@ extractNamespaceHash ns = withLatestManifestFrame \Manifest{..} ->
   pure (namespaceHash <$> Map.lookup ns nsInfo)
 
 data NotSCLSFile = NotSCLSFile
-  deriving (Show, Typeable, Exception)
+  deriving (Show, Exception)
 
 withLatestManifestFrame :: (Manifest -> IO r) -> FilePath -> IO r
 withLatestManifestFrame f filePath = do

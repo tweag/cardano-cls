@@ -11,6 +11,7 @@ author: Tweag IO Team <cardano-cls@tweag.io>
 copyright: 2025 (c) Modus Create, Inc.
 category: Codec
 build-type: Simple
+tested-with: ghc ==9.14.1 || ==9.12.1 || ==9.10.2
 
 common warnings
   ghc-options: -Wall
