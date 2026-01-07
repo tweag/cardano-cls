@@ -6,6 +6,9 @@ module Roundtrip (
   tests,
 ) where
 
+import Cardano.SCLS.CBOR.Canonical (CanonicalDecoder (getRawDecoder), CanonicalEncoding (getRawEncoding))
+import Cardano.SCLS.CBOR.Canonical.Decoder (FromCanonicalCBOR (fromCanonicalCBOR))
+import Cardano.SCLS.CBOR.Canonical.Encoder (ToCanonicalCBOR (toCanonicalCBOR))
 import Cardano.SCLS.CDDL (namespaces)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (ChunkEntry))
@@ -20,6 +23,7 @@ import Cardano.SCLS.Internal.Serializer.HasKey (nubByKey, sortByKey)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
 import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (..), toString)
+import Cardano.SCLS.Versioned (Versioned (Versioned))
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
@@ -33,9 +37,7 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
  )
 import Codec.CBOR.Cuddle.Huddle (toCDDL)
 import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
-import Codec.CBOR.Read
-import Codec.CBOR.Term
-import Codec.CBOR.Write
+import Codec.CBOR.FlatTerm
 import Control.Monad (replicateM)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
@@ -112,7 +114,7 @@ mkRoundtripTestsFor groupName serialize =
           fmap nubByKey $ replicateM 1024 $ do
             key <- uniformByteStringM kSize globalStdGen
             term <- applyAtomicGen (generateCBORTerm' mt (Name (T.pack "record_entry"))) globalStdGen
-            Right (_, canonicalTerm) <- pure $ deserialiseFromBytes decodeTerm $ toLazyByteString (encodeTerm term)
+            Right (Versioned canonicalTerm) <- pure $ fromFlatTerm (getRawDecoder fromCanonicalCBOR) $ toFlatTerm (getRawEncoding $ toCanonicalCBOR p term)
             pure $! SomeCBOREntry (GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) key) (mkCBORTerm canonicalTerm))
         mEntries <-
           replicateM 1024 $ do

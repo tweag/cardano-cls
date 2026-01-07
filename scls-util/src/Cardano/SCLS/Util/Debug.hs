@@ -25,6 +25,7 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
  )
 import Codec.CBOR.Cuddle.Huddle
 import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
+import Codec.CBOR.FlatTerm (fromFlatTerm, toFlatTerm)
 import Control.Monad (replicateM_)
 import Control.Monad.IO.Class (liftIO)
 import Data.ByteString.Base16 qualified as Base16
@@ -39,11 +40,15 @@ import GHC.TypeNats (KnownNat)
 import Streaming.Prelude qualified as S
 import System.Random.Stateful (applyAtomicGen, globalStdGen, uniformByteStringM)
 
+import Cardano.SCLS.CBOR.Canonical (CanonicalDecoder (getRawDecoder), CanonicalEncoding (getRawEncoding))
+import Cardano.SCLS.CBOR.Canonical.Decoder (FromCanonicalCBOR (fromCanonicalCBOR))
+import Cardano.SCLS.CBOR.Canonical.Encoder (ToCanonicalCBOR (toCanonicalCBOR))
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
 import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol))
 import Cardano.SCLS.Util.Result
+import Cardano.SCLS.Versioned (Versioned (Versioned))
 import Cardano.Types.Namespace (Namespace)
 
 -- | Generate a scls file with random data for debugging purposes.
@@ -73,11 +78,12 @@ generateDebugFile outputFile namespaceEntries = do
   pure Ok
 
 generateNamespaceEntries :: (KnownNat (NamespaceKeySize ns)) => proxy ns -> Int -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry (NamespaceKeySize ns))) IO ()
-generateNamespaceEntries (_ :: proxy ns) count spec = replicateM_ count do
+generateNamespaceEntries (p :: proxy ns) count spec = replicateM_ count do
   let size = namespaceKeySize @ns
   keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
   term <- liftIO $ applyAtomicGen (generateCBORTerm' spec (Name (T.pack "record_entry"))) globalStdGen
-  S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm term)
+  Right (Versioned canonicalTerm) <- pure $ fromFlatTerm (getRawDecoder fromCanonicalCBOR) $ toFlatTerm (getRawEncoding $ toCanonicalCBOR p term)
+  S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
 
 printHexEntries :: FilePath -> T.Text -> Int -> IO Result
 printHexEntries filePath ns_name@(Namespace.fromText -> ns) entryNo = do
