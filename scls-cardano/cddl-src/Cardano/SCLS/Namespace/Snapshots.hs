@@ -95,8 +95,8 @@ pool_params =
   "pool_params"
     =:= mp
       [ "cost" ==> coin
-      , "pledge" ==> coin
       , "margin" ==> unit_interval
+      , "pledge" ==> coin
       , "relays" ==> arr [0 <+ a relay]
       , "operator" ==> pool_keyhash
       , "pool_owners" ==> set addr_keyhash
