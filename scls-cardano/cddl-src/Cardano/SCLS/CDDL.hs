@@ -18,8 +18,9 @@ import Cardano.SCLS.Namespace.Pots qualified as Pots
 import Cardano.SCLS.Namespace.Snapshots qualified as Snapshots
 import Cardano.SCLS.Namespace.UTxO qualified as UTxO
 import Cardano.SCLS.NamespaceKey qualified as Spec
-import Cardano.SCLS.NamespaceSymbol (KnownSpec (..), SomeNamespaceSymbol (..), mkNamespaceSymbol)
+import Cardano.SCLS.NamespaceSymbol (KnownSpec (..), SomeNamespaceSymbol (..), mkNamespaceSymbol, toString)
 import Codec.CBOR.Cuddle.Huddle (Huddle, HuddleItem (HIRule), Rule, collectFromInit)
+import Data.List (find)
 import Data.Text (Text)
 import Data.Text qualified as T
 
@@ -28,18 +29,7 @@ import Data.Text qualified as T
 -}
 namespaceSymbolFromText :: Text -> Maybe SomeNamespaceSymbol
 namespaceSymbolFromText t =
-  case T.unpack t of
-    "utxo/v0" -> Just (mkNamespaceSymbol @"utxo/v0")
-    "blocks/v0" -> Just (mkNamespaceSymbol @"blocks/v0")
-    "pots/v0" -> Just (mkNamespaceSymbol @"pots/v0")
-    "pool_stake/v0" -> Just (mkNamespaceSymbol @"pool_stake/v0")
-    "snapshots/v0" -> Just (mkNamespaceSymbol @"snapshots/v0")
-    "nonces/v0" -> Just (mkNamespaceSymbol @"nonces/v0")
-    "gov/committee/v0" -> Just (mkNamespaceSymbol @"gov/committee/v0")
-    "gov/constitution/v0" -> Just (mkNamespaceSymbol @"gov/constitution/v0")
-    "gov/pparams/v0" -> Just (mkNamespaceSymbol @"gov/pparams/v0")
-    "gov/proposals/v0" -> Just (mkNamespaceSymbol @"gov/proposals/v0")
-    _ -> Nothing
+  find (\ns -> T.pack (toString ns) == t) namespaces
 
 instance KnownSpec "utxo/v0" where
   namespaceSpec _ = mkDefinition UTxO.record_entry
