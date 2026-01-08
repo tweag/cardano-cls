@@ -5,6 +5,7 @@
 module Cardano.SCLS.CDDL.Validate (
   validateBytesAgainst,
   invalidSpecs,
+  validSpecs,
 ) where
 
 import Cardano.SCLS.CDDL
