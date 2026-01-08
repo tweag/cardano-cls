@@ -13,6 +13,10 @@ import Codec.CBOR.Cuddle.Huddle (Huddle)
 import Data.Proxy (Proxy (..))
 import GHC.TypeLits (KnownNat, KnownSymbol, symbolVal)
 
+{- | An instance of 'KnownSpec' connects a type-level namespace symbol @ns@
+  with its corresponding specification encoded as a 'Huddle' value. Instances
+  of this class should be defined for each namespace.
+-}
 class (KnownSymbol ns) => KnownSpec ns where
   namespaceSpec :: proxy ns -> Huddle
 
