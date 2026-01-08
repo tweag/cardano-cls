@@ -30,7 +30,6 @@ library
     Cardano.SCLS.Util.Verify
 
   build-depends:
-    FailT,
     base >=4.18 && <5,
     base16-bytestring,
     bytestring,
@@ -45,12 +44,12 @@ library
     prettyprinter,
     random >=1.2,
     scls-cardano,
+    scls-cardano:validate,
     scls-cbor,
     scls-core,
     scls-format,
     streaming,
     text,
-    transformers,
 
   default-language: GHC2021
 
@@ -60,14 +59,9 @@ executable scls-util
   main-is: Main.hs
   build-depends:
     base >=4.18 && <5,
-    bytestring,
-    containers,
-    crypton,
-    merkle-tree-incremental,
     optparse-applicative,
     scls-format,
     scls-util,
-    streaming,
     text,
 
   default-language: GHC2021
@@ -90,13 +84,11 @@ test-suite scls-util-test
     base >=4.18 && <5,
     bytestring,
     containers,
-    crypton,
     directory,
     filepath,
     hspec,
     hspec-expectations,
     mempack-scls,
-    merkle-tree-incremental,
     process,
     scls-format,
     streaming,

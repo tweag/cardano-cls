@@ -41,7 +41,6 @@ library
 
   build-depends:
     base >=4.18 && <5,
-    containers >=0.6,
     cuddle >=1.1,
     heredoc >=0.2,
     scls-core,
@@ -102,7 +101,6 @@ executable gen-cddl
   main-is: Main.hs
   build-depends:
     base >=4.18 && <5,
-    containers >=0.6,
     cuddle >=1.1,
     directory >=1,
     filepath >=1.4,

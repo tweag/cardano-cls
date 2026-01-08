@@ -31,7 +31,6 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Char8 qualified as B8
 import Data.Function ((&))
 import Data.Functor ((<&>))
-import Data.Map.Strict qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.MemPack.Extra
 import Data.Text qualified as T
@@ -43,7 +42,7 @@ import Cardano.SCLS.CBOR.Canonical.Encoder (canonicalizeTerm)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
 import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
-import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol))
+import Cardano.SCLS.NamespaceSymbol (KnownSpec (namespaceSpec), SomeNamespaceSymbol (SomeNamespaceSymbol))
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
 
@@ -60,10 +59,10 @@ generateDebugFile outputFile namespaceEntries = do
             S.each
               ( namespaceEntries <&> \(namespace, mCount) -> do
                   let namespaceSymbol = namespaceSymbolFromText (Namespace.asText namespace)
-                  case namespaceSymbol >>= (\ns -> (fmap ((,) ns)) (Map.lookup ns namespaces)) of
+                  case namespaceSymbol of
                     Nothing -> error $ "Unknown namespace: " ++ Namespace.asString namespace
-                    Just ((SomeNamespaceSymbol p), namespaceSpec) -> do
-                      case buildMonoCTree =<< buildResolvedCTree (buildRefCTree $ asMap $ mapCDDLDropExt $ toCDDL namespaceSpec) of
+                    Just (SomeNamespaceSymbol p) -> do
+                      case buildMonoCTree =<< buildResolvedCTree (buildRefCTree $ asMap $ mapCDDLDropExt $ toCDDL (namespaceSpec p)) of
                         Left err -> error $ "Failed to parse cuddle specification: " ++ show err
                         Right mt ->
                           ( namespace

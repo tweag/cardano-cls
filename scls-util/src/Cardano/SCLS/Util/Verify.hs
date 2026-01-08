@@ -19,7 +19,8 @@ module Cardano.SCLS.Util.Verify (
 
 import Cardano.SCLS.CBOR.Canonical (getRawEncoding)
 import Cardano.SCLS.CBOR.Canonical.Encoder (toCanonicalCBOR)
-import Cardano.SCLS.CDDL (namespaceSymbolFromText, namespaces)
+import Cardano.SCLS.CDDL (namespaceSymbolFromText)
+import Cardano.SCLS.CDDL.Validate (invalidSpecs, validSpecs)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (..))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
 import Cardano.SCLS.Internal.Hash (Digest (..), digest, digestToString)
@@ -35,14 +36,8 @@ import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.CTree (CTreeRoot (..))
 import Codec.CBOR.Cuddle.CDDL.Resolve (
   MonoReferenced,
-  NameResolutionFailure (..),
-  asMap,
-  buildMonoCTree,
-  buildRefCTree,
-  buildResolvedCTree,
  )
-import Codec.CBOR.Cuddle.Huddle (Huddle, toCDDL)
-import Codec.CBOR.Cuddle.IndexMappable (IndexMappable (mapIndex), mapCDDLDropExt)
+import Codec.CBOR.Cuddle.IndexMappable (IndexMappable (mapIndex))
 import Codec.CBOR.Cuddle.Pretty ()
 import Codec.CBOR.Pretty
 import Codec.CBOR.Read (deserialiseFromBytes)
@@ -129,11 +124,10 @@ check filePath = do
       fileNamespaces <- extractNamespaceList filePath
 
       putStrLn "\n=== Namespace Analysis ==="
-      let (failedNamespaces, knownNamespaces) = processNamespaceInfo namespaces
 
-      unless (Map.null failedNamespaces) $ do
+      unless (Map.null invalidSpecs) $ do
         putStrLn "Warning!\n Some namespaces failed to resolve CDDL schemas:"
-        for_ (Map.toList failedNamespaces) $ \(ns, err) -> do
+        for_ (Map.toList invalidSpecs) $ \(ns, err) -> do
           putStrLn $ "  - Namespace: " ++ toString ns ++ ", Error: " ++ show err
         putStrLn "This should never happen, please contact upstream as the file verification may not work as intended"
 
@@ -149,7 +143,7 @@ check filePath = do
       putStrLn "\n=== Chunk Validation ==="
 
       results <- withRecordData filePath \stream -> do
-        S.toList_ $ S.mapM (validateChunk knownNamespaces) stream
+        S.toList_ $ S.mapM validateChunk stream
 
       let totalCount = length results
           failedCount = length $ filter (not . null . chunkErrors) results
@@ -175,15 +169,9 @@ check filePath = do
       putStrLn $ "Error: " ++ show e
       pure OtherError
 
--- | Build CDDL validation trees for all namespaces, skipping any that fail to compile.
-processNamespaceInfo :: Map.Map SomeNamespaceSymbol Huddle -> (Map.Map SomeNamespaceSymbol NameResolutionFailure, Map.Map SomeNamespaceSymbol (CTreeRoot MonoReferenced))
-processNamespaceInfo =
-  Map.mapEitherWithKey \_namespace namespaceSpec ->
-    buildMonoCTree =<< buildResolvedCTree (buildRefCTree $ asMap $ mapCDDLDropExt $ toCDDL namespaceSpec)
-
 -- | Validate a single chunk.
-validateChunk :: Map.Map SomeNamespaceSymbol (CTreeRoot MonoReferenced) -> Chunk -> IO ChunkCheckResult
-validateChunk cddlTrees Chunk{..} = do
+validateChunk :: Chunk -> IO ChunkCheckResult
+validateChunk Chunk{..} = do
   let nsSymbol = namespaceSymbolFromText (Namespace.asText chunkNamespace)
       isKnown = isJust nsSymbol
 
@@ -194,7 +182,7 @@ validateChunk cddlTrees Chunk{..} = do
           then [ChecksumMismatch chunkHash computedHash]
           else []
 
-  dataErrors <- case nsSymbol >>= (\p -> fmap ((,) p) (Map.lookup p cddlTrees)) of
+  dataErrors <- case nsSymbol >>= (\p -> fmap ((,) p) (Map.lookup p validSpecs)) of
     Nothing -> do
       -- We do not known how to decode values inside, so we just read the data
       -- this way we can calculate count and check digest

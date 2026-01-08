@@ -1,7 +1,4 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds #-}
-{-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE PatternSynonyms #-}
 {-# LANGUAGE TypeFamilies #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
@@ -21,42 +18,65 @@ import Cardano.SCLS.Namespace.Pots qualified as Pots
 import Cardano.SCLS.Namespace.Snapshots qualified as Snapshots
 import Cardano.SCLS.Namespace.UTxO qualified as UTxO
 import Cardano.SCLS.NamespaceKey qualified as Spec
-import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (..), toString)
+import Cardano.SCLS.NamespaceSymbol (KnownSpec (..), SomeNamespaceSymbol (..), mkNamespaceSymbol, toString)
 import Codec.CBOR.Cuddle.Huddle (Huddle, HuddleItem (HIRule), Rule, collectFromInit)
 import Data.List (find)
-import Data.Map.Strict qualified as Map
-import Data.Proxy
 import Data.Text (Text)
 import Data.Text qualified as T
-import GHC.TypeLits (KnownNat, KnownSymbol)
 
 {- | Lookup a namespace symbol from its text representation.
 | Returns 'Nothing' if the namespace is not known.
 -}
 namespaceSymbolFromText :: Text -> Maybe SomeNamespaceSymbol
 namespaceSymbolFromText t =
-  find (\ns -> T.pack (toString ns) == t) (Map.keys namespaces)
+  find (\ns -> T.pack (toString ns) == t) namespaces
 
--- | List of the namespaces known to the SCLS utilities.
-namespaces :: Map.Map SomeNamespaceSymbol Huddle
+instance KnownSpec "utxo/v0" where
+  namespaceSpec _ = mkDefinition UTxO.record_entry
+
+instance KnownSpec "blocks/v0" where
+  namespaceSpec _ = mkDefinition Blocks.record_entry
+
+instance KnownSpec "pots/v0" where
+  namespaceSpec _ = mkDefinition Pots.record_entry
+
+instance KnownSpec "pool_stake/v0" where
+  namespaceSpec _ = mkDefinition PoolStake.record_entry
+
+instance KnownSpec "snapshots/v0" where
+  namespaceSpec _ = mkDefinition Snapshots.record_entry
+
+instance KnownSpec "nonces/v0" where
+  namespaceSpec _ = mkDefinition Nonces.record_entry
+
+instance KnownSpec "gov/committee/v0" where
+  namespaceSpec _ = mkDefinition GovCommittee.record_entry
+
+instance KnownSpec "gov/constitution/v0" where
+  namespaceSpec _ = mkDefinition GovConstitution.record_entry
+
+instance KnownSpec "gov/pparams/v0" where
+  namespaceSpec _ = mkDefinition GovPParams.record_entry
+
+instance KnownSpec "gov/proposals/v0" where
+  namespaceSpec _ = mkDefinition GovProposals.record_entry
+
+mkDefinition :: Rule -> Huddle
+mkDefinition r = collectFromInit [HIRule r]
+
+namespaces :: [SomeNamespaceSymbol]
 namespaces =
-  Map.fromList
-    [ mkDefinition @"utxo/v0" UTxO.record_entry
-    , mkDefinition @"blocks/v0" Blocks.record_entry
-    , mkDefinition @"pots/v0" Pots.record_entry
-    , mkDefinition @"pool_stake/v0" PoolStake.record_entry
-    , mkDefinition @"snapshots/v0" Snapshots.record_entry
-    , mkDefinition @"nonces/v0" Nonces.record_entry
-    , mkDefinition @"gov/committee/v0" GovCommittee.record_entry
-    , mkDefinition @"gov/constitution/v0" GovConstitution.record_entry
-    , mkDefinition @"gov/pparams/v0" GovPParams.record_entry
-    , mkDefinition @"gov/proposals/v0" GovProposals.record_entry
-    ]
-
-mkDefinition :: forall ns. (KnownSymbol ns, KnownNat (Spec.NamespaceKeySize ns)) => Rule -> (SomeNamespaceSymbol, Huddle)
-mkDefinition r = (n, (collectFromInit [HIRule r]))
- where
-  n = SomeNamespaceSymbol (Proxy @ns)
+  [ mkNamespaceSymbol @"utxo/v0"
+  , mkNamespaceSymbol @"blocks/v0"
+  , mkNamespaceSymbol @"pots/v0"
+  , mkNamespaceSymbol @"pool_stake/v0"
+  , mkNamespaceSymbol @"snapshots/v0"
+  , mkNamespaceSymbol @"nonces/v0"
+  , mkNamespaceSymbol @"gov/committee/v0"
+  , mkNamespaceSymbol @"gov/constitution/v0"
+  , mkNamespaceSymbol @"gov/pparams/v0"
+  , mkNamespaceSymbol @"gov/proposals/v0"
+  ]
 
 type instance Spec.NamespaceKeySize "utxo/v0" = 34
 type instance Spec.NamespaceKeySize "blocks/v0" = 36 -- 28 bytes for key, and 8 for epoch in BE
