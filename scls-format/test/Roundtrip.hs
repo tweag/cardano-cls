@@ -20,7 +20,7 @@ import Cardano.SCLS.Internal.Serializer.External.Impl qualified as External (ser
 import Cardano.SCLS.Internal.Serializer.HasKey (nubByKey, sortByKey)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
 import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
-import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (..), toString)
+import Cardano.SCLS.NamespaceSymbol (KnownSpec (namespaceSpec), SomeNamespaceSymbol (..), toString)
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
@@ -37,7 +37,6 @@ import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
 import Control.Monad (replicateM)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
-import Data.Map.Strict qualified as Map
 import Data.MemPack
 import Data.MemPack.Extra
 import Data.Text qualified as T
@@ -60,8 +59,8 @@ mkRoundtripTestsFor :: String -> SerializeF -> Spec
 mkRoundtripTestsFor groupName serialize =
   describe groupName $ do
     sequence_
-      [ context (toString n) $ it "should succeed with stream roundtrip" $ roundtrip n (mapCDDLDropExt $ toCDDL namespaceSpec)
-      | (n, namespaceSpec) <- Map.toList namespaces
+      [ context (toString n) $ it "should succeed with stream roundtrip" $ roundtrip n (mapCDDLDropExt $ toCDDL (namespaceSpec p))
+      | n@(SomeNamespaceSymbol p) <- namespaces
       ]
     it "should write/read manifest comment" $ do
       withSystemTempDirectory "scls-format-test-XXXXXX" $ \fn -> do
