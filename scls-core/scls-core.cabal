@@ -28,6 +28,7 @@ library
     Cardano.SCLS.Entry.IsKey
     Cardano.SCLS.NamespaceCodec
     Cardano.SCLS.NamespaceKey
+    Cardano.SCLS.NamespaceSymbol
     Cardano.SCLS.Versioned
 
   -- other-modules:
