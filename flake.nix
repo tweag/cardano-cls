@@ -60,7 +60,8 @@
             default = p.shell.overrideAttrs (old: {
               shellHook = old.shellHook + pre-commit-check.shellHook;
 
-              buildInputs = old.buildInputs ++ pre-commit-check.enabledPackages;
+              buildInputs = old.buildInputs ++ pre-commit-check.enabledPackages
+                ++ [ pkgs.kaitai-struct-compiler ];
             });
           };
         in mkDevShells cardanoCanonicalLedger // lib.mapAttrs

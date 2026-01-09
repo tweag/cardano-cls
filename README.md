@@ -19,7 +19,7 @@ or
 
 See the [docs](./docs) directory for detailed documentation.
 
-To generate cddl files use 
+To generate cddl files use
 
 ```
 cabal run gen-cddl -- target_directory
