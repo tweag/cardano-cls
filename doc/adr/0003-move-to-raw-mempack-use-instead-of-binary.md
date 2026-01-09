@@ -16,7 +16,7 @@ Binary package suits well for incremental reading of the infinite streams of dat
 
 Current format is structured as a chunked format and works best if chunk is loaded directly into the memory as a single structure.
 
-`mempack` library is imlemented to support this scenario well.
+`mempack` library is implemented to support this scenario well.
 
 We already use and define `mempack` instances.
 
