@@ -52,7 +52,7 @@
         legacyPackages = { inherit cardanoCanonicalLedger pkgs; };
 
         checks = {
-          formatting = treefmtEval.${pkgs.system}.config.build.check self;
+          formatting = treefmtEval.config.build.check self;
         };
 
         devShells = let
