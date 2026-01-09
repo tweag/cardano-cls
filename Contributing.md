@@ -121,6 +121,15 @@ To run tests in the project directory run command:
 cabal test all
 ```
 
+To test that generated file matches the kaitai specification run:
+
+``` sh
+nix develop -c bash -- ./scripts/validate-file.sh
+```
+
+It will download latest specification, generate a scls file and validate file against
+the specification.
+
 ## Generating documentation and setting up hoogle
 
 To generate documentation run
