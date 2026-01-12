@@ -12,6 +12,10 @@ import Cardano.SCLS.Util.Result
 import Cardano.SCLS.Util.Verify
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
+import Control.Monad.Catch
+import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Logger
+import Control.Monad.Trans.Resource
 import Data.Text (Text)
 import Data.Text qualified as T
 import Options.Applicative
@@ -243,11 +247,12 @@ main = do
             <> progDesc "SCLS Utility Tool is used to inspect and manipulate SCLS files."
             <> header "scls-util - A utility for working with SCLS files"
         )
-  result <- runCommand (optCommand opts)
+  result <-
+    runStderrLoggingT $ runCommand (optCommand opts)
   exitWith $ toErrorCode result
 
 -- | Execute the selected command
-runCommand :: Command -> IO Result
+runCommand :: (MonadLogger m, MonadCatch m, MonadIO m, MonadUnliftIO m) => Command -> m Result
 runCommand = \case
   Checksum checksumCmd -> runChecksumCmd checksumCmd
   File fileName fileCmd -> File.runFileCmd fileName fileCmd

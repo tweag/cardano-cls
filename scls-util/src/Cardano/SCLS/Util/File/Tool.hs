@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 -- | File manipulation utilities for SCLS files.
@@ -21,9 +22,11 @@ import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Codec.CBOR.Encoding qualified as CBOR
 import Codec.CBOR.Write qualified as CBOR
-import Control.Exception (SomeException, catch)
 import Control.Monad (foldM)
-import Control.Monad.Trans.Resource (allocate, runResourceT)
+import Control.Monad.Trans.Resource (allocate, runResourceT, MonadUnliftIO)
+import Control.Monad.Catch (MonadCatch, SomeException, catch)
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger
 import Data.ByteString.Lazy qualified as BL
 import Data.Function ((&))
 import Data.Map.Strict qualified as Map
@@ -46,57 +49,57 @@ data SplitOptions = SplitOptions
 Takes a source SCLS file and an output directory, and creates separate files
 for each namespace found in the source file.
 -}
-splitFile :: FilePath -> FilePath -> SplitOptions -> IO Result
-splitFile sourceFile outputDir SplitOptions{..} = do
-  output $ "Splitting file: " ++ sourceFile
-  output $ "Output directory: " ++ outputDir
+splitFile :: (MonadCatch m, MonadIO m, MonadLogger m) => FilePath -> FilePath -> SplitOptions -> m Result
+splitFile sourceFile outputDir SplitOptions{} = do
+  logInfoN $ "Splitting file: " <> T.pack sourceFile
+  logInfoN $ "Output directory: " <> T.pack outputDir
   catch
     do
-      createDirectoryIfMissing True outputDir
-      hdr <- withHeader sourceFile pure
-      fileNamespaces <- extractNamespaceList sourceFile
+      (hdr, fileNamespaces) <-
+        liftIO do
+          createDirectoryIfMissing True outputDir
+          hdr <- withHeader sourceFile pure
+          fileNamespaces <- extractNamespaceList sourceFile
+          pure (hdr, fileNamespaces)
 
       mapM_
         ( \ns -> do
             let outputFile = outputDir </> Namespace.humanFileNameFor ns
-            output $ "  Creating " ++ outputFile ++ " for namespace " ++ Namespace.asString ns
+            logDebugN $ "  Creating " <> T.pack outputFile <> " for namespace " <> Namespace.asText ns
 
-            withBinaryFile outputFile WriteMode $ \handle -> do
-              withBinaryFile sourceFile ReadMode $ \sourceHandle ->
-                runResourceT $ withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
-                  let dataStream = S.yield (ns S.:> stream)
-                  -- namespace-specific data should be sorted, so we can assume that and dump directly
-                  dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
+            runResourceT $ do
+              handle <- allocate (openBinaryFile outputFile WriteMode)
+              sourceHandle <- allocate (openBinaryFile sourceFile ReadMode)
+              withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
+                let dataStream = S.yield (ns S.:> stream)
+                -- namespace-specific data should be sorted, so we can assume that and dump directly
+                dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
         )
         fileNamespaces
 
-      output $ "Split complete. Generated these files:"
-      mapM_ (putStrLn . ("  - " ++) . (outputDir </>) . Namespace.humanFileNameFor) fileNamespaces
+      logInfoN $ "Split complete. Generated these files:"
+      mapM_ (logInfoN . ("  - " <>) . (T.pack . (outputDir </>)) . Namespace.humanFileNameFor) fileNamespaces
       pure Ok
     \(e :: SomeException) -> do
-      putStrLn $ "Error: " ++ show e
+      logErrorN $ "Error: " <> T.pack (show e)
       pure OtherError
- where
-  output
-    | splitIsQuiet = \_ -> pure ()
-    | otherwise = putStrLn
 
 {- | Merge multiple SCLS files into a single output file.
 
 Takes a list of input files and combines their namespace data into a single
 output file.
 -}
-mergeFiles :: FilePath -> [FilePath] -> IO Result
+mergeFiles :: (MonadCatch m, MonadLogger m, MonadIO m) => FilePath -> [FilePath] -> m Result
 mergeFiles _ [] = do
-  putStrLn "No source files provided for merging"
+  logErrorN "No source files provided for merging"
   pure OtherError
 mergeFiles outputFile sourceFiles = do
-  putStrLn $ "Merging " ++ show (length sourceFiles) ++ " file(s) into: " ++ outputFile
+  logInfoN $ "Merging " <> T.pack (show (length sourceFiles)) <> " file(s) into: " <> T.pack outputFile
   catch
     do
-      nsToFiles <- Map.toList <$> collectNamespaceFiles sourceFiles
+      nsToFiles <- Map.toList <$> liftIO $ collectNamespaceFiles sourceFiles
 
-      putStrLn $ "Found " ++ show (length nsToFiles) ++ " unique namespace(s)"
+      logInfoN $ "Found " <> T.pack (show (length nsToFiles)) <> " unique namespace(s)"
 
       runResourceT $ do
         let stream =
@@ -109,16 +112,17 @@ mergeFiles outputFile sourceFiles = do
                           pure (ns S.:> namespacedData @RawBytes handle ns)
                       )
 
-        serialize
-          outputFile
-          Mainnet
-          (SlotNo 1)
-          (defaultSerializationPlan & addChunks stream)
+        liftIO $
+          serialize
+            outputFile
+            Mainnet
+            (SlotNo 1)
+            (defaultSerializationPlan & addChunks stream)
 
-      putStrLn "Merge complete"
+      logInfoN "Merge complete"
       pure Ok
     \(e :: SomeException) -> do
-      putStrLn $ "Error: " ++ show e
+      logErrorN $ "Error: " <> T.pack (show e)
       pure OtherError
  where
   collectNamespaceFiles :: [FilePath] -> IO (Map.Map Namespace [FilePath])
@@ -145,13 +149,13 @@ data ExtractOptions = ExtractOptions
 Takes a source SCLS file, an output file, and extraction options specifying
 which data to extract.
 -}
-extract :: FilePath -> FilePath -> ExtractOptions -> IO Result
+extract :: (MonadCatch m, MonadLogger m, MonadIO m) => FilePath -> FilePath -> ExtractOptions -> m Result
 extract sourceFile outputFile ExtractOptions{..} = do
-  output $ "Extracting from file: " ++ sourceFile
-  output $ "Output file: " ++ outputFile
+  logDebugN $ "Extracting from file: " <> T.pack sourceFile
+  logDebugN $ "Output file: " <> T.pack outputFile
   catch
     do
-      Hdr{..} <- withHeader sourceFile pure
+      Hdr{..} <- liftIO $ withHeader sourceFile pure
 
       withBinaryFile sourceFile ReadMode \handle -> do
         let chunks =
@@ -171,32 +175,29 @@ extract sourceFile outputFile ExtractOptions{..} = do
 
       pure Ok
     \(e :: SomeException) -> do
-      putStrLn $ "Error: " ++ show e
+      logErrorN $ "Error: " <> T.pack (show e)
       pure OtherError
- where
-  output
-    | extractIsQuiet = \_ -> pure ()
-    | otherwise = putStrLn
 
 data UnpackOptions = UnpackOptions
   { unpackIsQuiet :: Bool
   }
 
-unpack :: FilePath -> FilePath -> T.Text -> UnpackOptions -> IO Result
+unpack :: (MonadIO m, MonadCatch m, MonadUnliftIO m, MonadLogger m) => FilePath -> FilePath -> T.Text -> UnpackOptions -> m Result
 unpack sourceFile unpackOutputFile unpackNamespace UnpackOptions{..} = do
-  output $ "Converting file: " ++ sourceFile
-  output $ "Output file: " ++ unpackOutputFile
+  logDebugN $ "Converting file: " <> T.pack sourceFile
+  logDebugN $ "Output file: " <> T.pack unpackOutputFile
   catch
     do
       let namespace = Namespace.fromText unpackNamespace
 
-      withBinaryFile unpackOutputFile WriteMode $ \outputHandle -> do
+      runResourceT do
+        (_, outputHandle) <- allocate (openBinaryFile unpackOutputFile WriteMode) (hClose)
         case namespaceSymbolFromText unpackNamespace of
           Nothing -> do
-            putStrLn $ "Unknown namespace: " ++ Namespace.asString namespace
+            logErrorN $ "Unknown namespace: " <> T.pack (Namespace.asString namespace)
             pure OtherError
           Just (SomeNamespaceSymbol (_ :: proxy ns)) -> do
-            withNamespacedData @(GenericCBOREntry (NamespaceKeySize ns)) sourceFile namespace $ \stream -> do
+            liftIO $ withNamespacedData @(GenericCBOREntry (NamespaceKeySize ns)) sourceFile namespace $ \stream -> do
               stream
                 & S.mapM_ \(GenericCBOREntry (ChunkEntry (ByteStringSized k) b)) ->
                   BL.hPut outputHandle $
@@ -204,9 +205,5 @@ unpack sourceFile unpackOutputFile unpackNamespace UnpackOptions{..} = do
                       CBOR.encodeListLen 2 <> CBOR.encodeBytes k <> CBOR.encodePreEncoded (getEncodedBytes b)
             pure Ok
     \(e :: SomeException) -> do
-      putStrLn $ "Error: " ++ show e
+      logErrorN $ "Error: " <> T.pack (show e)
       pure OtherError
- where
-  output
-    | unpackIsQuiet = \_ -> pure ()
-    | otherwise = putStrLn

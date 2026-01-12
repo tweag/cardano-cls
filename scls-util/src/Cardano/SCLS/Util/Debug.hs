@@ -48,8 +48,8 @@ import Cardano.Types.Namespace (Namespace)
 import Control.Monad.Trans.Resource (runResourceT)
 
 -- | Generate a scls file with random data for debugging purposes.
-generateDebugFile :: FilePath -> [(Namespace, Maybe Int)] -> IO Result
-generateDebugFile outputFile namespaceEntries = do
+generateDebugFile :: (MonadIO m) => FilePath -> [(Namespace, Maybe Int)] -> m Result
+generateDebugFile outputFile namespaceEntries = liftIO do
   _ <-
     runResourceT $
       External.serialize
@@ -82,8 +82,8 @@ generateNamespaceEntries (p :: proxy ns) count spec = replicateM_ count do
   Right canonicalTerm <- pure $ canonicalizeTerm p term
   S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
 
-printHexEntries :: FilePath -> T.Text -> Int -> IO Result
-printHexEntries filePath ns_name@(Namespace.fromText -> ns) entryNo = do
+printHexEntries :: (MonadIO m) => FilePath -> T.Text -> Int -> m Result
+printHexEntries filePath ns_name@(Namespace.fromText -> ns) entryNo = liftIO do
   case namespaceSymbolFromText ns_name of
     Nothing -> do
       putStrLn "Can't decode namespace, I don't know its key size"
