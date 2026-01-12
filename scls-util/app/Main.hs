@@ -24,6 +24,7 @@ import System.Exit (exitWith)
 -- | Command-line options
 data Options = Options
   { optCommand :: Command
+  , optQuiet :: Bool
   }
 
 data Command
@@ -49,7 +50,6 @@ parseOptions =
                           <$> fileArg
                           <*> optional namespace
                           <*> noVerify
-                          <*> quietSwitch
                     )
                     (progDesc "Display and verify root hash or namespace hashes")
                 )
@@ -93,6 +93,7 @@ parseOptions =
                   <> hidden
               )
         )
+    <*> quietSwitch
  where
   fileCmd :: Mod CommandFields File.FileCmd
   fileCmd =
@@ -170,14 +171,11 @@ parseOptions =
   extractOptions =
     File.ExtractOptions
       <$> namespaceOption
-      <*> quietSwitch
   splitOptions :: Parser File.SplitOptions
   splitOptions =
-    File.SplitOptions
-      <$> quietSwitch
+    pure File.SplitOptions
   unpackOptions =
-    File.UnpackOptions
-      <$> quietSwitch
+    pure File.UnpackOptions
   namespaceOption =
     optional $
       option
@@ -248,7 +246,9 @@ main = do
             <> header "scls-util - A utility for working with SCLS files"
         )
   result <-
-    runStderrLoggingT $ runCommand (optCommand opts)
+    if optQuiet opts
+      then runNoLoggingT $ runCommand (optCommand opts)
+      else runStderrLoggingT $ runCommand (optCommand opts)
   exitWith $ toErrorCode result
 
 -- | Execute the selected command

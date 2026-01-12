@@ -24,7 +24,6 @@ data ChecksumCmd = ChecksumCmd
   { vcFilePath :: FilePath
   , vcNamespace :: Maybe Namespace
   , vcNoVerify :: Bool
-  , vcQuiet :: Bool
   }
   deriving (Show, Eq)
 

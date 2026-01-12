@@ -42,8 +42,6 @@ data FileFormat = SclsFormat | CBorFormat
   deriving (Eq, Show)
 
 data SplitOptions = SplitOptions
-  { splitIsQuiet :: Bool
-  }
 
 {- | Split a single SCLS file into multiple files by namespace.
 Takes a source SCLS file and an output directory, and creates separate files
@@ -142,7 +140,6 @@ mergeFiles outputFile sourceFiles = do
 
 data ExtractOptions = ExtractOptions
   { extractNamespaces :: Maybe [Namespace]
-  , extractIsQuiet :: Bool
   }
 
 {- | Extract specific data from an SCLS file into a new file.
@@ -179,8 +176,6 @@ extract sourceFile outputFile ExtractOptions{..} = do
       pure OtherError
 
 data UnpackOptions = UnpackOptions
-  { unpackIsQuiet :: Bool
-  }
 
 unpack :: (MonadIO m, MonadCatch m, MonadUnliftIO m, MonadLogger m) => FilePath -> FilePath -> T.Text -> UnpackOptions -> m Result
 unpack sourceFile unpackOutputFile unpackNamespace UnpackOptions{..} = do
