@@ -6,6 +6,9 @@ module Cardano.SCLS.Util.File (FileCmd (..), ExtractOptions (..), runFileCmd, Sp
 import Cardano.SCLS.Util.File.Info
 import Cardano.SCLS.Util.File.Tool
 import Cardano.SCLS.Util.Result
+import Control.Monad.Catch
+import Control.Monad.Logger
+import Control.Monad.Trans.Resource
 import Data.Text qualified as T
 
 data FileCmd
@@ -16,7 +19,7 @@ data FileCmd
   | Info
   | Unpack FilePath T.Text UnpackOptions
 
-runFileCmd :: FilePath -> FileCmd -> IO Result
+runFileCmd :: (MonadLogger m, MonadUnliftIO m, MonadCatch m) => FilePath -> FileCmd -> m Result
 runFileCmd fileName = \case
   ListNamespaces -> do
     listNamespaces fileName

@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 {- | Module for checking SCLS file integrity and validity.
@@ -43,8 +44,10 @@ import Codec.CBOR.Pretty
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Codec.CBOR.Term (Term, decodeTerm, encodeTerm)
 import Codec.CBOR.Write (toLazyByteString)
-import Control.Exception (SomeException, catch)
 import Control.Monad (unless, when)
+import Control.Monad.Catch
+import Control.Monad.IO.Class (MonadIO (..))
+import Control.Monad.Logger
 import Data.Foldable (for_)
 import Data.Function ((&))
 import Data.List (intercalate)
@@ -116,57 +119,58 @@ This function:
 3. Builds CDDL validation trees for known namespaces (once)
 4. Streams through all chunks and validates each one
 -}
-check :: FilePath -> IO Result
+check :: (MonadIO m, MonadCatch m, MonadLogger m) => FilePath -> m Result
 check filePath = do
-  putStrLn $ "Checking file: " ++ filePath
+  logDebugN $ "Checking file: " <> T.pack filePath
   catch
     do
-      fileNamespaces <- extractNamespaceList filePath
+      fileNamespaces <- liftIO $ extractNamespaceList filePath
 
-      putStrLn "\n=== Namespace Analysis ==="
+      liftIO $ do
+        putStrLn "\n=== Namespace Analysis ==="
 
-      unless (Map.null invalidSpecs) $ do
-        putStrLn "Warning!\n Some namespaces failed to resolve CDDL schemas:"
-        for_ (Map.toList invalidSpecs) $ \(ns, err) -> do
-          putStrLn $ "  - Namespace: " ++ toString ns ++ ", Error: " ++ show err
-        putStrLn "This should never happen, please contact upstream as the file verification may not work as intended"
+        unless (Map.null invalidSpecs) $ do
+          putStrLn "Warning!\n Some namespaces failed to resolve CDDL schemas:"
+          for_ (Map.toList invalidSpecs) $ \(ns, err) -> do
+            putStrLn $ "  - Namespace: " ++ toString ns ++ ", Error: " ++ show err
+          putStrLn "This should never happen, please contact upstream as the file verification may not work as intended"
 
-      let unknownNs = filter (isNothing . namespaceSymbolFromText . Namespace.asText) fileNamespaces
+        let unknownNs = filter (isNothing . namespaceSymbolFromText . Namespace.asText) fileNamespaces
 
-      putStrLn $ "Total namespaces: " ++ show (length fileNamespaces)
-      putStrLn $ "Known namespaces: " ++ show (length fileNamespaces - length unknownNs)
-      putStrLn $ "Unknown namespaces: " ++ show (length unknownNs)
-      when (not $ null unknownNs) $ do
-        putStrLn "\nUnknown namespaces found:"
-        mapM_ (putStrLn . ("  - " ++) . Namespace.asString) unknownNs
+        putStrLn $ "Total namespaces: " ++ show (length fileNamespaces)
+        putStrLn $ "Known namespaces: " ++ show (length fileNamespaces - length unknownNs)
+        putStrLn $ "Unknown namespaces: " ++ show (length unknownNs)
+        when (not $ null unknownNs) $ do
+          putStrLn "\nUnknown namespaces found:"
+          mapM_ (putStrLn . ("  - " ++) . Namespace.asString) unknownNs
 
-      putStrLn "\n=== Chunk Validation ==="
+        putStrLn "\n=== Chunk Validation ==="
 
-      results <- withRecordData filePath \stream -> do
-        S.toList_ $ S.mapM validateChunk stream
+        results <- withRecordData filePath \stream -> do
+          S.toList_ $ S.mapM validateChunk stream
 
-      let totalCount = length results
-          failedCount = length $ filter (not . null . chunkErrors) results
-          passedCount = totalCount - failedCount
+        let totalCount = length results
+            failedCount = length $ filter (not . null . chunkErrors) results
+            passedCount = totalCount - failedCount
 
-      putStrLn $ "\n=== Summary ==="
-      putStrLn $ "Total chunks: " ++ show totalCount
-      putStrLn $ "Passed: " ++ show passedCount
-      putStrLn $ "Failed: " ++ show failedCount
+        putStrLn $ "\n=== Summary ==="
+        putStrLn $ "Total chunks: " ++ show totalCount
+        putStrLn $ "Passed: " ++ show passedCount
+        putStrLn $ "Failed: " ++ show failedCount
 
-      -- Print failed chunks
-      when (failedCount > 0) $ do
-        putStrLn "\n=== Failed Chunks ==="
-        for_ (filter (not . null . chunkErrors) results) $ \ChunkCheckResult{..} -> do
-          putStrLn $ "\nChunk #" ++ show chunkSeqNum ++ " (namespace: " ++ Namespace.asString chunkNamespaceName ++ ")"
-          for_ chunkErrors $ \err -> do
-            putStrLn $ "  - " ++ formatError err
+        -- Print failed chunks
+        when (failedCount > 0) $ do
+          putStrLn "\n=== Failed Chunks ==="
+          for_ (filter (not . null . chunkErrors) results) $ \ChunkCheckResult{..} -> do
+            putStrLn $ "\nChunk #" ++ show chunkSeqNum ++ " (namespace: " ++ Namespace.asString chunkNamespaceName ++ ")"
+            for_ chunkErrors $ \err -> do
+              putStrLn $ "  - " ++ formatError err
 
-      if failedCount > 0
-        then pure VerifyFailure
-        else pure Ok
+        if failedCount > 0
+          then pure VerifyFailure
+          else pure Ok
     \(e :: SomeException) -> do
-      putStrLn $ "Error: " ++ show e
+      logErrorN $ "Error: " <> T.pack (show e)
       pure OtherError
 
 -- | Validate a single chunk.

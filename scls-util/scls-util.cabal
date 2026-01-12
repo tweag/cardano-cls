@@ -40,9 +40,11 @@ library
     crypton,
     cuddle,
     directory,
+    exceptions,
     filepath,
     mempack-scls,
     merkle-tree-incremental,
+    monad-logger,
     prettyprinter,
     random >=1.2,
     resourcet,
@@ -62,7 +64,10 @@ executable scls-util
   main-is: Main.hs
   build-depends:
     base >=4.18 && <5,
+    exceptions,
+    monad-logger,
     optparse-applicative,
+    resourcet,
     scls-format,
     scls-util,
     text,
