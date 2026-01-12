@@ -45,7 +45,7 @@ spec = do
       utxos <- replicateM 10 (chunkEntryFromUTxO <$> genUTxO)
       blocks <- replicateM 10 (chunkEntryFromBlock <$> genBlock)
       let _plan =
-            defaultSerializationPlan
+            defaultSerializationPlan @IO
               & addNamespacedChunks (Proxy @"utxo/v0") (S.each utxos)
               -- type error: & addNamespacedChunks (Proxy @"utxo/v0") (S.each blocks)
               & addNamespacedChunks (Proxy @"blocks/v0") (S.each blocks)

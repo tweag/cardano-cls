@@ -35,6 +35,7 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
 import Codec.CBOR.Cuddle.Huddle (toCDDL)
 import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
 import Control.Monad (replicateM)
+import Control.Monad.Trans.Resource (ResIO, runResourceT)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
 import Data.MemPack
@@ -67,13 +68,14 @@ mkRoundtripTestsFor groupName serialize =
         let fileName = (fn </> "data.scls")
             testComment = T.pack "This is a file comment."
         _ <-
-          serialize
-            fileName
-            Mainnet
-            (SlotNo 1)
-            ( defaultSerializationPlan
-                & withManifestComment testComment
-            )
+          runResourceT $
+            serialize
+              fileName
+              Mainnet
+              (SlotNo 1)
+              ( defaultSerializationPlan
+                  & withManifestComment testComment
+              )
 
         withLatestManifestFrame
           ( \Manifest{summary = ManifestSummary{..}} ->
@@ -85,13 +87,14 @@ mkRoundtripTestsFor groupName serialize =
         let fileName = (fn </> "data.scls")
         timestamp <- getCurrentTime
         _ <-
-          serialize
-            fileName
-            Mainnet
-            (SlotNo 1)
-            ( defaultSerializationPlan
-                & withTimestamp timestamp
-            )
+          runResourceT $
+            serialize
+              fileName
+              Mainnet
+              (SlotNo 1)
+              ( defaultSerializationPlan
+                  & withTimestamp timestamp
+              )
 
         withLatestManifestFrame
           ( \Manifest{summary = ManifestSummary{..}} ->
@@ -118,14 +121,15 @@ mkRoundtripTestsFor groupName serialize =
               <*> (uniformByteStringM 100 globalStdGen)
         let fileName = (fn </> "data.scls")
         _ <-
-          serialize
-            fileName
-            Mainnet
-            (SlotNo 1)
-            ( defaultSerializationPlan
-                & addChunks (S.each [namespace S.:> S.each entries])
-                & addMetadata (S.each mEntries)
-            )
+          runResourceT $
+            serialize
+              fileName
+              Mainnet
+              (SlotNo 1)
+              ( defaultSerializationPlan
+                  & addChunks (S.each [namespace S.:> S.each entries])
+                  & addMetadata (S.each mEntries)
+              )
         withHeader
           fileName
           ( \hdr ->
@@ -164,4 +168,4 @@ mkRoundtripTestsFor groupName serialize =
                   `shouldBe` mEntries
           )
 
-type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan SomeCBOREntry -> IO ()
+type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan SomeCBOREntry ResIO -> ResIO ()

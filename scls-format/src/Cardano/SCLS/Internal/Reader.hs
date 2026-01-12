@@ -12,6 +12,7 @@ module Cardano.SCLS.Internal.Reader (
   extractNamespaceList,
   extractNamespaceHash,
   withKnownNamespacedData,
+  withNamespacedDataHandle,
 
   -- * Stream API
   -- $stream
@@ -46,6 +47,7 @@ import Cardano.SCLS.Internal.Record.Internal.Class (IsFrameRecord)
 import Cardano.SCLS.NamespaceCodec (KnownNamespace (NamespaceEntry, NamespaceKey), NamespaceKeySize)
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
+import Control.Monad.IO.Class (MonadIO)
 import Data.Maybe (fromJust)
 import GHC.TypeLits (KnownSymbol)
 import Streaming qualified as S
@@ -54,7 +56,7 @@ import Streaming.Prelude qualified as S
 {- | This function provides a stream of the Chunk entries
 stored in the data field of the 'Chunk'.
 -}
-streamChunkEntries :: (Typeable u, MemPack u) => BS.ByteString -> S.Stream (S.Of u) IO ()
+streamChunkEntries :: (Typeable u, MemPack u, Monad m) => BS.ByteString -> S.Stream (S.Of u) m ()
 streamChunkEntries = go
  where
   go !bs
@@ -64,10 +66,15 @@ streamChunkEntries = go
         S.yield userData
         go (BS.drop off bs)
 
--- | Stream all data chunks for the given namespace.
+-- | Stream all data chunks for the given namespace from the given file.
 withNamespacedData :: (MemPack u, Typeable u) => FilePath -> Namespace -> (S.Stream (S.Of u) IO () -> IO a) -> IO a
 withNamespacedData filePath namespace f =
-  IO.withBinaryFile filePath ReadMode (\handle -> f (namespacedData handle namespace))
+  IO.withBinaryFile filePath ReadMode (\handle -> withNamespacedDataHandle handle namespace f)
+
+-- | Stream all data chunks for the given namespace using the provided handle.
+withNamespacedDataHandle :: (MemPack u, Typeable u, MonadIO m) => Handle -> Namespace -> (S.Stream (S.Of u) m () -> m a) -> m a
+withNamespacedDataHandle handle namespace f =
+  f (namespacedData handle namespace)
 
 withKnownNamespacedData :: forall ns r. (KnownSymbol ns, KnownNamespace ns) => FilePath -> Proxy ns -> (S.Stream (S.Of (ChunkEntry (NamespaceKey ns) (NamespaceEntry ns))) IO () -> IO r) -> IO r
 withKnownNamespacedData filePath p f =
@@ -155,7 +162,7 @@ Attention this method does work on the provided handle and it
 will not be safe to use in case if other parts of the stream
 use this handle as well.
 -}
-namespacedData :: (MemPack u, Typeable u) => Handle -> Namespace -> S.Stream (S.Of u) IO ()
+namespacedData :: (MemPack u, Typeable u, MonadIO m) => Handle -> Namespace -> S.Stream (S.Of u) m ()
 namespacedData handle namespace = stream
  where
   stream = do

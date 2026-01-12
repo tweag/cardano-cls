@@ -1,6 +1,7 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE RecordWildCards #-}
 
+-- | File manipulation utilities for SCLS files.
 module Cardano.SCLS.Util.File.Tool (splitFile, mergeFiles, extract, ExtractOptions (..), unpack, UnpackOptions (..), SplitOptions (..)) where
 
 import Cardano.SCLS.CDDL
@@ -22,6 +23,7 @@ import Codec.CBOR.Encoding qualified as CBOR
 import Codec.CBOR.Write qualified as CBOR
 import Control.Exception (SomeException, catch)
 import Control.Monad (foldM)
+import Control.Monad.Trans.Resource (allocate, runResourceT)
 import Data.ByteString.Lazy qualified as BL
 import Data.Function ((&))
 import Data.Map.Strict qualified as Map
@@ -40,6 +42,10 @@ data SplitOptions = SplitOptions
   { splitIsQuiet :: Bool
   }
 
+{- | Split a single SCLS file into multiple files by namespace.
+Takes a source SCLS file and an output directory, and creates separate files
+for each namespace found in the source file.
+-}
 splitFile :: FilePath -> FilePath -> SplitOptions -> IO Result
 splitFile sourceFile outputDir SplitOptions{..} = do
   output $ "Splitting file: " ++ sourceFile
@@ -56,10 +62,11 @@ splitFile sourceFile outputDir SplitOptions{..} = do
             output $ "  Creating " ++ outputFile ++ " for namespace " ++ Namespace.asString ns
 
             withBinaryFile outputFile WriteMode $ \handle -> do
-              withNamespacedData @RawBytes sourceFile ns $ \stream -> do
-                let dataStream = S.yield (ns S.:> stream)
-                -- namespace-specific data should be sorted, so we can assume that and dump directly
-                dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
+              withBinaryFile sourceFile ReadMode $ \sourceHandle ->
+                runResourceT $ withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
+                  let dataStream = S.yield (ns S.:> stream)
+                  -- namespace-specific data should be sorted, so we can assume that and dump directly
+                  dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
         )
         fileNamespaces
 
@@ -74,6 +81,11 @@ splitFile sourceFile outputDir SplitOptions{..} = do
     | splitIsQuiet = \_ -> pure ()
     | otherwise = putStrLn
 
+{- | Merge multiple SCLS files into a single output file.
+
+Takes a list of input files and combines their namespace data into a single
+output file.
+-}
 mergeFiles :: FilePath -> [FilePath] -> IO Result
 mergeFiles _ [] = do
   putStrLn "No source files provided for merging"
@@ -82,29 +94,26 @@ mergeFiles outputFile sourceFiles = do
   putStrLn $ "Merging " ++ show (length sourceFiles) ++ " file(s) into: " ++ outputFile
   catch
     do
-      nsToFiles <- collectNamespaceFiles sourceFiles
+      nsToFiles <- Map.toList <$> collectNamespaceFiles sourceFiles
 
-      putStrLn $ "Found " ++ show (Map.size nsToFiles) ++ " unique namespace(s)"
+      putStrLn $ "Found " ++ show (length nsToFiles) ++ " unique namespace(s)"
 
-      let stream =
-            S.each (Map.toList nsToFiles)
-              & S.mapM_ \(ns, files) -> do
-                S.each files
-                  & S.mapM
-                    ( \file -> do
-                        s <- withNamespacedData @RawBytes file ns $ \s ->
-                          -- eagerly load each stream to avoid issues with file handles
-                          -- FIXME: use a different data structure like Vector
-                          -- FIXME: concerns about loading entire namespace data into memory
-                          S.toList_ s
-                        pure (ns S.:> S.each s)
-                    )
+      runResourceT $ do
+        let stream =
+              S.each nsToFiles
+                & S.mapM_ \(ns, files) -> do
+                  S.each files
+                    & S.mapM
+                      ( \file -> do
+                          (_, handle) <- allocate (openFile file ReadMode) hClose
+                          pure (ns S.:> namespacedData @RawBytes handle ns)
+                      )
 
-      serialize
-        outputFile
-        Mainnet
-        (SlotNo 1)
-        (defaultSerializationPlan & addChunks stream)
+        serialize
+          outputFile
+          Mainnet
+          (SlotNo 1)
+          (defaultSerializationPlan & addChunks stream)
 
       putStrLn "Merge complete"
       pure Ok
@@ -132,6 +141,10 @@ data ExtractOptions = ExtractOptions
   , extractIsQuiet :: Bool
   }
 
+{- | Extract specific data from an SCLS file into a new file.
+Takes a source SCLS file, an output file, and extraction options specifying
+which data to extract.
+-}
 extract :: FilePath -> FilePath -> ExtractOptions -> IO Result
 extract sourceFile outputFile ExtractOptions{..} = do
   output $ "Extracting from file: " ++ sourceFile
@@ -140,26 +153,21 @@ extract sourceFile outputFile ExtractOptions{..} = do
     do
       Hdr{..} <- withHeader sourceFile pure
 
-      let chunks =
-            case extractNamespaces of
-              Nothing -> S.each []
-              Just nsList ->
-                S.each nsList
-                  & S.mapM
-                    ( \ns -> do
-                        s <- withNamespacedData @RawBytes sourceFile ns $ \s ->
-                          -- eagerly load each stream to avoid issues with file handles
-                          -- FIXME: use a different data structure like Vector
-                          -- FIXME: concerns about loading entire namespace data into memory
-                          S.toList_ s
-                        pure (ns S.:> S.each s)
-                    )
+      withBinaryFile sourceFile ReadMode \handle -> do
+        let chunks =
+              case extractNamespaces of
+                Nothing -> S.each []
+                Just nsList ->
+                  S.each nsList
+                    & S.map
+                      (\ns -> (ns S.:> namespacedData @RawBytes handle ns))
 
-      serialize
-        outputFile
-        networkId
-        slotNo
-        (defaultSerializationPlan & addChunks chunks)
+        runResourceT $
+          serialize
+            outputFile
+            networkId
+            slotNo
+            (defaultSerializationPlan & addChunks chunks)
 
       pure Ok
     \(e :: SomeException) -> do

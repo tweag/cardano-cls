@@ -20,6 +20,7 @@ import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
+import Control.Monad.Trans.Resource (runResourceT)
 
 infoCommandTests :: Spec
 infoCommandTests = describe "info command" do
@@ -72,7 +73,7 @@ listNsCommandTests = describe "list-ns command" do
       let fileName = dir </> "empty.scls"
       -- Create file with no namespaces
       _ <-
-        Reference.serialize @RawBytes
+        runResourceT $ Reference.serialize @RawBytes
           fileName
           Mainnet
           (SlotNo 1)

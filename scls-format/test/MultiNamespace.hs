@@ -14,6 +14,7 @@ import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
+import Control.Monad.Trans.Resource (ResIO, runResourceT)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.ByteString (ByteString)
 import Data.ByteString.Char8 qualified as BS8
@@ -72,18 +73,19 @@ mkTestsFor serialize = do
     let input = [("ns0", []), ("ns1", ["data"]), ("ns2", [])]
     roundtrip serialize input
 
-type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan RawBytes -> IO ()
+type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan RawBytes ResIO -> ResIO ()
 
 roundtrip :: SerializeF -> [(Namespace, [ByteString])] -> IO ()
 roundtrip serialize input = do
   withSystemTempDirectory "scls-format-test-XXXXXX" $ \fn -> do
     let fileName = fn </> "input.data"
     _ <-
-      serialize
-        fileName
-        Mainnet
-        (SlotNo 1)
-        mkPlan
+      runResourceT $
+        serialize
+          fileName
+          Mainnet
+          (SlotNo 1)
+          mkPlan
     nsps <- extractNamespaceList fileName
     annotate "Namespaces are as expected" do
       (sort nsps) `shouldBe` (Map.keys nsData)

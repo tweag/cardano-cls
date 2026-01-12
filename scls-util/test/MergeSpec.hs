@@ -15,6 +15,7 @@ import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Common (generateTestFile, runSclsUtil)
 import Control.Monad (forM)
+import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString.Char8 qualified as BS8
 import Data.Function ((&))
 import Data.MemPack.Extra (RawBytes (..))
@@ -38,11 +39,12 @@ generateSplitTestFiles dir = do
     let fileName = dir </> Namespace.humanFileNameFor ns
         mkStream = S.yield (ns S.:> S.each (map RawBytes entries))
 
-    Reference.serialize @RawBytes
-      fileName
-      Mainnet
-      (SlotNo 1)
-      (defaultSerializationPlan & addChunks mkStream)
+    runResourceT $
+      Reference.serialize @RawBytes
+        fileName
+        Mainnet
+        (SlotNo 1)
+        (defaultSerializationPlan & addChunks mkStream)
 
     pure (fileName, ns)
 
@@ -78,11 +80,12 @@ generateOverlappingNsSplitTestFiles dir = do
           S.each nsEntries
             & S.map \(ns, entries) -> ns S.:> S.each (map RawBytes entries)
 
-    Reference.serialize @RawBytes
-      fileName
-      Mainnet
-      (SlotNo 1)
-      (defaultSerializationPlan & addChunks stream)
+    runResourceT $
+      Reference.serialize @RawBytes
+        fileName
+        Mainnet
+        (SlotNo 1)
+        (defaultSerializationPlan & addChunks stream)
 
     pure (fileName, map fst nsEntries)
 
