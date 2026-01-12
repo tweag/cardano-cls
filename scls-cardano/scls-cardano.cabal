@@ -19,7 +19,9 @@ extra-doc-files: CHANGELOG.md
 tested-with: ghc ==9.14.1 || ==9.12.1 || ==9.10.2
 
 common warnings
-  ghc-options: -Wall
+  ghc-options:
+    -Wall
+    -Werror=unused-packages
 
 library
   import: warnings
