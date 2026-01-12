@@ -9,13 +9,14 @@ module Cardano.SCLS.Internal.Serializer.Reference.Impl (
 
 import Cardano.SCLS.Internal.Record.Hdr
 import Cardano.SCLS.Internal.Serializer.Dump (dumpToHandle)
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (InputChunk, SerializationPlan, mkSortedSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, InputChunk, SerializationPlan, mkSortedSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (getKey))
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Network
 import Cardano.Types.SlotNo
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.ST (runST)
+import Control.Monad.Trans.Resource (ResIO, allocate, runResourceT)
 import Data.Function (on)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -25,7 +26,7 @@ import Data.Typeable (Typeable)
 import Data.Vector qualified as V
 import Data.Vector.Algorithms.Tim qualified as Tim
 import Streaming.Prelude qualified as S
-import System.IO (IOMode (WriteMode), withBinaryFile)
+import System.IO (IOMode (WriteMode), hClose, openBinaryFile)
 import VectorBuilder.Builder qualified as Builder
 import VectorBuilder.MVector qualified as Builder
 
@@ -41,20 +42,20 @@ serialize ::
   NetworkId ->
   -- | Slot of the current transaction
   SlotNo ->
-  SerializationPlan a ->
-  IO ()
+  SerializationPlan a ResIO ->
+  ResIO ()
 serialize resultFilePath network slotNo plan = do
-  withBinaryFile resultFilePath WriteMode \handle -> do
-    let hdr = mkHdr network slotNo
-    dumpToHandle handle hdr $
-      mkSortedSerializationPlan
-        plan
-        ( \s -> do
-            !orderedStream <- liftIO $ mkVectors s
-            S.each [n S.:> S.each v | (n, v) <- Map.toList orderedStream]
-        )
+  (_, handle) <- allocate (openBinaryFile resultFilePath WriteMode) hClose
+  let hdr = mkHdr network slotNo
+  dumpToHandle handle hdr $
+    mkSortedSerializationPlan
+      plan
+      ( \s -> do
+          !orderedStream <- liftIO $ runResourceT $ mkVectors s
+          S.each [n S.:> S.each v | (n, v) <- Map.toList orderedStream]
+      )
  where
-  mkVectors :: (HasKey a) => S.Stream (S.Of (InputChunk a)) IO () -> IO (Map Namespace (V.Vector a))
+  mkVectors :: (HasKey a, Monad m) => ChunkStream a m -> m (Map Namespace (V.Vector a))
   mkVectors = do
     S.foldM_
       do
@@ -68,7 +69,7 @@ serialize resultFilePath network slotNo plan = do
           Tim.sortBy (compare `on` getKey) mv
           V.unsafeFreeze mv
 
-  mkVector :: S.Stream (S.Of a) IO () -> IO (Builder.Builder a)
+  mkVector :: (Monad m) => S.Stream (S.Of a) m () -> m (Builder.Builder a)
   mkVector = S.fold_
     do \x e -> x <> Builder.singleton e
     do Builder.empty

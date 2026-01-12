@@ -9,18 +9,17 @@ module Cardano.SCLS.Internal.Serializer.External.Impl (
 
 import Cardano.SCLS.Internal.Record.Hdr
 import Cardano.SCLS.Internal.Serializer.Dump (DataStream (DataStream, runDataStream), dumpToHandle)
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, InputChunk, SerializationPlan, mkSortedSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, SerializationPlan, mkSortedSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (Key, getKey))
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.Network
 import Cardano.Types.SlotNo
 
-import Control.Exception (onException, throwIO)
+import Control.Exception (throwIO)
 import Control.Monad.ST (runST)
 import Data.ByteString qualified as B
 import Data.Function (fix, on, (&))
-import Data.IORef (IORef, modifyIORef', newIORef, readIORef)
 
 import Data.Map.Strict qualified as Map
 import Data.MemPack
@@ -38,6 +37,8 @@ import Streaming qualified as S
 import Streaming.Internal (Stream (..))
 import Streaming.Prelude qualified as S
 
+import Control.Monad.Trans.Class (MonadTrans (lift))
+import Control.Monad.Trans.Resource (MonadResource (liftResourceT), ResIO, allocate, release)
 import System.ByteOrder
 import System.Directory (createDirectoryIfMissing, doesFileExist, listDirectory, removeFile, renameFile)
 import System.FilePath (takeDirectory, (<.>), (</>))
@@ -55,23 +56,22 @@ serialize ::
   -- | Slot of the current transaction
   SlotNo ->
   -- | Serialization plan to use
-  SerializationPlan a ->
-  IO ()
+  SerializationPlan a ResIO ->
+  ResIO ()
 serialize resultFilePath network slotNo plan = do
   let !hdr = mkHdr network slotNo
   withTempDirectory (takeDirectory resultFilePath) "tmp.XXXXXX" \tmpDir -> do
-    handles <- newIORef []
-    onException
-      do
-        withBinaryFile resultFilePath WriteMode \handle -> do
-          dumpToHandle handle hdr $
-            mkSortedSerializationPlan
-              plan
-              ( \s -> do
-                  liftIO $ prepareExternalSortNamespaced tmpDir s
-                  runDataStream $ sourceNs handles tmpDir
-              )
-      do traverse hClose =<< readIORef handles
+    (_, handle) <-
+      allocate
+        (openBinaryFile resultFilePath WriteMode)
+        hClose
+    dumpToHandle handle hdr $
+      mkSortedSerializationPlan
+        plan
+        ( \s -> do
+            lift $ liftResourceT $ prepareExternalSortNamespaced tmpDir s
+            runDataStream $ sourceNs tmpDir
+        )
 
 {- | Accepts an unordered stream of entries, and prepares a structure of
 the sorted files in the filesystem.
@@ -93,34 +93,36 @@ the size of the entries, but it can be changed without modifying the interface.
 prepareExternalSortNamespaced ::
   (Typeable a, HasKey a, MemPack a) =>
   FilePath ->
-  ChunkStream a ->
-  IO ()
+  ChunkStream a ResIO ->
+  ResIO ()
 prepareExternalSortNamespaced tmpDir = storeChunks . mergeChunks
  where
-  storeChunks = S.mapM_ \(namespace, vec) -> do
-    let dir = tmpDir </> Namespace.toFilePath namespace
-    let mkFileName i = dir </> "chunk" <.> show (i :: Int) <.> "bin"
-    liftIO $ createDirectoryIfMissing True dir
-    withBinaryFile (mkFileName 0) WriteMode \h ->
+  storeChunks =
+    S.mapM_ \(namespace, vec) -> do
+      let dir = tmpDir </> Namespace.toFilePath namespace
+      let mkFileName i = dir </> "chunk" <.> show (i :: Int) <.> "bin"
+      liftIO $ createDirectoryIfMissing True dir
+      (k, h) <- allocate (openBinaryFile (mkFileName 0) WriteMode) hClose
       S.each vec
         & S.map (packByteString . Entry)
         & S.mapM_ (liftIO . B.hPut h)
-    flip fix 0 \go n -> do
-      exists <- doesFileExist (mkFileName (n + 1))
-      if exists
-        then do
-          merge2 (mkFileName n) (mkFileName (n + 1))
-          go (n + 1)
-        else renameFile (mkFileName n) (mkFileName (n + 1))
+      release k
+      flip fix 0 \go n -> do
+        exists <- liftIO $ doesFileExist (mkFileName (n + 1))
+        if exists
+          then do
+            liftIO $ merge2 (mkFileName n) (mkFileName (n + 1))
+            go (n + 1)
+          else liftIO $ renameFile (mkFileName n) (mkFileName (n + 1))
 
 {- | Consume streams generating chunks of data by 1024 entries in size
 the input may be unordered and we can have a namespaces to appear
 multiple times in the stream
 -}
 mergeChunks ::
-  (HasKey a) =>
-  S.Stream (S.Of (InputChunk a)) IO () ->
-  S.Stream (S.Of (Namespace, V.Vector a)) IO ()
+  (HasKey a, Monad m) =>
+  ChunkStream a m ->
+  S.Stream (S.Of (Namespace, V.Vector a)) m ()
 mergeChunks = loop Map.empty
  where
   chunkSize = 1024
@@ -199,38 +201,42 @@ merge2 f1 f2 = do
       loop
 
 -- | Create a stream from the list of namespaces.
-sourceNs :: IORef [Handle] -> FilePath -> DataStream RawBytes
-sourceNs handles baseDir = DataStream do
+sourceNs :: (MonadResource m) => FilePath -> DataStream RawBytes m
+sourceNs baseDir = DataStream do
   rawNss <- liftIO $ listDirectory baseDir
   ns <- for rawNss \rawNs ->
     case Namespace.parseFilePath rawNs of
       Left e -> liftIO (throwIO e)
       Right ns -> pure ns
-  S.each ns & S.map (\n -> (n :> kMergeNs handles (baseDir </> Namespace.toFilePath n)))
+  S.each ns & S.map (\n -> (n :> kMergeNs (baseDir </> Namespace.toFilePath n)))
 
 {- | K-merge files from the multiple namespaces.
 
 Keeps track of handles being opened.
 -}
-kMergeNs :: IORef [Handle] -> FilePath -> Stream (Of RawBytes) IO ()
-kMergeNs refs dir = do
+kMergeNs :: (MonadResource m) => FilePath -> Stream (Of RawBytes) m ()
+kMergeNs dir = do
   files <- liftIO $ listDirectory dir
-  handles <- liftIO $ mapM (\f -> openBinaryFile (dir </> f) ReadMode >>= \x -> modifyIORef' refs (x :) >> pure x) files
+  handles <-
+    lift $
+      liftResourceT $
+        mapM
+          (\f -> allocate (openBinaryFile (dir </> f) ReadMode) hClose)
+          files
   pq <- liftIO $ mkPQ handles
   inner pq
  where
   inner pq = case Q.minViewWithKey pq of
     Nothing -> return ()
-    Just ((bs, h), pq') -> do
+    Just ((bs, (k, h)), pq') -> do
       S.yield (RawBytes bs)
       liftIO (readNext h) >>= \case
         Nothing -> do
-          liftIO $ hClose h >> modifyIORef' refs (filter (/= h))
+          release k
           inner pq'
-        Just bs' -> inner (Q.insert bs' h pq')
-
+        Just bs' -> inner (Q.insert bs' (k, h) pq')
   mkPQ tt = do
-    pairs <- mapM (\h -> (,) <$> (readNext h) <*> pure h) tt
+    pairs <- mapM (\(k, h) -> (,) <$> (readNext h) <*> pure (k, h)) tt
     let pairs' = [(bs, h) | (Just bs, h) <- pairs]
     return $ Q.fromList pairs'
 

@@ -22,7 +22,8 @@ import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Codec.CBOR.Encoding qualified as CBOR
 import Codec.CBOR.Write qualified as CBOR
 import Control.Exception (SomeException, bracket, catch)
-import Control.Monad (foldM, forM_)
+import Control.Monad (foldM)
+import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString.Lazy qualified as BL
 import Data.Function ((&))
 import Data.Map.Strict qualified as Map
@@ -61,10 +62,11 @@ splitFile sourceFile outputDir SplitOptions{..} = do
             output $ "  Creating " ++ outputFile ++ " for namespace " ++ Namespace.asString ns
 
             withBinaryFile outputFile WriteMode $ \handle -> do
-              withNamespacedData @RawBytes sourceFile ns $ \stream -> do
-                let dataStream = S.yield (ns S.:> stream)
-                -- namespace-specific data should be sorted, so we can assume that and dump directly
-                dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
+              withBinaryFile sourceFile ReadMode $ \sourceHandle ->
+                runResourceT $ withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
+                  let dataStream = S.yield (ns S.:> stream)
+                  -- namespace-specific data should be sorted, so we can assume that and dump directly
+                  dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
         )
         fileNamespaces
 
@@ -106,11 +108,12 @@ mergeFiles outputFile sourceFiles = do
                           (ns S.:> namespacedData @RawBytes handle ns)
                       )
 
-        serialize
-          outputFile
-          Mainnet
-          (SlotNo 1)
-          (defaultSerializationPlan & addChunks stream)
+        runResourceT $
+          serialize
+            outputFile
+            Mainnet
+            (SlotNo 1)
+            (defaultSerializationPlan & addChunks stream)
 
       putStrLn "Merge complete"
       pure Ok
@@ -173,11 +176,12 @@ extract sourceFile outputFile ExtractOptions{..} = do
                     & S.map
                       (\ns -> (ns S.:> namespacedData @RawBytes handle ns))
 
-        serialize
-          outputFile
-          networkId
-          slotNo
-          (defaultSerializationPlan & addChunks chunks)
+        runResourceT $
+          serialize
+            outputFile
+            networkId
+            slotNo
+            (defaultSerializationPlan & addChunks chunks)
 
       pure Ok
     \(e :: SomeException) -> do

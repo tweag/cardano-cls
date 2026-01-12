@@ -11,6 +11,7 @@ import Cardano.SCLS.Query (queryEntry)
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
+import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString qualified as BS
 import Data.Function ((&))
 import Data.MemPack (packM, unpackM)
@@ -57,7 +58,7 @@ serializeTestData fileName namespaceData = do
                 | (ns, entries) <- namespaceData
                 ]
             )
-  _ <- Reference.serialize fileName Mainnet (SlotNo 1) plan
+  _ <- runResourceT $ Reference.serialize fileName Mainnet (SlotNo 1) plan
   return ()
 
 queryTests :: Spec

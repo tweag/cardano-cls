@@ -27,6 +27,7 @@ import Data.Function ((&))
 import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 
+import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.Maybe (fromMaybe)
 import Data.MemPack
 import Data.MemPack.Buffer (pinnedByteArrayToByteString)
@@ -36,11 +37,11 @@ import Data.Time (getCurrentTime)
 import Data.Time.Format.ISO8601 (ISO8601 (iso8601Format), formatShow)
 import Data.Typeable (Typeable)
 import Data.Word (Word64)
-import Streaming (Of (..), liftIO)
-import Streaming qualified as S
+import Streaming (Of (..))
 import Streaming.Internal (Stream (..))
 import Streaming.Prelude qualified as S
 import System.IO (Handle)
+import Control.Monad.Trans.Resource (MonadResource)
 
 {- | A stream of values grouped by namespace.
 
@@ -55,17 +56,17 @@ Constraints:
 
 This type is used as input to chunked serialization routines, which expect the data to be grouped and ordered as described.
 -}
-newtype DataStream a = DataStream {runDataStream :: Stream (Of (InputChunk a)) IO ()}
+newtype DataStream a m = DataStream {runDataStream :: ChunkStream a m}
 
 -- Dumps data to the handle, while splitting it into chunks.
 --
 -- This is reference implementation and it does not yet care about
 -- proper working with the hardware, i.e. flushing and calling fsync
 -- at the right moments.
-dumpToHandle :: (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a) => Handle -> Hdr -> SortedSerializationPlan a -> IO ()
+dumpToHandle :: (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a, MonadResource m) => Handle -> Hdr -> SortedSerializationPlan a m -> m ()
 dumpToHandle handle hdr sortedPlan = do
   let plan@SerializationPlan{..} = getSerializationPlan sortedPlan
-  _ <- hWriteFrame handle hdr
+  _ <- liftIO $ hWriteFrame handle hdr
   manifestData <-
     pChunkStream -- output our sorted stream
       & S.mapM
@@ -104,11 +105,11 @@ dumpToHandle handle hdr sortedPlan = do
           & S.mapM_ (liftIO . hWriteFrame handle)
       pure ()
 
-  manifest <- mkManifest manifestData plan
-  _ <- hWriteFrame handle manifest
+  manifest <- liftIO $ mkManifest manifestData plan
+  _ <- liftIO $ hWriteFrame handle manifest
   pure ()
  where
-  storeToHandle :: (S.MonadIO io) => Namespace -> Stream (Of CB.ChunkItem) io r -> io r
+  storeToHandle :: (MonadIO m) => Namespace -> Stream (Of CB.ChunkItem) m r -> m r
   storeToHandle namespace s =
     s
       & S.zip (S.enumFrom 1)
@@ -131,9 +132,9 @@ dumpToHandle handle hdr sortedPlan = do
       (fromIntegral metadataItemEntriesCount)
 
 dedup ::
-  (HasKey a, S.MonadIO io) =>
-  Stream (Of a) io r ->
-  Stream (Of a) io r
+  (HasKey a, Monad m) =>
+  Stream (Of a) m r ->
+  Stream (Of a) m r
 dedup s0 = initialize s0
  where
   initialize (Return r) = Return r
@@ -148,19 +149,19 @@ dedup s0 = initialize s0
           else S.yield x >> go currentKey rest
 
 constructChunks_ ::
-  forall a r.
-  (MemPack a, Typeable a, MemPackHeaderOffset a) =>
+  forall a r m.
+  (MemPack a, Typeable a, MemPackHeaderOffset a, MonadIO m) =>
   ChunkFormat ->
   Int ->
-  Stream (Of a) IO r ->
-  Stream (Of CB.ChunkItem) IO (Digest)
+  Stream (Of a) m r ->
+  Stream (Of CB.ChunkItem) m (Digest)
 constructChunks_ format bufferSize s0 = liftIO initialize >>= consume s0
  where
   initialize = CB.mkMachine bufferSize format
   consume ::
-    Stream (Of a) IO r ->
+    Stream (Of a) m r ->
     CB.BuilderMachine ->
-    Stream (Of CB.ChunkItem) IO (Digest)
+    Stream (Of CB.ChunkItem) m (Digest)
   consume s1 !machine = do
     case s1 of
       Return{} ->
@@ -175,17 +176,18 @@ constructChunks_ format bufferSize s0 = liftIO initialize >>= consume s0
             consume rest machine'
 
 constructMetadata_ ::
-  forall r.
+  forall r m.
+  (MonadIO m) =>
   Int ->
-  Stream (Of MetadataEntry) IO r ->
-  Stream (Of MB.MetadataItem) IO (Digest)
+  Stream (Of MetadataEntry) m r ->
+  Stream (Of MB.MetadataItem) m (Digest)
 constructMetadata_ bufferSize s0 = liftIO initialize >>= consume s0
  where
   initialize = MB.mkMachine bufferSize
   consume ::
-    Stream (Of MetadataEntry) IO r ->
+    Stream (Of MetadataEntry) m r ->
     MB.BuilderMachine ->
-    Stream (Of MB.MetadataItem) IO (Digest)
+    Stream (Of MB.MetadataItem) m (Digest)
   consume s1 !machine = do
     case s1 of
       Return{} ->
@@ -209,7 +211,7 @@ instance Semigroup ManifestInfo where
 instance Monoid ManifestInfo where
   mempty = ManifestInfo Map.empty
 
-mkManifest :: ManifestInfo -> SerializationPlan a -> IO Manifest
+mkManifest :: ManifestInfo -> SerializationPlan a m -> IO Manifest
 mkManifest (ManifestInfo namespaceInfo) (SerializationPlan{..}) = do
   let ns = Map.toList namespaceInfo
       totalEntries = F.foldl' (+) 0 (namespaceEntries . snd <$> ns)
