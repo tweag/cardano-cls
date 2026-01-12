@@ -21,9 +21,9 @@ import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Codec.CBOR.Encoding qualified as CBOR
 import Codec.CBOR.Write qualified as CBOR
-import Control.Exception (SomeException, bracket, catch)
+import Control.Exception (SomeException, catch)
 import Control.Monad (foldM)
-import Control.Monad.Trans.Resource (runResourceT)
+import Control.Monad.Trans.Resource (allocate, runResourceT)
 import Data.ByteString.Lazy qualified as BL
 import Data.Function ((&))
 import Data.Map.Strict qualified as Map
@@ -94,26 +94,26 @@ mergeFiles outputFile sourceFiles = do
   putStrLn $ "Merging " ++ show (length sourceFiles) ++ " file(s) into: " ++ outputFile
   catch
     do
-      nsToFiles <- collectNamespaceFiles sourceFiles
+      nsToFiles <- Map.toList <$> collectNamespaceFiles sourceFiles
 
-      putStrLn $ "Found " ++ show (Map.size nsToFiles) ++ " unique namespace(s)"
+      putStrLn $ "Found " ++ show (length nsToFiles) ++ " unique namespace(s)"
 
-      withNamespaceHandles nsToFiles $ \nsHandles -> do
+      runResourceT $ do
         let stream =
-              S.each nsHandles
-                & S.mapM_ \(ns, handles) -> do
-                  S.each handles
-                    & S.map
-                      ( \handle ->
-                          (ns S.:> namespacedData @RawBytes handle ns)
+              S.each nsToFiles
+                & S.mapM_ \(ns, files) -> do
+                  S.each files
+                    & S.mapM
+                      ( \file -> do
+                          (_, handle) <- allocate (openFile file ReadMode) hClose
+                          pure (ns S.:> namespacedData @RawBytes handle ns)
                       )
 
-        runResourceT $
-          serialize
-            outputFile
-            Mainnet
-            (SlotNo 1)
-            (defaultSerializationPlan & addChunks stream)
+        serialize
+          outputFile
+          Mainnet
+          (SlotNo 1)
+          (defaultSerializationPlan & addChunks stream)
 
       putStrLn "Merge complete"
       pure Ok
@@ -135,20 +135,6 @@ mergeFiles outputFile sourceFiles = do
       )
       mempty
       files
-  -- Open file handles for each namespace's files, execute the given action,
-  -- and ensure all handles are closed afterwards.
-  withNamespaceHandles :: Map.Map Namespace [FilePath] -> ([(Namespace, [Handle])] -> IO a) -> IO a
-  withNamespaceHandles nsToFiles =
-    bracket
-      ( Map.foldrWithKey
-          ( \ns files acc -> do
-              handles <- mapM (\file -> openFile file ReadMode) files
-              (:) (ns, handles) <$> acc
-          )
-          (pure [])
-          nsToFiles
-      )
-      (mapM_ (mapM_ hClose . snd))
 
 data ExtractOptions = ExtractOptions
   { extractNamespaces :: Maybe [Namespace]
