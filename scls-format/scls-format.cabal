@@ -70,7 +70,6 @@ library
     containers,
     crypton,
     directory,
-    exceptions,
     filepath,
     memory,
     mempack-scls,
