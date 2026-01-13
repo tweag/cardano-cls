@@ -124,7 +124,7 @@ cabal test all
 To test that generated file matches the kaitai specification run:
 
 ``` sh
-nix develop -c bash -- ./scripts/validate-file.sh
+nix develop -c validate-scls
 ```
 
 It will download latest specification, generate a scls file and validate file against
