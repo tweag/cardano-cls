@@ -57,6 +57,7 @@ in {
         pkgs.writeShellScriptBin "haskell-language-server-wrapper" ''
           exec haskell-language-server "$@"
         '';
+      verifyScls = pkgs.callPackage ./verify-scls.nix { };
     in with pkgs; [ nixfmt-classic hls-wrapper ];
   };
 }
