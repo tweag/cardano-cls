@@ -1,5 +1,6 @@
 {-# LANGUAGE BlockArguments #-}
 {-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Main where
@@ -12,14 +13,15 @@ import Cardano.SCLS.Util.Result
 import Cardano.SCLS.Util.Verify
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
-import Control.Monad.Catch
-import Control.Monad.IO.Class (MonadIO)
+import Control.Monad.Catch (MonadCatch, SomeException (..), catch)
+import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource
 import Data.Text (Text)
 import Data.Text qualified as T
 import Options.Applicative
 import System.Exit (exitWith)
+import System.IO (hPutStrLn, stderr)
 
 -- | Command-line options
 data Options = Options
@@ -247,8 +249,18 @@ main = do
         )
   result <-
     if optQuiet opts
-      then runNoLoggingT $ runCommand (optCommand opts)
-      else runStderrLoggingT $ runCommand (optCommand opts)
+      then runNoLoggingT $
+        catch
+          do runCommand (optCommand opts)
+          \(SomeException e) -> do
+            liftIO $ hPutStrLn stderr $ "Error: " <> show e
+            pure OtherError
+      else runStderrLoggingT $
+        catch
+          do runCommand (optCommand opts)
+          \(SomeException e) -> do
+            logErrorN $ "Error: " <> T.pack (show e)
+            pure OtherError
   exitWith $ toErrorCode result
 
 -- | Execute the selected command
