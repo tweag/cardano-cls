@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+import os
 import inspect
 import kaitaistruct
 from kaitaistruct import KaitaiStream
@@ -72,9 +73,10 @@ def verify_file(filename: str) -> None:
         raise
 
 
-def main(argv):
+def main():
+    argv = sys.argv
     if len(argv) < 2:
-        print(f"Usage: {argv[0]} FILE [FILE...]", file=sys.stderr)
+        print(f"Usage: {os.path.basename(argv[0])} FILE [FILE...]", file=sys.stderr)
         return 2
 
     failed = False
