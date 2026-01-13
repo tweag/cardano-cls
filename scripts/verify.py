@@ -72,7 +72,8 @@ def verify_file(filename: str) -> None:
         raise
 
 
-def main(argv):
+def main():
+    argv = sys.argv
     if len(argv) < 2:
         print(f"Usage: {argv[0]} FILE [FILE...]", file=sys.stderr)
         return 2
