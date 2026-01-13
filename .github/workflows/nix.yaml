@@ -22,7 +22,7 @@ jobs:
         - uses: DeterminateSystems/magic-nix-cache-action@main
         - name: Run `nix build`
           run: |
-            nix build \
+            nix build --accept-flake-config \
               '.#"scls-cardano:exe:gen-cddl"' \
               '.#"scls-cardano:lib:scls-cardano"' \
               '.#"scls-cardano:lib:testlib"' \
