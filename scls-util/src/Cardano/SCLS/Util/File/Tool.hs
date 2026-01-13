@@ -57,19 +57,20 @@ splitFile sourceFile outputDir SplitOptions{} = do
       fileNamespaces <- extractNamespaceList sourceFile
       pure (hdr, fileNamespaces)
 
-  mapM_
-    ( \ns -> do
-        let outputFile = outputDir </> Namespace.humanFileNameFor ns
-        logDebugN $ "  Creating " <> T.pack outputFile <> " for namespace " <> Namespace.asText ns
-        runResourceT $ do
-          (_, handle) <- allocate (openBinaryFile outputFile WriteMode) hClose
-          (_, sourceHandle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
+  runResourceT do
+    (_, sourceHandle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
+    mapM_
+      ( \ns -> do
+          let outputFile = outputDir </> Namespace.humanFileNameFor ns
+          logDebugN $ "  Creating " <> T.pack outputFile <> " for namespace " <> Namespace.asText ns
+          (key, handle) <- allocate (openBinaryFile outputFile WriteMode) hClose
           withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
             let dataStream = S.yield (ns S.:> stream)
             -- namespace-specific data should be sorted, so we can assume that and dump directly
             dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
-    )
-    fileNamespaces
+          release key
+      )
+      fileNamespaces
 
   logInfoN $ "Split complete. Generated these files:"
   mapM_ (logInfoN . ("  - " <>) . (T.pack . (outputDir </>)) . Namespace.humanFileNameFor) fileNamespaces
@@ -139,22 +140,21 @@ extract sourceFile outputFile ExtractOptions{..} = do
   logDebugN $ "Output file: " <> T.pack outputFile
   Hdr{..} <- liftIO $ withHeader sourceFile pure
 
-  handle <- liftIO $ openBinaryFile sourceFile ReadMode
-  let chunks =
-        case extractNamespaces of
-          Nothing -> S.each []
-          Just nsList ->
-            S.each nsList
-              & S.map
-                (\ns -> (ns S.:> namespacedData @RawBytes handle ns))
+  liftIO $ runResourceT do
+    (_, handle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
+    let chunks =
+          case extractNamespaces of
+            Nothing -> S.each []
+            Just nsList ->
+              S.each nsList
+                & S.map
+                  (\ns -> (ns S.:> namespacedData @RawBytes handle ns))
 
-  liftIO $
-    runResourceT $
-      serialize
-        outputFile
-        networkId
-        slotNo
-        (defaultSerializationPlan & addChunks chunks)
+    serialize
+      outputFile
+      networkId
+      slotNo
+      (defaultSerializationPlan & addChunks chunks)
 
   pure Ok
 
@@ -167,16 +167,18 @@ unpack sourceFile unpackOutputFile unpackNamespace UnpackOptions{} = do
   let namespace = Namespace.fromText unpackNamespace
 
   runResourceT do
-    (_, outputHandle) <- allocate (openBinaryFile unpackOutputFile WriteMode) (hClose)
     case namespaceSymbolFromText unpackNamespace of
       Nothing -> do
         logErrorN $ "Unknown namespace: " <> T.pack (Namespace.asString namespace)
         pure OtherError
       Just (SomeNamespaceSymbol (_ :: proxy ns)) -> do
-        liftIO $ withNamespacedData @(GenericCBOREntry (NamespaceKeySize ns)) sourceFile namespace $ \stream -> do
+        (_, outputHandle) <- allocate (openBinaryFile unpackOutputFile WriteMode) hClose
+        (_, sourceHandle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
+        withNamespacedDataHandle @(GenericCBOREntry (NamespaceKeySize ns)) sourceHandle namespace $ \stream -> do
           stream
             & S.mapM_ \(GenericCBOREntry (ChunkEntry (ByteStringSized k) b)) ->
-              BL.hPut outputHandle $
-                CBOR.toLazyByteString $
-                  CBOR.encodeListLen 2 <> CBOR.encodeBytes k <> CBOR.encodePreEncoded (getEncodedBytes b)
+              liftIO $
+                BL.hPut outputHandle $
+                  CBOR.toLazyByteString $
+                    CBOR.encodeListLen 2 <> CBOR.encodeBytes k <> CBOR.encodePreEncoded (getEncodedBytes b)
         pure Ok
