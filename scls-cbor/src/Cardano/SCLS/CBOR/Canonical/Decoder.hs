@@ -245,6 +245,60 @@ instance
     Versioned h <- fromCanonicalCBOR @v
     pure $ Versioned @v (a, b, c, d, e, f, g, h)
 
+instance
+  ( FromCanonicalCBOR v a
+  , FromCanonicalCBOR v b
+  , FromCanonicalCBOR v c
+  , FromCanonicalCBOR v d
+  , FromCanonicalCBOR v e
+  , FromCanonicalCBOR v f
+  , FromCanonicalCBOR v g
+  , FromCanonicalCBOR v h
+  , FromCanonicalCBOR v i
+  ) =>
+  FromCanonicalCBOR v (a, b, c, d, e, f, g, h, i)
+  where
+  fromCanonicalCBOR = do
+    assumeCanonicalDecoder $ D.decodeListLenCanonicalOf 9
+    Versioned a <- fromCanonicalCBOR @v
+    Versioned b <- fromCanonicalCBOR @v
+    Versioned c <- fromCanonicalCBOR @v
+    Versioned d <- fromCanonicalCBOR @v
+    Versioned e <- fromCanonicalCBOR @v
+    Versioned f <- fromCanonicalCBOR @v
+    Versioned g <- fromCanonicalCBOR @v
+    Versioned h <- fromCanonicalCBOR @v
+    Versioned i <- fromCanonicalCBOR @v
+    pure $ Versioned @v (a, b, c, d, e, f, g, h, i)
+
+instance
+  ( FromCanonicalCBOR v a
+  , FromCanonicalCBOR v b
+  , FromCanonicalCBOR v c
+  , FromCanonicalCBOR v d
+  , FromCanonicalCBOR v e
+  , FromCanonicalCBOR v f
+  , FromCanonicalCBOR v g
+  , FromCanonicalCBOR v h
+  , FromCanonicalCBOR v i
+  , FromCanonicalCBOR v j
+  ) =>
+  FromCanonicalCBOR v (a, b, c, d, e, f, g, h, i, j)
+  where
+  fromCanonicalCBOR = do
+    assumeCanonicalDecoder $ D.decodeListLenCanonicalOf 10
+    Versioned a <- fromCanonicalCBOR @v
+    Versioned b <- fromCanonicalCBOR @v
+    Versioned c <- fromCanonicalCBOR @v
+    Versioned d <- fromCanonicalCBOR @v
+    Versioned e <- fromCanonicalCBOR @v
+    Versioned f <- fromCanonicalCBOR @v
+    Versioned g <- fromCanonicalCBOR @v
+    Versioned h <- fromCanonicalCBOR @v
+    Versioned i <- fromCanonicalCBOR @v
+    Versioned j <- fromCanonicalCBOR @v
+    pure $ Versioned @v (a, b, c, d, e, f, g, h, i, j)
+
 --------------------------------------------------------------------------------
 -- Lists
 --------------------------------------------------------------------------------
