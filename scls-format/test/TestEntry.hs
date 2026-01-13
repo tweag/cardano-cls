@@ -18,6 +18,7 @@ module TestEntry (
 
 import Cardano.SCLS.CBOR.Canonical.Decoder
 import Cardano.SCLS.CBOR.Canonical.Encoder
+import Cardano.SCLS.CDDL ()
 import Cardano.SCLS.Entry.IsKey (IsKey (keySize, packKeyM, unpackKeyM))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (ChunkEntry))
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (Key, getKey))
