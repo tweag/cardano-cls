@@ -244,6 +244,58 @@ instance
       <> toCanonicalCBOR v g
       <> toCanonicalCBOR v h
 
+instance
+  ( ToCanonicalCBOR v a
+  , ToCanonicalCBOR v b
+  , ToCanonicalCBOR v c
+  , ToCanonicalCBOR v d
+  , ToCanonicalCBOR v e
+  , ToCanonicalCBOR v f
+  , ToCanonicalCBOR v g
+  , ToCanonicalCBOR v h
+  , ToCanonicalCBOR v i
+  ) =>
+  ToCanonicalCBOR v (a, b, c, d, e, f, g, h, i)
+  where
+  toCanonicalCBOR v (a, b, c, d, e, f, g, h, i) =
+    assumeCanonicalEncoding (E.encodeListLen 9)
+      <> toCanonicalCBOR v a
+      <> toCanonicalCBOR v b
+      <> toCanonicalCBOR v c
+      <> toCanonicalCBOR v d
+      <> toCanonicalCBOR v e
+      <> toCanonicalCBOR v f
+      <> toCanonicalCBOR v g
+      <> toCanonicalCBOR v h
+      <> toCanonicalCBOR v i
+
+instance
+  ( ToCanonicalCBOR v a
+  , ToCanonicalCBOR v b
+  , ToCanonicalCBOR v c
+  , ToCanonicalCBOR v d
+  , ToCanonicalCBOR v e
+  , ToCanonicalCBOR v f
+  , ToCanonicalCBOR v g
+  , ToCanonicalCBOR v h
+  , ToCanonicalCBOR v i
+  , ToCanonicalCBOR v j
+  ) =>
+  ToCanonicalCBOR v (a, b, c, d, e, f, g, h, i, j)
+  where
+  toCanonicalCBOR v (a, b, c, d, e, f, g, h, i, j) =
+    assumeCanonicalEncoding (E.encodeListLen 10)
+      <> toCanonicalCBOR v a
+      <> toCanonicalCBOR v b
+      <> toCanonicalCBOR v c
+      <> toCanonicalCBOR v d
+      <> toCanonicalCBOR v e
+      <> toCanonicalCBOR v f
+      <> toCanonicalCBOR v g
+      <> toCanonicalCBOR v h
+      <> toCanonicalCBOR v i
+      <> toCanonicalCBOR v j
+
 --------------------------------------------------------------------------------
 -- Lists
 --------------------------------------------------------------------------------

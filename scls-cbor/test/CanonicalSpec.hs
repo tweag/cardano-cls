@@ -43,6 +43,15 @@ tests =
       ( \v ->
           describe (show v) $ do
             roundtrip Proxy (Proxy @())
+            roundtrip Proxy (Proxy @(Int, Int))
+            roundtrip Proxy (Proxy @(Int, Int, Int))
+            roundtrip Proxy (Proxy @(Int, Int, Int, Int))
+            roundtrip Proxy (Proxy @(Int, Int, Int, Int, Int))
+            roundtrip Proxy (Proxy @(Int, Int, Int, Int, Int, Int))
+            roundtrip Proxy (Proxy @(Int, Int, Int, Int, Int, Int, Int))
+            roundtrip Proxy (Proxy @(Int, Int, Int, Int, Int, Int, Int, Int))
+            roundtrip Proxy (Proxy @(Int, Int, Int, Int, Int, Int, Int, Int, Int))
+            roundtrip Proxy (Proxy @(Int, Int, Int, Int, Int, Int, Int, Int, Int, Int))
             roundtrip Proxy (Proxy @Integer)
             roundtrip Proxy (Proxy @Word)
             roundtrip Proxy (Proxy @Word8)
