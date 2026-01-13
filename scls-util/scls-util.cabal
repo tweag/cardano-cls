@@ -40,7 +40,6 @@ library
     crypton,
     cuddle,
     directory,
-    exceptions,
     filepath,
     mempack-scls,
     merkle-tree-incremental,
