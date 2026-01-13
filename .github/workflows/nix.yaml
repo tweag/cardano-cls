@@ -20,16 +20,19 @@ jobs:
         - name: Install Nix
           uses: DeterminateSystems/nix-installer-action@main
         - uses: DeterminateSystems/magic-nix-cache-action@main
-        - name: Set up cache
-          uses: actions/cache@v3
-          with:
-            path: |
-                dist-newstyle/
-            key: canonical-ledger-state-${{ hashFiles('cabal.project','flake.lock') }}
-        - uses: nicknovitski/nix-develop@v1
-          with:
-            arguments: "--accept-flake-config"
-        - name: Build
-          run: cabal build all
-        - name: Test
-          run: cabal test all
+        - name: Run `nix build`
+          run: |
+            nix build \
+              '.#"scls-cardano:exe:gen-cddl"' \
+              '.#"scls-cardano:lib:scls-cardano"' \
+              '.#"scls-cardano:lib:testlib"' \
+              '.#"scls-cardano:lib:validate"' \
+              '.#"scls-cardano:test:scls-util-test"' \
+              '.#"scls-cbor:lib:scls-cbor"' \
+              '.#"scls-cbor:test:scls-cbor-test"' \
+              '.#"scls-core:lib:scls-core"' \
+              '.#"scls-format:lib:scls-format"' \
+              '.#"scls-format:test:scls-format-test"' \
+              '.#"scls-util:exe:scls-util"' \
+              '.#"scls-util:lib:scls-util"' \
+              '.#"scls-util:test:scls-util-test"'
