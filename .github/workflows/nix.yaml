@@ -25,6 +25,9 @@ jobs:
         - name: Run `nix build`
           run: |
             nix build \
+              '.#"mempack-scls:lib:mempack-scls"' \
+              '.#"merkle-tree-incremental:test:merkle-tree-incremental-test"' \
+              '.#"merkle-tree-incremental:lib:merkle-tree-incremental"' \
               '.#"scls-cardano:exe:gen-cddl"' \
               '.#"scls-cardano:lib:scls-cardano"' \
               '.#"scls-cardano:lib:testlib"' \
@@ -40,9 +43,9 @@ jobs:
               '.#"scls-util:test:scls-util-test"'
         - name: Run tests
           run: |
-            nix run \
-              '.#"scls-cardano:test:scls-util-test"' \
-              '.#"scls-cbor:test:scls-cbor-test"' \
-              '.#"scls-format:test:scls-format-test"' \
-              '.#"scls-util:test:scls-util-test"' \
-              '.#"validate-scls-test"'
+            nix run '.#"merkle-tree-incremental:test:merkle-tree-incremental-test"'
+            nix run '.#"scls-cardano:test:scls-util-test"'
+            nix run '.#"scls-cbor:test:scls-cbor-test"'
+            nix run '.#"scls-format:test:scls-format-test"'
+            nix run '.#"scls-util:test:scls-util-test"'
+            nix build '.#checks.x86_64-linux.validate-scls-test'
