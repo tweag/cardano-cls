@@ -11,7 +11,7 @@ python3.pkgs.buildPythonApplication {
         "https://raw.githubusercontent.com/tweag/CIPs/refs/heads/move-slot-no/CIP-0165/format/format.ksy";
       sha256 = "sha256-N8pSmcW4uJd/rq7ShsooQsaTTJIcpuUKZtQInVpbCjA=";
     })
-    ../scripts/verify.py
+    ../../scripts/verify.py
   ];
 
   propagatedBuildInputs = with python3.pkgs; [ kaitaistruct ];
