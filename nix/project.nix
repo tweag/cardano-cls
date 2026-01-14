@@ -57,16 +57,6 @@ in {
         pkgs.writeShellScriptBin "haskell-language-server-wrapper" ''
           exec haskell-language-server "$@"
         '';
-      verifyScls = pkgs.callPackage ./verify-scls.nix { };
-      validateScls = pkgs.writeShellApplication {
-        name = "validate-scls";
-        runtimeInputs = [ verifyScls ];
-        text = ''
-          TEMP_DIR=$(mktemp -d)
-          cabal run scls-util -- debug generate "$TEMP_DIR/1.scls"
-          verify-scls "$TEMP_DIR/1.scls"
-        '';
-      };
-    in with pkgs; [ nixfmt-classic hls-wrapper validateScls ];
+    in with pkgs; [ nixfmt-classic hls-wrapper validate-scls ];
   };
 }
