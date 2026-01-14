@@ -47,12 +47,21 @@
 
         treefmtEval =
           treefmt-nix.lib.evalModule pkgs (import ./nix/treefmt.nix project);
+
+        validate-scls-test =
+          pkgs.callPackage ./nix/pkgs/validate-scls-test.nix {
+            scls-util-exe =
+              cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util;
+          };
       in lib.recursiveUpdate flake {
         project = cardanoCanonicalLedger;
         legacyPackages = { inherit cardanoCanonicalLedger pkgs; };
 
+        packages = { inherit validate-scls-test; };
+
         checks = {
-          formatting = treefmtEval.${pkgs.system}.config.build.check self;
+          formatting = treefmtEval.config.build.check self;
+          inherit validate-scls-test;
         };
 
         devShells = let
