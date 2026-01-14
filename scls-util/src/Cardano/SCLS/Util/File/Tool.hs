@@ -25,7 +25,7 @@ import Codec.CBOR.Write qualified as CBOR
 import Control.Monad (foldM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
-import Control.Monad.Trans.Resource (MonadUnliftIO, allocate, runResourceT)
+import Control.Monad.Trans.Resource (MonadUnliftIO, allocate, release, runResourceT)
 import Data.ByteString.Lazy qualified as BL
 import Data.Function ((&))
 import Data.Map.Strict qualified as Map
