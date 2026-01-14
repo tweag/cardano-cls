@@ -29,6 +29,7 @@ import Data.Set qualified as Set
 import Data.Text qualified as T
 import Data.Text.Lazy qualified as TL
 import Data.Word (Word16, Word32, Word64, Word8)
+import GHC.Natural (Natural)
 import Test.Hspec
 import Test.Hspec.QuickCheck (prop)
 import Test.QuickCheck
@@ -80,6 +81,12 @@ tests =
                    in case fromFlatTerm decodeTerm encodedBytes of
                         Right decoded -> decoded
                         Left s -> error $ "Unexpected error, can't decode encoded term: " <> show s
+              )
+            roundtripWith
+              Proxy
+              (Proxy @Natural)
+              ( \i ->
+                  fromIntegral $ if i < (0 :: Integer) then -i else i
               )
       )
     prop "encoded map is ordered by encoded key byte-order" $
