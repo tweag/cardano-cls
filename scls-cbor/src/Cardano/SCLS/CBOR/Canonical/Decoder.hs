@@ -434,3 +434,10 @@ instance FromCanonicalCBOR v Term where
         | otherwise ->
             fail "FromCanonicalCBOR<Term> leftover found when decoding canonical structure"
       Left e -> fail $ "FromCanonicalCBOR<Term> unable to do roundtrip: " <> show e
+
+instance FromCanonicalCBOR v Natural where
+  fromCanonicalCBOR = assumeCanonicalDecoder $ do
+    i <- D.decodeIntegerCanonical
+    if i < 0
+      then fail "FromCanonicalCBOR<Natural>: negative integer cannot be decoded as Natural"
+      else pure $ Versioned @v (fromInteger i)

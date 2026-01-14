@@ -444,3 +444,6 @@ forceCanonical p x = case fromFlatTerm decodeTerm (toFlatTerm x) of
 -}
 canonicalizeTerm :: proxy (v :: Symbol) -> Term -> Either String Term
 canonicalizeTerm p = fromFlatTerm decodeTerm . toFlatTerm . getRawEncoding . toCanonicalCBOR p
+
+instance ToCanonicalCBOR v Natural where
+  toCanonicalCBOR _v n = assumeCanonicalEncoding $ E.encodeInteger (fromIntegral n)
