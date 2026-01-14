@@ -36,5 +36,11 @@ jobs:
               '.#"scls-util:exe:scls-util"' \
               '.#"scls-util:lib:scls-util"' \
               '.#"scls-util:test:scls-util-test"'
-            nix run \
+        - name: Run tests
+          run: |
+            nix run --accept-flake-config \
+              '.#"scls-cardano:test:scls-util-test"' \
+              '.#"scls-cbor:test:scls-cbor-test"' \
+              '.#"scls-format:test:scls-format-test"' \
+              '.#"scls-util:test:scls-util-test"' \
               '.#"validate-scls-test"'
