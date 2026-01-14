@@ -143,6 +143,7 @@ jobs:
           echo "packages: $GITHUB_WORKSPACE/source/scls-core" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/scls-cardano" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/scls-cbor" >> cabal.project
+          echo "packages: $GITHUB_WORKSPACE/source/scls-util" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/mempack-scls" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/merkle-tree-incremental" >> cabal.project
           cat cabal.project
@@ -164,6 +165,8 @@ jobs:
           echo "PKGDIR_scls_core=${PKGDIR_scls_core}" >> "$GITHUB_ENV"
           PKGDIR_scls_cbor="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/scls-cbor-[0-9.]*')"
           echo "PKGDIR_scls_cbor=${PKGDIR_scls_cbor}" >> "$GITHUB_ENV"
+          PKGDIR_scls_util="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/scls-util-[0-9.]*')"
+          echo "PKGDIR_scls_util=${PKGDIR_scls_util}" >> "$GITHUB_ENV"
           PKGDIR_mempack_scls="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/mempack-scls-[0-9.]*')"
           echo "PKGDIR_mempack_scls=${PKGDIR_mempack_scls}" >> "$GITHUB_ENV"
           PKGDIR_merkle_tree_incremental="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/merkle-tree-incremental-[0-9.]*')"
@@ -184,6 +187,8 @@ jobs:
           echo "package scls-cbor" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
           echo "package scls-core" >> cabal.project
+          echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
+          echo "package scls-util" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
           echo "package mempack-scls" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
@@ -225,7 +230,7 @@ jobs:
             quickcheck-instances-0.3.33:QuickCheck,
             uuid-types-1.0.6:template-haskell,
           EOF
-          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(scls-cardano|scls-core|scls-format|scls-cbor|mempack-scls|merkle-tree-incremental)$/; }' >> cabal.project.local
+          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(scls-cardano|scls-core|scls-format|scls-cbor|scls-util|mempack-scls|merkle-tree-incremental)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
       - name: dump install plan
