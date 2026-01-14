@@ -36,3 +36,5 @@ jobs:
               '.#"scls-util:exe:scls-util"' \
               '.#"scls-util:lib:scls-util"' \
               '.#"scls-util:test:scls-util-test"'
+            nix run \
+              '.#"validate-scls-test"'
