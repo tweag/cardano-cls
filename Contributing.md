@@ -30,6 +30,19 @@ nix develop .#ghc984
 
 Replace `ghc984` with the desired GHC version and configuration variant. Available options can be found in the flake configuration.
 
+#### Discovering available outputs
+
+To see all available outputs (dev shells, packages, checks, etc.), you can use:
+
+``` sh
+nix flake show
+```
+
+This command will display a tree structure of all available flake outputs, including:
+- Development shells for different GHC versions
+- Package components that can be built
+- Checks and formatters
+
 #### Nix cache (optional, but recommended)
 
 To speed up the build process (avoid building GHC), you should use the IOHK Nix cache.
