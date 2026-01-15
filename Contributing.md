@@ -32,13 +32,25 @@ Replace `ghc984` with the desired GHC version and configuration variant. Availab
 
 #### Discovering available outputs
 
-To see all available outputs (dev shells, packages, checks, etc.), you can use:
+To see all available outputs (dev shells, packages, checks, etc.), you should first update `nix/project.nix` to include `evalSystem = <YOUR_SYSTEM>;` in the `pkgs.haskell-nix.cabalProject'` call, for example:
 
-``` sh
-nix flake show
+```nix
+    # ...
+    cardanoCanonicalLedger = pkgs.haskell-nix.cabalProject' {
+        evalSystem = "x86_64-linux";
+        # ...
+    };
+    # ...
+```
+
+Then run:
+
+```sh
+nix flake show --allow-import-from-derivation
 ```
 
 This command will display a tree structure of all available flake outputs, including:
+
 - Development shells for different GHC versions
 - Package components that can be built
 - Checks and formatters
@@ -94,7 +106,7 @@ this project you need to have GHC>=9.6 and cabal>=3.10
 
 To install ghcup follow the instructions on site. After installing run
 
-```
+```sh
 ghcup tui
 ```
 
