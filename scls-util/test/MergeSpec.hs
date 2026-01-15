@@ -106,10 +106,10 @@ mergeCommandTests = describe "merge command" do
       files <- generateOverlappingNsSplitTestFiles dir
       let mergedFile = dir </> "merged.scls"
 
-      (exitCode, stdout, _) <- runSclsUtil $ ["file", mergedFile, "merge"] <> map fst files
+      (exitCode, _, stderr) <- runSclsUtil $ ["file", mergedFile, "merge"] <> map fst files
 
       exitCode `shouldBe` ExitSuccess
-      stdout `shouldContain` "3 unique namespace(s)"
+      stderr `shouldContain` "3 unique namespace(s)"
 
   it "fails for non-existent source files" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do

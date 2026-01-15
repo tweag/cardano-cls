@@ -13,6 +13,7 @@ import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Common
 import Control.Monad (forM_)
+import Control.Monad.Trans.Resource (runResourceT)
 import Data.Function ((&))
 import Data.MemPack.Extra (RawBytes (..))
 import Streaming.Prelude qualified as S
@@ -20,7 +21,6 @@ import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
-import Control.Monad.Trans.Resource (runResourceT)
 
 infoCommandTests :: Spec
 infoCommandTests = describe "info command" do
@@ -73,14 +73,15 @@ listNsCommandTests = describe "list-ns command" do
       let fileName = dir </> "empty.scls"
       -- Create file with no namespaces
       _ <-
-        runResourceT $ Reference.serialize @RawBytes
-          fileName
-          Mainnet
-          (SlotNo 1)
-          (defaultSerializationPlan & addChunks (S.each []))
+        runResourceT $
+          Reference.serialize @RawBytes
+            fileName
+            Mainnet
+            (SlotNo 1)
+            (defaultSerializationPlan & addChunks (S.each []))
 
-      (exitCode, stdout, _) <- runSclsUtil ["file", fileName, "list-ns"]
+      (exitCode, _, stderr) <- runSclsUtil ["file", fileName, "list-ns"]
 
       exitCode `shouldBe` ExitSuccess
 
-      stdout `shouldContain` "No namespaces found"
+      stderr `shouldContain` "No namespaces found"
