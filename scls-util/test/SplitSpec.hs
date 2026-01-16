@@ -93,3 +93,26 @@ splitCommandTests = describe "split command" do
               outputFile
         )
         sourceFile
+
+  it "skips verification with --no-verify flag" do
+    withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
+      (sourceFile, _) <- generateTestFile dir
+      let outputDir = dir </> "split"
+
+      (exitCode, _, stderr) <- runSclsUtil ["file", sourceFile, "split", outputDir, "--no-verify"]
+
+      annotate "exit code" $ exitCode `shouldBe` ExitSuccess
+      annotate "skips verification" $ stderr `shouldContain` "Skipping verification"
+      annotate "no verification PASSED message" $ stderr `shouldNotContain` "All namespace verifications PASSED"
+
+  it "skips verification for extract with --no-verify flag" do
+    withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
+      (sourceFile, namespaces) <- generateTestFile dir
+      let outputFile = dir </> "extracted.scls"
+          namespacesToExtract = [namespaces !! 0]
+
+      (exitCode, _, stderr) <- runSclsUtil ["file", sourceFile, "extract", outputFile, "--namespaces", T.unpack $ T.intercalate "," (Namespace.asText <$> namespacesToExtract), "--no-verify"]
+
+      annotate "exit code" $ exitCode `shouldBe` ExitSuccess
+      annotate "skips verification" $ stderr `shouldContain` "Skipping verification"
+      annotate "no verification PASSED message" $ stderr `shouldNotContain` "All namespace verifications PASSED"
