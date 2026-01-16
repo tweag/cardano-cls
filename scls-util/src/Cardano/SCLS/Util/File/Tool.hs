@@ -8,6 +8,7 @@ module Cardano.SCLS.Util.File.Tool (splitFile, mergeFiles, extract, ExtractOptio
 import Cardano.SCLS.CDDL
 import Cardano.SCLS.Internal.Entry.CBOREntry
 import Cardano.SCLS.Internal.Entry.ChunkEntry
+import Cardano.SCLS.Internal.Hash (digestToString)
 import Cardano.SCLS.Internal.Reader
 import Cardano.SCLS.Internal.Record.Hdr (Hdr (..))
 import Cardano.SCLS.Internal.Serializer.Dump
@@ -22,7 +23,7 @@ import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Codec.CBOR.Encoding qualified as CBOR
 import Codec.CBOR.Write qualified as CBOR
-import Control.Monad (foldM)
+import Control.Monad (foldM, forM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource (MonadUnliftIO, allocate, release, runResourceT)
@@ -33,7 +34,7 @@ import Data.MemPack.Extra
 import Data.Text qualified as T
 import Streaming qualified as S
 import Streaming.Prelude qualified as S
-import System.Directory (createDirectoryIfMissing)
+import System.Directory (createDirectoryIfMissing, removeFile)
 import System.FilePath ((</>))
 import System.IO
 
@@ -41,13 +42,51 @@ data FileFormat = SclsFormat | CBorFormat
   deriving (Eq, Show)
 
 data SplitOptions = SplitOptions
+  { splitNoVerify :: Bool
+  }
+
+verifyOrCleanup :: (MonadIO m, MonadLogger m) => Bool -> FilePath -> [(Namespace, FilePath)] -> m Result
+verifyOrCleanup skipVerify sourceFile fileNamespaces =
+  if skipVerify
+    then do
+      logDebugN "Skipping verification (--no-verify flag set)"
+      pure Ok
+    else do
+      logDebugN "Verifying extracted namespace hashes..."
+
+      verificationResults <- forM fileNamespaces $ \(ns, extractedFile) -> do
+        maybeOriginalHash <- liftIO $ extractNamespaceHash ns sourceFile
+        maybeExtractedHash <- liftIO $ extractNamespaceHash ns extractedFile
+        case (maybeOriginalHash, maybeExtractedHash) of
+          (Just originalHash, Just extractedHash) ->
+            if originalHash == extractedHash
+              then do
+                logDebugN $ "Namespace " <> Namespace.asText ns <> " verification PASSED"
+                pure True
+              else do
+                logErrorN $ "Namespace " <> Namespace.asText ns <> " verification FAILED"
+                logErrorN $ "Expected: " <> T.pack (digestToString originalHash)
+                logErrorN $ "Computed: " <> T.pack (digestToString extractedHash)
+                pure False
+          _ -> do
+            logErrorN $ "Could not find hashes for namespace " <> Namespace.asText ns
+            pure False
+
+      if and verificationResults
+        then do
+          logInfoN "All namespace verifications PASSED"
+          pure Ok
+        else do
+          logErrorN "Verification failed. Cleaning up files..."
+          liftIO $ mapM_ removeFile [file | (_, file) <- fileNamespaces]
+          pure VerifyFailure
 
 {- | Split a single SCLS file into multiple files by namespace.
 Takes a source SCLS file and an output directory, and creates separate files
 for each namespace found in the source file.
 -}
 splitFile :: (MonadIO m, MonadLogger m, MonadUnliftIO m) => FilePath -> FilePath -> SplitOptions -> m Result
-splitFile sourceFile outputDir SplitOptions{} = do
+splitFile sourceFile outputDir SplitOptions{..} = do
   logDebugN $ "Splitting file: " <> T.pack sourceFile
   logDebugN $ "Output directory: " <> T.pack outputDir
   (hdr, fileNamespaces) <-
@@ -72,9 +111,7 @@ splitFile sourceFile outputDir SplitOptions{} = do
       )
       fileNamespaces
 
-  logInfoN $ "Split complete. Generated these files:"
-  mapM_ (logInfoN . ("  - " <>) . (T.pack . (outputDir </>)) . Namespace.humanFileNameFor) fileNamespaces
-  pure Ok
+  verifyOrCleanup splitNoVerify sourceFile [(ns, outputDir </> Namespace.humanFileNameFor ns) | ns <- fileNamespaces]
 
 {- | Merge multiple SCLS files into a single output file.
 
@@ -128,6 +165,7 @@ mergeFiles outputFile sourceFiles = do
 
 data ExtractOptions = ExtractOptions
   { extractNamespaces :: Maybe [Namespace]
+  , extractNoVerify :: Bool
   }
 
 {- | Extract specific data from an SCLS file into a new file.
@@ -156,7 +194,10 @@ extract sourceFile outputFile ExtractOptions{..} = do
       slotNo
       (defaultSerializationPlan & addChunks chunks)
 
-  pure Ok
+  case extractNamespaces of
+    Nothing -> pure Ok
+    Just nsList ->
+      verifyOrCleanup extractNoVerify sourceFile [(ns, outputFile) | ns <- nsList]
 
 data UnpackOptions = UnpackOptions
 
