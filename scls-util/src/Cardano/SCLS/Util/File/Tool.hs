@@ -68,8 +68,15 @@ verifyOrCleanup skipVerify sourceFile fileNamespaces =
                 logErrorN $ "Expected: " <> T.pack (digestToString originalHash)
                 logErrorN $ "Computed: " <> T.pack (digestToString extractedHash)
                 pure False
-          _ -> do
-            logErrorN $ "Could not find hashes for namespace " <> Namespace.asText ns
+          (Nothing, Nothing) -> do
+            logErrorN $ "Could not find hash for namespace " <> Namespace.asText ns <> " in source file"
+            logErrorN $ "Could not find hash for namespace " <> Namespace.asText ns <> " in extracted file"
+            pure False
+          (Nothing, Just _) -> do
+            logErrorN $ "Could not find hash for namespace " <> Namespace.asText ns <> " in source file"
+            pure False
+          (Just _, Nothing) -> do
+            logErrorN $ "Could not find hash for namespace " <> Namespace.asText ns <> " in extracted file"
             pure False
 
       if and verificationResults
