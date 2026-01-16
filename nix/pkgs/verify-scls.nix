@@ -9,6 +9,8 @@ python3.pkgs.buildPythonApplication {
     (fetchurl {
       url =
         "https://raw.githubusercontent.com/tweag/CIPs/refs/heads/cip-canonical/CIP-0165/format/format.ksy";
+      # Since this is fetched from a git branch HEAD, this hash needs to be updated whenever the
+      # file changes.
       sha256 = "sha256-ifc8Saqa1+sRrK93kFuhVPymbNULrkM9vbcJu31mlGg=";
     })
     ../../scripts/verify.py
