@@ -30,6 +30,31 @@ nix develop .#ghc984
 
 Replace `ghc984` with the desired GHC version and configuration variant. Available options can be found in the flake configuration.
 
+#### Discovering available outputs
+
+To see all available outputs (dev shells, packages, checks, etc.), you should first update `nix/project.nix` to include `evalSystem = <YOUR_SYSTEM>;` in the `pkgs.haskell-nix.cabalProject'` call, for example:
+
+```nix
+    # ...
+    cardanoCanonicalLedger = pkgs.haskell-nix.cabalProject' {
+        evalSystem = "x86_64-linux";
+        # ...
+    };
+    # ...
+```
+
+Then run:
+
+```sh
+nix flake show --allow-import-from-derivation
+```
+
+This command will display a tree structure of all available flake outputs, including:
+
+- Development shells for different GHC versions
+- Package components that can be built
+- Checks and formatters
+
 #### Nix cache (optional, but recommended)
 
 To speed up the build process (avoid building GHC), you should use the IOHK Nix cache.
@@ -81,7 +106,7 @@ this project you need to have GHC>=9.6 and cabal>=3.10
 
 To install ghcup follow the instructions on site. After installing run
 
-```
+```sh
 ghcup tui
 ```
 

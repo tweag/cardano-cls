@@ -24,7 +24,10 @@
 
         inherit (pkgs) lib;
 
-        project = import ./nix/project.nix pkgs;
+        supportedGhcVersions = [ "ghc910" "ghc912" ];
+
+        project =
+          import ./nix/project.nix { inherit pkgs supportedGhcVersions; };
 
         inherit (project) cardanoCanonicalLedger;
 
@@ -51,25 +54,29 @@
         project = cardanoCanonicalLedger;
         legacyPackages = { inherit cardanoCanonicalLedger pkgs; };
 
-        checks = {
-          formatting = treefmtEval.${pkgs.system}.config.build.check self;
-        };
+        checks = { formatting = treefmtEval.config.build.check self; };
 
         devShells = let
           mkDevShells = p: {
+            # Shell with profiling enabled
+            profiling = (p.appendModule {
+              modules = [{ enableLibraryProfiling = true; }];
+            }).shell;
+            # Default shell with pre-commit hooks
             default = p.shell.overrideAttrs (old: {
               shellHook = old.shellHook + pre-commit-check.shellHook;
-
-              buildInputs = old.buildInputs ++ pre-commit-check.enabledPackages;
             });
           };
-        in mkDevShells cardanoCanonicalLedger // lib.mapAttrs
-        (compiler-nix-name: _:
-          let
-            p = cardanoCanonicalLedger.appendModule {
-              inherit compiler-nix-name;
-            };
-          in p.shell // (mkDevShells p)) pkgs.haskell-nix.compiler;
+        in mkDevShells cardanoCanonicalLedger // lib.listToAttrs (map
+          (compiler-nix-name:
+            let
+              p = cardanoCanonicalLedger.appendModule {
+                inherit compiler-nix-name;
+              };
+            in {
+              name = compiler-nix-name;
+              value = p.shell // (mkDevShells p);
+            }) supportedGhcVersions);
 
         formatter = treefmtEval.config.build.wrapper;
       });
