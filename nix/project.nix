@@ -7,6 +7,9 @@ in {
   inherit fourmoluVersion cabalGildVersion;
 
   cardanoCanonicalLedger = pkgs.haskell-nix.cabalProject' {
+    # Put your system here in order to make `nix flake show` work.
+    # You can find out the system string by running:
+    # `nix eval --impure --expr 'builtins.currentSystem'`
     # evalSystem = "x86_64-linux";
     src = ../.;
 
