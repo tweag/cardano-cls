@@ -46,6 +46,9 @@ data SplitOptions = SplitOptions
   { splitNoVerify :: Bool
   }
 
+{- | Verify hashes for a set of extracted namespace files, or clean them up on
+failure.
+-}
 verifyOrCleanup :: (MonadIO m, MonadLogger m) => Bool -> FilePath -> [(Namespace, FilePath)] -> m Result
 verifyOrCleanup skipVerify sourceFile fileNamespaces =
   if skipVerify
@@ -92,6 +95,12 @@ verifyOrCleanup skipVerify sourceFile fileNamespaces =
 {- | Split a single SCLS file into multiple files by namespace.
 Takes a source SCLS file and an output directory, and creates separate files
 for each namespace found in the source file.
+
+By default, the function will verify that the contents of each extracted
+namespace file match the corresponding namespace data in the original SCLS
+file by comparing namespace hashes. If any namespace verification fails,
+all created namespace files are removed and a 'VerifyFailure' result is
+returned.
 -}
 splitFile :: (MonadIO m, MonadLogger m, MonadUnliftIO m) => FilePath -> FilePath -> SplitOptions -> m Result
 splitFile sourceFile outputDir SplitOptions{..} = do
@@ -179,6 +188,13 @@ data ExtractOptions = ExtractOptions
 {- | Extract specific data from an SCLS file into a new file.
 Takes a source SCLS file, an output file, and extraction options specifying
 which data to extract.
+
+
+By default, the function will verify that the contents of each extracted
+namespace file match the corresponding namespace data in the original SCLS
+file by comparing namespace hashes. If any namespace verification fails,
+all created namespace files are removed and a 'VerifyFailure' result is
+returned.
 -}
 extract :: (MonadLogger m, MonadIO m) => FilePath -> FilePath -> ExtractOptions -> m Result
 extract sourceFile outputFile ExtractOptions{..} = do
