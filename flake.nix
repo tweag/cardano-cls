@@ -17,7 +17,7 @@
     in flake-utils.lib.eachSystem supportedSystems (system:
       let
         pkgs = import nixpkgs {
-          overlays = [ haskellNix.overlay ];
+          overlays = [ (import ./nix/pkgs) haskellNix.overlay ];
           inherit system;
           inherit (haskellNix) config;
         };
@@ -54,7 +54,19 @@
         project = cardanoCanonicalLedger;
         legacyPackages = { inherit cardanoCanonicalLedger pkgs; };
 
-        checks = { formatting = treefmtEval.config.build.check self; };
+        checks = {
+          formatting = treefmtEval.config.build.check self;
+          validate-scls-test = pkgs.runCommand "validate-scls-test" {
+            buildInputs = with pkgs; [
+              verify-scls
+              cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util
+            ];
+          } ''
+            scls-util debug generate 1.scls
+            verify-scls 1.scls
+            touch "$out"
+          '';
+        };
 
         devShells = let
           mkDevShells = p: {
