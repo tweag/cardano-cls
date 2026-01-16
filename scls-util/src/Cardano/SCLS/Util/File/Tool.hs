@@ -29,6 +29,7 @@ import Control.Monad.Logger
 import Control.Monad.Trans.Resource (MonadUnliftIO, allocate, release, runResourceT)
 import Data.ByteString.Lazy qualified as BL
 import Data.Function ((&))
+import Data.List (nub)
 import Data.Map.Strict qualified as Map
 import Data.MemPack.Extra
 import Data.Text qualified as T
@@ -85,7 +86,7 @@ verifyOrCleanup skipVerify sourceFile fileNamespaces =
           pure Ok
         else do
           logErrorN "Verification failed. Cleaning up files..."
-          liftIO $ mapM_ removeFile [file | (_, file) <- fileNamespaces]
+          liftIO $ mapM_ removeFile (nub [file | (_, file) <- fileNamespaces])
           pure VerifyFailure
 
 {- | Split a single SCLS file into multiple files by namespace.
