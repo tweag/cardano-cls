@@ -7,7 +7,7 @@ module MultiNamespace (
 
 import Cardano.SCLS.Internal.Hash (Digest (..))
 import Cardano.SCLS.Internal.Reader (extractNamespaceHash, extractNamespaceList, extractRootHash, withNamespacedData)
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (SerializationPlan, addChunks, defaultSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (SerializationPlan, Unsorted, addChunks, defaultSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.External.Impl qualified as External (serialize)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
 import Cardano.Types.Namespace (Namespace (..))
@@ -73,7 +73,7 @@ mkTestsFor serialize = do
     let input = [("ns0", []), ("ns1", ["data"]), ("ns2", [])]
     roundtrip serialize input
 
-type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan RawBytes ResIO -> ResIO ()
+type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan RawBytes ResIO Unsorted -> ResIO ()
 
 roundtrip :: SerializeF -> [(Namespace, [ByteString])] -> IO ()
 roundtrip serialize input = do

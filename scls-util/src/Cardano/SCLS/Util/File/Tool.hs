@@ -11,7 +11,7 @@ import Cardano.SCLS.Internal.Entry.ChunkEntry
 import Cardano.SCLS.Internal.Reader
 import Cardano.SCLS.Internal.Record.Hdr (Hdr (..))
 import Cardano.SCLS.Internal.Serializer.Dump
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan, mkSortedSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan, sortSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.External.Impl (serialize)
 import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol))
@@ -67,7 +67,7 @@ splitFile sourceFile outputDir SplitOptions{} = do
           withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
             let dataStream = S.yield (ns S.:> stream)
             -- namespace-specific data should be sorted, so we can assume that and dump directly
-            dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
+            dumpToHandle handle hdr (sortSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
           release key
       )
       fileNamespaces

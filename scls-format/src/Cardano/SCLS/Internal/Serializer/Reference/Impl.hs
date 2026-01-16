@@ -9,7 +9,7 @@ module Cardano.SCLS.Internal.Serializer.Reference.Impl (
 
 import Cardano.SCLS.Internal.Record.Hdr
 import Cardano.SCLS.Internal.Serializer.Dump (dumpToHandle)
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, InputChunk, SerializationPlan, mkSortedSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, InputChunk, SerializationPlan, Unsorted, sortSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (getKey))
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Network
@@ -42,13 +42,13 @@ serialize ::
   NetworkId ->
   -- | Slot of the current transaction
   SlotNo ->
-  SerializationPlan a ResIO ->
+  SerializationPlan a ResIO Unsorted ->
   ResIO ()
 serialize resultFilePath network slotNo plan = do
   (_, handle) <- allocate (openBinaryFile resultFilePath WriteMode) hClose
   let hdr = mkHdr network slotNo
   dumpToHandle handle hdr $
-    mkSortedSerializationPlan
+    sortSerializationPlan
       plan
       ( \s -> do
           !orderedStream <- liftIO $ runResourceT $ mkVectors s

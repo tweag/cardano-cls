@@ -28,6 +28,7 @@ import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Resource (MonadResource)
 import Data.Maybe (fromMaybe)
 import Data.MemPack
 import Data.MemPack.Buffer (pinnedByteArrayToByteString)
@@ -41,7 +42,6 @@ import Streaming (Of (..))
 import Streaming.Internal (Stream (..))
 import Streaming.Prelude qualified as S
 import System.IO (Handle)
-import Control.Monad.Trans.Resource (MonadResource)
 
 {- | A stream of values grouped by namespace.
 
@@ -63,17 +63,16 @@ newtype DataStream a m = DataStream {runDataStream :: ChunkStream a m}
 -- This is reference implementation and it does not yet care about
 -- proper working with the hardware, i.e. flushing and calling fsync
 -- at the right moments.
-dumpToHandle :: (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a, MonadResource m) => Handle -> Hdr -> SortedSerializationPlan a m -> m ()
-dumpToHandle handle hdr sortedPlan = do
-  let plan@SerializationPlan{..} = getSerializationPlan sortedPlan
+dumpToHandle :: (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a, MonadResource m) => Handle -> Hdr -> SerializationPlan a m Sorted -> m ()
+dumpToHandle handle hdr plan = do
   _ <- liftIO $ hWriteFrame handle hdr
   manifestData <-
-    pChunkStream -- output our sorted stream
+    pChunkStream plan -- output our sorted stream
       & S.mapM
         ( \(namespace :> inner) -> do
             inner
               & dedup
-              & constructChunks_ pChunkFormat pBufferSize -- compose entries into data for chunks records, returns digest of entries
+              & constructChunks_ (pChunkFormat plan) (pBufferSize plan) -- compose entries into data for chunks records, returns digest of entries
               & S.copy
               & storeToHandle namespace -- stores data to handle,passes digest of entries
               & S.map CB.chunkItemEntriesCount -- keep only number of entries (other things are not needed)
@@ -95,12 +94,12 @@ dumpToHandle handle hdr sortedPlan = do
         mempty
         ManifestInfo
 
-  case pMetadataStream of
+  case pMetadataStream plan of
     Nothing -> pure ()
     Just s -> do
       _rootHash <- -- TODO: parametrize builder machine to customize accumulator operation (replace hash computation with something else)
         s
-          & constructMetadata_ pBufferSize -- compose entries into data for metadata records, returns digest of entries
+          & constructMetadata_ (pBufferSize plan) -- compose entries into data for metadata records, returns digest of entries
           & S.map metadataToRecord
           & S.mapM_ (liftIO . hWriteFrame handle)
       pure ()
@@ -211,8 +210,8 @@ instance Semigroup ManifestInfo where
 instance Monoid ManifestInfo where
   mempty = ManifestInfo Map.empty
 
-mkManifest :: ManifestInfo -> SerializationPlan a m -> IO Manifest
-mkManifest (ManifestInfo namespaceInfo) (SerializationPlan{..}) = do
+mkManifest :: ManifestInfo -> SerializationPlan a m sorted -> IO Manifest
+mkManifest (ManifestInfo namespaceInfo) plan = do
   let ns = Map.toList namespaceInfo
       totalEntries = F.foldl' (+) 0 (namespaceEntries . snd <$> ns)
       totalChunks = F.foldl' (+) 0 (namespaceChunks . snd <$> ns)
@@ -221,7 +220,7 @@ mkManifest (ManifestInfo namespaceInfo) (SerializationPlan{..}) = do
           MT.merkleRootHash $
             MT.finalize $
               F.foldl' MT.add (MT.empty undefined) (namespaceHash . snd <$> ns)
-  createdAt <- T.pack <$> formatShow iso8601Format <$> fromMaybe getCurrentTime (fmap pure pTimestamp)
+  createdAt <- T.pack <$> formatShow iso8601Format <$> fromMaybe getCurrentTime (fmap pure (pTimestamp plan))
   pure
     Manifest
       { totalEntries
@@ -233,6 +232,6 @@ mkManifest (ManifestInfo namespaceInfo) (SerializationPlan{..}) = do
           ManifestSummary
             { createdAt
             , tool = T.pack "scls-tool:reference" -- TODO: add version (?)
-            , comment = pManifestComment
+            , comment = pManifestComment plan
             }
       }

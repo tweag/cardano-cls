@@ -7,7 +7,9 @@ the dump file.
 -}
 module Cardano.SCLS.Internal.Serializer.Dump.Plan (
   -- * Plan
-  SerializationPlan (..),
+  SerializationPlan (pBufferSize, pChunkFormat, pChunkStream, pMetadataStream, pManifestComment, pTimestamp),
+  Sorted,
+  Unsorted,
   InputChunk,
   ChunkStream,
 
@@ -22,8 +24,7 @@ module Cardano.SCLS.Internal.Serializer.Dump.Plan (
   withTimestamp,
 
   -- * Sorted plan
-  SortedSerializationPlan (..),
-  mkSortedSerializationPlan,
+  sortSerializationPlan,
 ) where
 
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry, SomeChunkEntry (SomeChunkEntry), encodeChunkEntry)
@@ -52,8 +53,11 @@ type ChunkStream a m = Stream (Of (InputChunk a m)) m ()
 
 type MetadataStream m = Stream (Of MetadataEntry) m ()
 
+data Sorted
+data Unsorted
+
 -- | Serialization plan with data sources and configuration options.
-data SerializationPlan a m = SerializationPlan
+data SerializationPlan a m sorted = SerializationPlan
   -- Future fields for more dump configurations can be added here
   -- e.g. isToBuildIndex, deltaStream, etc.
   { pChunkFormat :: ChunkFormat
@@ -71,7 +75,7 @@ data SerializationPlan a m = SerializationPlan
   }
 
 -- | Create a serialization plan with default options and no data.
-defaultSerializationPlan :: (Monad m) => SerializationPlan a m
+defaultSerializationPlan :: (Monad m) => SerializationPlan a m Unsorted
 defaultSerializationPlan =
   SerializationPlan
     { pChunkFormat = ChunkFormatRaw
@@ -84,68 +88,71 @@ defaultSerializationPlan =
 
 -- | Add a chunked data stream to the dump configuration.
 addNamespacedChunks ::
-  forall ns m.
+  forall ns m sorted.
   (KnownSymbol ns, KnownNamespace ns, Monad m) =>
   Proxy ns ->
   Stream (Of (ChunkEntry (NamespaceKey ns) (NamespaceEntry ns))) m () ->
-  SerializationPlan (SomeChunkEntry RawBytes) m ->
-  SerializationPlan (SomeChunkEntry RawBytes) m
+  SerializationPlan (SomeChunkEntry RawBytes) m sorted ->
+  SerializationPlan (SomeChunkEntry RawBytes) m Unsorted
 addNamespacedChunks p stream =
   addChunks $
     S.yield
       ((fromSymbol p) :> S.map (SomeChunkEntry . encodeChunkEntry p) stream)
 
-addChunks :: (MemPack a, Typeable a, Monad m) => ChunkStream a m -> SerializationPlan a m -> SerializationPlan a m
+addChunks ::
+  (MemPack a, Typeable a, Monad m) =>
+  ChunkStream a m ->
+  SerializationPlan a m sorted ->
+  SerializationPlan a m Unsorted
 addChunks stream plan@SerializationPlan{..} =
   plan
     { pChunkStream = pChunkStream <> stream
     }
 
 -- | Set the chunk format in the serialization plan.
-withChunkFormat :: ChunkFormat -> SerializationPlan a m -> SerializationPlan a m
+withChunkFormat ::
+  ChunkFormat ->
+  SerializationPlan a m sorted ->
+  SerializationPlan a m sorted
 withChunkFormat format plan =
   plan
     { pChunkFormat = format
     }
 
 -- | Add a metadata stream to the serialization plan.
-addMetadata :: MetadataStream m -> SerializationPlan a m -> SerializationPlan a m
+addMetadata :: MetadataStream m -> SerializationPlan a m sorted -> SerializationPlan a m sorted
 addMetadata stream plan =
   plan
     { pMetadataStream = Just stream
     }
 
 -- | Set the buffer size in the serialization plan.
-withBufferSize :: Int -> SerializationPlan a m -> SerializationPlan a m
+withBufferSize :: Int -> SerializationPlan a m sorted -> SerializationPlan a m sorted
 withBufferSize size plan =
   plan
     { pBufferSize = size
     }
 
 -- | Set the manifest comment value in the serialization plan.
-withManifestComment :: Text -> SerializationPlan a m -> SerializationPlan a m
+withManifestComment :: Text -> SerializationPlan a m sorted -> SerializationPlan a m sorted
 withManifestComment comment plan =
   plan
     { pManifestComment = Just comment
     }
 
 -- | Set the timestamp value in the serialization plan.
-withTimestamp :: UTCTime -> SerializationPlan a m -> SerializationPlan a m
+withTimestamp :: UTCTime -> SerializationPlan a m sorted -> SerializationPlan a m sorted
 withTimestamp timestamp plan =
   plan
     { pTimestamp = Just timestamp
     }
 
--- | A serialization plan with sorted streams.
-newtype SortedSerializationPlan a m = SortedSerializationPlan {getSerializationPlan :: SerializationPlan a m}
-
--- | Create a sorted serialization plan from an existing plan and sorter functions.
-mkSortedSerializationPlan ::
-  SerializationPlan a m ->
+-- | Convert an unsorted serialization plan into a sorted one.
+sortSerializationPlan ::
+  SerializationPlan a m Unsorted ->
   (ChunkStream a m -> ChunkStream b m) ->
-  SortedSerializationPlan b m
-mkSortedSerializationPlan plan@SerializationPlan{..} sortF =
-  SortedSerializationPlan $
-    plan
-      { pChunkStream = sortF pChunkStream
-      }
+  SerializationPlan b m Sorted
+sortSerializationPlan plan@SerializationPlan{..} sortF =
+  plan
+    { pChunkStream = sortF pChunkStream
+    }

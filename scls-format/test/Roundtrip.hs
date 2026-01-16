@@ -15,7 +15,7 @@ import Cardano.SCLS.Internal.Reader (extractRootHash, withHeader, withLatestMani
 import Cardano.SCLS.Internal.Record.Hdr (mkHdr)
 import Cardano.SCLS.Internal.Record.Manifest (Manifest (..), ManifestSummary (..))
 import Cardano.SCLS.Internal.Record.Metadata (Metadata (..), MetadataEntry (MetadataEntry))
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (SerializationPlan, addChunks, addMetadata, defaultSerializationPlan, withManifestComment, withTimestamp)
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (SerializationPlan, Unsorted, addChunks, addMetadata, defaultSerializationPlan, withManifestComment, withTimestamp)
 import Cardano.SCLS.Internal.Serializer.External.Impl qualified as External (serialize)
 import Cardano.SCLS.Internal.Serializer.HasKey (nubByKey, sortByKey)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
@@ -168,4 +168,4 @@ mkRoundtripTestsFor groupName serialize =
                   `shouldBe` mEntries
           )
 
-type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan SomeCBOREntry ResIO -> ResIO ()
+type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan SomeCBOREntry ResIO Unsorted -> ResIO ()

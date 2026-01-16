@@ -9,7 +9,7 @@ module Cardano.SCLS.Internal.Serializer.External.Impl (
 
 import Cardano.SCLS.Internal.Record.Hdr
 import Cardano.SCLS.Internal.Serializer.Dump (DataStream (DataStream, runDataStream), dumpToHandle)
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, SerializationPlan, mkSortedSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, SerializationPlan, Unsorted, sortSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (Key, getKey))
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
@@ -56,7 +56,7 @@ serialize ::
   -- | Slot of the current transaction
   SlotNo ->
   -- | Serialization plan to use
-  SerializationPlan a ResIO ->
+  SerializationPlan a ResIO Unsorted ->
   ResIO ()
 serialize resultFilePath network slotNo plan = do
   let !hdr = mkHdr network slotNo
@@ -66,7 +66,7 @@ serialize resultFilePath network slotNo plan = do
         (openBinaryFile resultFilePath WriteMode)
         hClose
     dumpToHandle handle hdr $
-      mkSortedSerializationPlan
+      sortSerializationPlan
         plan
         ( \s -> do
             lift $ liftResourceT $ prepareExternalSortNamespaced tmpDir s
