@@ -71,7 +71,7 @@ keyhash32 :: Rule
 keyhash32 = "keyhash32" =:= hash32
 
 keyhash28 :: Rule
-keyhash28 = "keyhash28" =:= hash28 -- Important: seems on the current chain it's 32
+keyhash28 = "keyhash28" =:= hash28
 
 hash28 :: Rule
 hash28 = "hash28" =:= VBytes `sized` (28 :: Word64)

@@ -17,6 +17,7 @@ import Codec.CBOR.Cuddle.Huddle
 import Data.Function (($))
 import Data.Word (Word64)
 import Text.Heredoc (str)
+import Prelude (Integer)
 
 record_entry :: Rule
 record_entry =
@@ -55,13 +56,16 @@ proposal :: Rule
 proposal =
   "proposal"
     =:= mp
-      [ "drep_votes" ==> mp [0 <+ asKey credential ==> coin]
+      [ "drep_votes" ==> mp [0 <+ asKey credential ==> vote]
       , "proposed_in" ==> epoch_no
       , "expires_after" ==> epoch_no
-      , "committee_votes" ==> mp [0 <+ asKey committee_cold_credential ==> coin]
-      , "stake_pool_votes" ==> mp [0 <+ asKey pool_keyhash ==> coin]
+      , "committee_votes" ==> mp [0 <+ asKey committee_cold_credential ==> vote]
+      , "stake_pool_votes" ==> mp [0 <+ asKey pool_keyhash ==> vote]
       , "proposal_procedure" ==> proposal_procedure
       ]
+
+vote :: Rule
+vote = "vote" =:= (0 :: Integer) ... (2 :: Integer)
 
 proposal_procedure :: Rule
 proposal_procedure =
