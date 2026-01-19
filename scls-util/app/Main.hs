@@ -173,9 +173,11 @@ parseOptions =
   extractOptions =
     File.ExtractOptions
       <$> namespaceOption
+      <*> switch (long "no-verify" <> help "Skip hash verification after extraction")
   splitOptions :: Parser File.SplitOptions
   splitOptions =
-    pure File.SplitOptions
+    File.SplitOptions
+      <$> switch (long "no-verify" <> help "Skip hash verification after split")
   unpackOptions =
     pure File.UnpackOptions
   namespaceOption =
