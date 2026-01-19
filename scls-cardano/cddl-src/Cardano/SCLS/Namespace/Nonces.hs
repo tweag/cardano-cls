@@ -49,7 +49,7 @@ nonces =
         [ "lab_nonce" ==> nonce
         , "last_slot" ==> with_origin slot_no
         , "epoch_nonce" ==> nonce
-        , "cert_counters" ==> mp [0 <+ asKey keyhash32 ==> word64]
+        , "cert_counters" ==> mp [0 <+ asKey keyhash28 ==> word64]
         , "evolving_nonce" ==> nonce
         , "candidate_nonce" ==> nonce
         , "last_epoch_block_nonce" ==> nonce
