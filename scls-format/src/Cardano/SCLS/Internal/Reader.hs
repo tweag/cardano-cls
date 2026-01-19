@@ -178,7 +178,7 @@ namespacedData handle namespace = stream
             streamChunkEntries (chunkData $ frameViewContent chunkRecord)
         go next_record
 
-knownNamespacedData :: forall ns. (KnownSymbol ns, KnownNamespace ns) => Handle -> Proxy ns -> S.Stream (S.Of (ChunkEntry (NamespaceKey ns) (NamespaceEntry ns))) IO ()
+knownNamespacedData :: forall ns io. (KnownSymbol ns, KnownNamespace ns, MonadIO io) => Handle -> Proxy ns -> S.Stream (S.Of (ChunkEntry (NamespaceKey ns) (NamespaceEntry ns))) io ()
 knownNamespacedData handle p =
   namespacedData
     @(ChunkEntry (ByteStringSized (NamespaceKeySize ns)) RawBytes)
