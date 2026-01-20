@@ -64,5 +64,8 @@ neutral_nonce = "neutral_nonce" =:= arr [0]
 just_nonce :: Rule
 just_nonce = "just_nonce" =:= arr [1, a hash32]
 
+slot_origin :: Rule
+slot_origin = "slot_origin" =:= with_origin slot_no
+
 with_origin :: (IsType0 t0) => t0 -> GRuleCall
 with_origin = binding $ \x -> "with_origin" =:= arr [0] / arr [1, a x]

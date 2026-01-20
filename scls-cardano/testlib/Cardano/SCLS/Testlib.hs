@@ -137,7 +137,8 @@ propNamespaceEntryRoundTrip = \a -> do
         Right (Versioned a'') -> annotate "(b', a'') = decode (encode a')" $ do
           a'' `shouldBe` a'
         r -> r `shouldSatisfy` isRight
-    r -> r `shouldSatisfy` isRight
+    r -> annotate (show $ toFlatTerm (getRawEncoding $ encodeEntry @ns a)) $ do
+      r `shouldSatisfy` isRight
 
 debugValidateType :: forall ns a. (KnownSymbol ns, ToCanonicalCBOR ns a) => T.Text -> a -> Maybe CBORTermResult
 debugValidateType t a = validateBytesAgainst (toStrictByteString $ getRawEncoding (toCanonicalCBOR (Proxy @ns) a)) nsName t
