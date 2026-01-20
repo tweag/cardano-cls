@@ -10,7 +10,12 @@
     url = "github:numtide/treefmt-nix";
     inputs.nixpkgs.follows = "nixpkgs";
   };
-  outputs = { self, nixpkgs, flake-utils, haskellNix, git-hooks, treefmt-nix }:
+  inputs.cips = {
+    url = "github:tweag/CIPs/cip-canonical";
+    flake = false;
+  };
+  outputs =
+    { self, nixpkgs, flake-utils, haskellNix, git-hooks, treefmt-nix, cips }:
     let
       supportedSystems =
         [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];
@@ -27,7 +32,7 @@
         supportedGhcVersions = [ "ghc910" "ghc912" ];
 
         project =
-          import ./nix/project.nix { inherit pkgs supportedGhcVersions; };
+          import ./nix/project.nix { inherit pkgs supportedGhcVersions cips; };
 
         inherit (project) cardanoCanonicalLedger;
 

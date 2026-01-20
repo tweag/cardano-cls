@@ -16,7 +16,7 @@ import Text.Heredoc (str)
 record_entry :: Rule
 record_entry =
   comment
-    [str| Constinution record entry
+    [str| Constitution record entry
         |
         | ```
         | meta:
