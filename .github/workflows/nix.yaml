@@ -38,9 +38,10 @@ jobs:
               '.#"scls-util:lib:scls-util"'
         - name: Run tests
           run: |
-            nix run '.#"merkle-tree-incremental:test:merkle-tree-incremental-test"'
-            nix run '.#"scls-cardano:test:scls-util-test"'
-            nix run '.#"scls-cbor:test:scls-cbor-test"'
-            nix run '.#"scls-format:test:scls-format-test"'
-            nix run '.#"scls-util:test:scls-util-test"'
-            nix build '.#checks.x86_64-linux.validate-scls-test'
+            nix build \
+              '.#checks.x86_64-linux."merkle-tree-incremental:test:merkle-tree-incremental-test"' \
+              '.#checks.x86_64-linux."scls-cardano:test:scls-util-test"' \
+              '.#checks.x86_64-linux."scls-cbor:test:scls-cbor-test"' \
+              '.#checks.x86_64-linux."scls-format:test:scls-format-test"' \
+              '.#checks.x86_64-linux."scls-util:test:scls-util-test"' \
+              '.#checks.x86_64-linux.validate-scls-test'
