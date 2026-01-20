@@ -31,8 +31,14 @@
 
         supportedGhcVersions = [ "ghc910" "ghc912" ];
 
-        project =
-          import ./nix/project.nix { inherit pkgs supportedGhcVersions cips; };
+        referenceCDDLDir = pkgs.runCommand "reference-cddl" { } ''
+          mkdir -p $out
+          cp ${cips}/CIP-0165/namespaces/*.cddl $out/ || true
+        '';
+
+        project = import ./nix/project.nix {
+          inherit pkgs supportedGhcVersions referenceCDDLDir;
+        };
 
         inherit (project) cardanoCanonicalLedger;
 
