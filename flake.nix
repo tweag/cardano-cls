@@ -71,6 +71,12 @@
             verify-scls 1.scls
             touch "$out"
           '';
+          "scls-util:test:scls-util-test" =
+            flake.checks."scls-util:test:scls-util-test".overrideAttrs (old: {
+              preCheck = (old.preCheck or "") + ''
+                export SCLS_UTIL_PATH=${cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util}/bin/scls-util
+              '';
+            });
         };
 
         devShells = let
