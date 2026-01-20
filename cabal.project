@@ -40,3 +40,10 @@ allow-newer:
   quickcheck-instances-0.3.33:containers,
   quickcheck-instances-0.3.33:QuickCheck,
   uuid-types-1.0.6:template-haskell,
+
+-- Contains hotfix for cuddle dependency needed for conformance tests
+source-repository-package
+  type: git
+  location: https://github.com/tweag/cuddle.git
+  tag: 797108ad059b5807e30f945a619bc9324acd13b3
+  --sha256: 1kml5d9nnhp0v6jmqpgyvwfczg0aakj2dign78j6lbr1b20ws6sf
