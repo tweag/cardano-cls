@@ -83,6 +83,23 @@
         "type": "github"
       }
     },
+    "cips": {
+      "flake": false,
+      "locked": {
+        "lastModified": 1767976712,
+        "narHash": "sha256-RKau5grHrfvkczPNTNz5bXWn1tjPDJeLjbl1ez8UKWM=",
+        "owner": "tweag",
+        "repo": "CIPs",
+        "rev": "0d5802870c4ee7054a0688cbefc0699b7c9a3bf1",
+        "type": "github"
+      },
+      "original": {
+        "owner": "tweag",
+        "ref": "cip-canonical",
+        "repo": "CIPs",
+        "type": "github"
+      }
+    },
     "flake-compat": {
       "flake": false,
       "locked": {
@@ -682,6 +699,7 @@
     },
     "root": {
       "inputs": {
+        "cips": "cips",
         "flake-utils": "flake-utils",
         "git-hooks": "git-hooks",
         "haskellNix": "haskellNix",

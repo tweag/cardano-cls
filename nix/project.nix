@@ -1,8 +1,13 @@
-{ pkgs, supportedGhcVersions }:
+{ pkgs, supportedGhcVersions, cips }:
 let
   defaultCompiler = "ghc910";
   fourmoluVersion = "0.19.0.0";
   cabalGildVersion = "1.6.0.2";
+
+  referenceCDDLDir = pkgs.runCommand "reference-cddl" { } ''
+    mkdir -p $out
+    cp ${cips}/CIP-0165/namespaces/*.cddl $out/ || true
+  '';
 in {
   inherit fourmoluVersion cabalGildVersion;
 
@@ -68,5 +73,10 @@ in {
         '';
       };
     in with pkgs; [ nixfmt-classic hls-wrapper validateScls ];
+
+    # Make reference CDDL files available to tests
+    shell.shellHook = ''
+      export REFERENCE_CDDL_DIR="${referenceCDDLDir}"
+    '';
   };
 }
