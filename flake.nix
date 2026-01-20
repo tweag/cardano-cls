@@ -83,6 +83,13 @@
                 export SCLS_UTIL_PATH=${cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util}/bin/scls-util
               '';
             });
+          "scls-cardano:test:scls-cardano-test" =
+            flake.checks."scls-cardano:test:scls-cardano-test".overrideAttrs
+            (old: {
+              preCheck = (old.preCheck or "") + ''
+                export REFERENCE_CDDL_DIR=${referenceCDDLDir}
+              '';
+            });
         };
 
         devShells = let
