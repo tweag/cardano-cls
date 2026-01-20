@@ -117,8 +117,22 @@ test-suite scls-util-test
   type: exitcode-stdio-1.0
   hs-source-dirs: test
   main-is: Main.hs
+  other-modules:
+    Conformance
+    Reference
+
   build-depends:
     base >=4.18 && <5,
+    base16-bytestring,
+    bytestring,
+    cborg,
     containers,
+    cuddle >=1.1,
+    directory,
+    filepath,
     hspec,
-    scls-cardano:{validate},
+    megaparsec,
+    random >=1.2,
+    scls-cardano,
+    scls-cardano:validate,
+    text,
