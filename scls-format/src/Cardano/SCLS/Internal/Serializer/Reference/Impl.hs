@@ -12,7 +12,6 @@ import Cardano.SCLS.Internal.Serializer.Dump (dumpToHandle)
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, InputChunk, SerializationPlan, mkSortedSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (getKey))
 import Cardano.Types.Namespace (Namespace (..))
-import Cardano.Types.Network
 import Cardano.Types.SlotNo
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.ST (runST)
@@ -38,16 +37,13 @@ serialize ::
   (MemPack a, Typeable a, HasKey a, MemPackHeaderOffset a) =>
   -- | path to resulting file
   FilePath ->
-  -- | Network identifier
-  NetworkId ->
   -- | Slot of the current transaction
   SlotNo ->
   SerializationPlan a ResIO ->
   ResIO ()
-serialize resultFilePath network slotNo plan = do
+serialize resultFilePath slotNo plan = do
   (_, handle) <- allocate (openBinaryFile resultFilePath WriteMode) hClose
-  let hdr = mkHdr network slotNo
-  dumpToHandle handle hdr $
+  dumpToHandle handle mkHdr $
     mkSortedSerializationPlan
       plan
       ( \s -> do

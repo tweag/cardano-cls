@@ -45,7 +45,6 @@ library
     Cardano.SCLS.Internal.Version
     Cardano.SCLS.Query
     Cardano.Types.Namespace
-    Cardano.Types.Network
     Cardano.Types.SlotNo
 
   -- other-modules:
