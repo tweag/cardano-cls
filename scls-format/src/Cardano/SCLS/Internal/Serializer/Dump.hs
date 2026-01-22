@@ -20,6 +20,7 @@ import Cardano.SCLS.Internal.Serializer.Dump.Plan
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (..))
 import Cardano.SCLS.Internal.Serializer.MetadataBuilder.InMemory qualified as MB
 import Cardano.Types.Namespace (Namespace)
+import Cardano.Types.SlotNo
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 
 import Data.Foldable qualified as F
@@ -28,6 +29,7 @@ import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Control.Monad.Trans.Resource (MonadResource)
 import Data.Maybe (fromMaybe)
 import Data.MemPack
 import Data.MemPack.Buffer (pinnedByteArrayToByteString)
@@ -41,7 +43,6 @@ import Streaming (Of (..))
 import Streaming.Internal (Stream (..))
 import Streaming.Prelude qualified as S
 import System.IO (Handle)
-import Control.Monad.Trans.Resource (MonadResource)
 
 {- | A stream of values grouped by namespace.
 
@@ -63,8 +64,8 @@ newtype DataStream a m = DataStream {runDataStream :: ChunkStream a m}
 -- This is reference implementation and it does not yet care about
 -- proper working with the hardware, i.e. flushing and calling fsync
 -- at the right moments.
-dumpToHandle :: (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a, MonadResource m) => Handle -> Hdr -> SortedSerializationPlan a m -> m ()
-dumpToHandle handle hdr sortedPlan = do
+dumpToHandle :: (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a, MonadResource m) => Handle -> SlotNo -> Hdr -> SortedSerializationPlan a m -> m ()
+dumpToHandle handle slotNo hdr sortedPlan = do
   let plan@SerializationPlan{..} = getSerializationPlan sortedPlan
   _ <- liftIO $ hWriteFrame handle hdr
   manifestData <-
@@ -105,7 +106,7 @@ dumpToHandle handle hdr sortedPlan = do
           & S.mapM_ (liftIO . hWriteFrame handle)
       pure ()
 
-  manifest <- liftIO $ mkManifest manifestData plan
+  manifest <- liftIO $ mkManifest slotNo manifestData plan
   _ <- liftIO $ hWriteFrame handle manifest
   pure ()
  where
@@ -211,8 +212,8 @@ instance Semigroup ManifestInfo where
 instance Monoid ManifestInfo where
   mempty = ManifestInfo Map.empty
 
-mkManifest :: ManifestInfo -> SerializationPlan a m -> IO Manifest
-mkManifest (ManifestInfo namespaceInfo) (SerializationPlan{..}) = do
+mkManifest :: SlotNo -> ManifestInfo -> SerializationPlan a m -> IO Manifest
+mkManifest slotNo (ManifestInfo namespaceInfo) (SerializationPlan{..}) = do
   let ns = Map.toList namespaceInfo
       totalEntries = F.foldl' (+) 0 (namespaceEntries . snd <$> ns)
       totalChunks = F.foldl' (+) 0 (namespaceChunks . snd <$> ns)
@@ -224,7 +225,8 @@ mkManifest (ManifestInfo namespaceInfo) (SerializationPlan{..}) = do
   createdAt <- T.pack <$> formatShow iso8601Format <$> fromMaybe getCurrentTime (fmap pure pTimestamp)
   pure
     Manifest
-      { totalEntries
+      { slotNo
+      , totalEntries
       , totalChunks
       , rootHash = rootHash
       , nsInfo = namespaceInfo

@@ -43,7 +43,7 @@ serialize ::
   ResIO ()
 serialize resultFilePath slotNo plan = do
   (_, handle) <- allocate (openBinaryFile resultFilePath WriteMode) hClose
-  dumpToHandle handle mkHdr $
+  dumpToHandle handle slotNo mkHdr $
     mkSortedSerializationPlan
       plan
       ( \s -> do
