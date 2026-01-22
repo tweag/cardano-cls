@@ -11,7 +11,6 @@ import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializati
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
-import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Common (generateTestFile, runSclsUtil)
 import Control.Monad (forM)
@@ -42,7 +41,6 @@ generateSplitTestFiles dir = do
     runResourceT $
       Reference.serialize @RawBytes
         fileName
-        Mainnet
         (SlotNo 1)
         (defaultSerializationPlan & addChunks mkStream)
 
@@ -83,7 +81,6 @@ generateOverlappingNsSplitTestFiles dir = do
     runResourceT $
       Reference.serialize @RawBytes
         fileName
-        Mainnet
         (SlotNo 1)
         (defaultSerializationPlan & addChunks stream)
 

@@ -12,7 +12,6 @@ import Cardano.SCLS.Internal.Serializer.External.Impl qualified as External (ser
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
-import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
 import Control.Monad.Trans.Resource (ResIO, runResourceT)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
@@ -73,7 +72,7 @@ mkTestsFor serialize = do
     let input = [("ns0", []), ("ns1", ["data"]), ("ns2", [])]
     roundtrip serialize input
 
-type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan RawBytes ResIO -> ResIO ()
+type SerializeF = FilePath -> SlotNo -> SerializationPlan RawBytes ResIO -> ResIO ()
 
 roundtrip :: SerializeF -> [(Namespace, [ByteString])] -> IO ()
 roundtrip serialize input = do
@@ -83,7 +82,6 @@ roundtrip serialize input = do
       runResourceT $
         serialize
           fileName
-          Mainnet
           (SlotNo 1)
           mkPlan
     nsps <- extractNamespaceList fileName

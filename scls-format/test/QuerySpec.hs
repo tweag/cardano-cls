@@ -9,7 +9,6 @@ import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializati
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
 import Cardano.SCLS.Query (queryEntry)
 import Cardano.Types.Namespace (Namespace)
-import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString qualified as BS
@@ -58,7 +57,7 @@ serializeTestData fileName namespaceData = do
                 | (ns, entries) <- namespaceData
                 ]
             )
-  _ <- runResourceT $ Reference.serialize fileName Mainnet (SlotNo 1) plan
+  _ <- runResourceT $ Reference.serialize fileName (SlotNo 1) plan
   return ()
 
 queryTests :: Spec

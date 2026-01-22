@@ -5,7 +5,6 @@ module Common (generateTestFile, runSclsUtil) where
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference
 import Cardano.Types.Namespace (Namespace (..))
-import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString.Char8 qualified as BS8
@@ -34,7 +33,6 @@ generateTestFile dir = do
   runResourceT $
     Reference.serialize @RawBytes
       fileName
-      Mainnet
       (SlotNo 1)
       (defaultSerializationPlan & addChunks mkStream)
 

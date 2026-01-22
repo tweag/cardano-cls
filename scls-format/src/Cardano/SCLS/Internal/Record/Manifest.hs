@@ -111,8 +111,8 @@ data Manifest = Manifest
 
 instance IsFrameRecord 0x01 Manifest where
   frameRecordSize Manifest{..} =
-    packedByteCount totalEntries
-      + packedByteCount slotNo
+    packedByteCount slotNo
+      + packedByteCount totalEntries
       + packedByteCount totalChunks
       + packedByteCount summary
       + (sum $ map nsInfoSize $ Map.keys nsInfo)
@@ -135,7 +135,7 @@ instance IsFrameRecord 0x01 Manifest where
     packWord32beM 0
     packWord64beM prevManifestOffset
     packM rootHash
-    packWord32beM (fromIntegral $ 8 + 8 + packedByteCount summary + nsSize + 4 + 8 + hashDigestSize + frameHeaderSize)
+    packWord32beM (fromIntegral $ 8 + 8 + 8 + packedByteCount summary + nsSize + 4 + 8 + hashDigestSize + frameHeaderSize)
    where
     packNsInfo (ns, h) = do
       let nsBytes = Namespace.asBytes ns

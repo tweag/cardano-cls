@@ -22,7 +22,6 @@ import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (s
 import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (KnownSpec (namespaceSpec), SomeNamespaceSymbol (..), toString)
 import Cardano.Types.Namespace qualified as Namespace
-import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
 import Codec.CBOR.Cuddle.CBOR.Gen (generateCBORTerm')
 import Codec.CBOR.Cuddle.CDDL (Name (..))
@@ -71,7 +70,6 @@ mkRoundtripTestsFor groupName serialize =
           runResourceT $
             serialize
               fileName
-              Mainnet
               (SlotNo 1)
               ( defaultSerializationPlan
                   & withManifestComment testComment
@@ -90,7 +88,6 @@ mkRoundtripTestsFor groupName serialize =
           runResourceT $
             serialize
               fileName
-              Mainnet
               (SlotNo 1)
               ( defaultSerializationPlan
                   & withTimestamp timestamp
@@ -124,7 +121,6 @@ mkRoundtripTestsFor groupName serialize =
           runResourceT $
             serialize
               fileName
-              Mainnet
               (SlotNo 1)
               ( defaultSerializationPlan
                   & addChunks (S.each [namespace S.:> S.each entries])
@@ -136,7 +132,7 @@ mkRoundtripTestsFor groupName serialize =
               annotate
                 "header roundtrip successful"
                 $ hdr
-                  `shouldBe` mkHdr Mainnet (SlotNo 1)
+                  `shouldBe` mkHdr
           )
         withNamespacedData
           fileName
@@ -168,4 +164,4 @@ mkRoundtripTestsFor groupName serialize =
                   `shouldBe` mEntries
           )
 
-type SerializeF = FilePath -> NetworkId -> SlotNo -> SerializationPlan SomeCBOREntry ResIO -> ResIO ()
+type SerializeF = FilePath -> SlotNo -> SerializationPlan SomeCBOREntry ResIO -> ResIO ()
