@@ -11,7 +11,7 @@ import Data.MemPack (MemPack (..))
 import Foreign
 
 import Cardano.SCLS.Internal.Record.Internal.Class
-import Cardano.SCLS.Internal.Version (Version (..), packVersion, unpackVersion)
+import Cardano.SCLS.Internal.Version (Version (..))
 import Cardano.Types.Network
 import Cardano.Types.SlotNo
 
@@ -50,28 +50,6 @@ instance IsFrameRecord 0 Hdr where
     networkId <- unpackM
     slotNo <- unpackM
     pure Hdr{..}
-
--- | Storable instance for a Header record
-instance Storable Hdr where
-  sizeOf _ =
-    -- (sizeOf (undefined :: Word64))
-    4
-      + (sizeOf (undefined :: Word32))
-      + (sizeOf (undefined :: NetworkId))
-      + (sizeOf (undefined :: SlotNo))
-  alignment _ = 8
-  peek ptr = do
-    magic_pre <- peekByteOff ptr 0
-    let magic = magic_pre .&. 0xffffffff -- We are interested only in the first 4 bytes
-    version <- unpackVersion <$> peekByteOff ptr 4
-    networkId <- peekByteOff ptr 8
-    slotNo <- peekByteOff ptr 9
-    return $! Hdr magic version networkId slotNo
-  poke ptr (Hdr magic version networkId slotNo) = do
-    pokeByteOff ptr 0 magic
-    pokeByteOff ptr 4 (packVersion version)
-    pokeByteOff ptr 8 networkId
-    pokeByteOff ptr 9 slotNo
 
 -- | Creates header record for the current version.
 mkHdr :: NetworkId -> SlotNo -> Hdr
