@@ -8,8 +8,8 @@ python3.pkgs.buildPythonApplication {
   srcs = [
     (fetchurl {
       url =
-        "https://raw.githubusercontent.com/tweag/CIPs/refs/heads/cip-canonical/CIP-0165/format/format.ksy";
-      sha256 = "sha256-ifc8Saqa1+sRrK93kFuhVPymbNULrkM9vbcJu31mlGg=";
+        "https://raw.githubusercontent.com/tweag/CIPs/refs/heads/move-slot-no/CIP-0165/format/format.ksy";
+      sha256 = "sha256-N8pSmcW4uJd/rq7ShsooQsaTTJIcpuUKZtQInVpbCjA=";
     })
     ../scripts/verify.py
   ];

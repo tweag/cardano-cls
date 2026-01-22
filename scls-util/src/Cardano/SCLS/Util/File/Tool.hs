@@ -10,6 +10,7 @@ import Cardano.SCLS.Internal.Entry.CBOREntry
 import Cardano.SCLS.Internal.Entry.ChunkEntry
 import Cardano.SCLS.Internal.Hash (digestToString)
 import Cardano.SCLS.Internal.Reader
+import Cardano.SCLS.Internal.Record.Manifest
 import Cardano.SCLS.Internal.Serializer.Dump
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan, mkSortedSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.External.Impl (serialize)
@@ -104,12 +105,13 @@ splitFile :: (MonadIO m, MonadLogger m, MonadUnliftIO m) => FilePath -> FilePath
 splitFile sourceFile outputDir SplitOptions{..} = do
   logDebugN $ "Splitting file: " <> T.pack sourceFile
   logDebugN $ "Output directory: " <> T.pack outputDir
-  (hdr, fileNamespaces) <-
+  (hdr, slotNo, fileNamespaces) <-
     liftIO do
       createDirectoryIfMissing True outputDir
       hdr <- withHeader sourceFile pure
       fileNamespaces <- extractNamespaceList sourceFile
-      pure (hdr, fileNamespaces)
+      slotNo <- withLatestManifestFrame (\Manifest{..} -> pure slotNo) sourceFile
+      pure (hdr, slotNo, fileNamespaces)
 
   runResourceT do
     (_, sourceHandle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
@@ -121,7 +123,7 @@ splitFile sourceFile outputDir SplitOptions{..} = do
           withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
             let dataStream = S.yield (ns S.:> stream)
             -- namespace-specific data should be sorted, so we can assume that and dump directly
-            dumpToHandle handle hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
+            dumpToHandle handle slotNo hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
           release key
       )
       fileNamespaces
@@ -198,6 +200,7 @@ extract sourceFile outputFile ExtractOptions{..} = do
   logDebugN $ "Extracting from file: " <> T.pack sourceFile
   logDebugN $ "Output file: " <> T.pack outputFile
 
+  slotNo <- liftIO $ withLatestManifestFrame (\Manifest{..} -> pure slotNo) sourceFile
   liftIO $ runResourceT do
     (_, handle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
     let chunks =
@@ -210,7 +213,7 @@ extract sourceFile outputFile ExtractOptions{..} = do
 
     serialize
       outputFile
-      (SlotNo 0) -- FIXME: put back, currently we do not have it: slotNo
+      slotNo
       (defaultSerializationPlan & addChunks chunks)
 
   case extractNamespaces of

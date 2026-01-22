@@ -28,6 +28,7 @@ import Cardano.SCLS.Internal.Hash
 import Cardano.SCLS.Internal.Record.Internal.Class
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
+import Cardano.Types.SlotNo
 
 -- | Manifest summary information
 data ManifestSummary = ManifestSummary
@@ -91,7 +92,9 @@ data NamespaceInfo = NamespaceInfo
 
 -- | Manifest record
 data Manifest = Manifest
-  { totalEntries :: Word64
+  { slotNo :: SlotNo
+  -- ^ slot number of the manifest
+  , totalEntries :: Word64
   -- ^ number of entries
   , totalChunks :: Word64
   -- ^ number of chunks
@@ -109,6 +112,7 @@ data Manifest = Manifest
 instance IsFrameRecord 0x01 Manifest where
   frameRecordSize Manifest{..} =
     packedByteCount totalEntries
+      + packedByteCount slotNo
       + packedByteCount totalChunks
       + packedByteCount summary
       + (sum $ map nsInfoSize $ Map.keys nsInfo)
@@ -123,6 +127,7 @@ instance IsFrameRecord 0x01 Manifest where
        in 4 + 8 + 8 + bytesLength + hashDigestSize
 
   encodeRecordContents Manifest{..} = do
+    packM slotNo
     packWord64beM totalEntries
     packWord64beM totalChunks
     packM summary
@@ -143,6 +148,7 @@ instance IsFrameRecord 0x01 Manifest where
       return (4 + 8 + 8 + bytesLength + hashDigestSize)
 
   decodeRecordContents _size = do
+    slotNo <- unpackM
     totalEntries <- unpackBigEndianM
     totalChunks <- unpackBigEndianM
     summary <- unpackM

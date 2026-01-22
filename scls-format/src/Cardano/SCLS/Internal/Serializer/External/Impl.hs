@@ -55,13 +55,13 @@ serialize ::
   -- | Serialization plan to use
   SerializationPlan a ResIO ->
   ResIO ()
-serialize resultFilePath _slotNo plan = do
+serialize resultFilePath slotNo plan = do
   withTempDirectory (takeDirectory resultFilePath) "tmp.XXXXXX" \tmpDir -> do
     (_, handle) <-
       allocate
         (openBinaryFile resultFilePath WriteMode)
         hClose
-    dumpToHandle handle mkHdr $
+    dumpToHandle handle slotNo mkHdr $
       mkSortedSerializationPlan
         plan
         ( \s -> do
