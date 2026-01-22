@@ -10,6 +10,7 @@ import Cardano.SCLS.Internal.Entry.CBOREntry
 import Cardano.SCLS.Internal.Entry.ChunkEntry
 import Cardano.SCLS.Internal.Hash (digestToString)
 import Cardano.SCLS.Internal.Reader
+import Cardano.SCLS.Internal.Record.Hdr
 import Cardano.SCLS.Internal.Record.Manifest
 import Cardano.SCLS.Internal.Serializer.Dump
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan, mkSortedSerializationPlan)
@@ -105,13 +106,12 @@ splitFile :: (MonadIO m, MonadLogger m, MonadUnliftIO m) => FilePath -> FilePath
 splitFile sourceFile outputDir SplitOptions{..} = do
   logDebugN $ "Splitting file: " <> T.pack sourceFile
   logDebugN $ "Output directory: " <> T.pack outputDir
-  (hdr, slotNo, fileNamespaces) <-
+  (slotNo, fileNamespaces) <-
     liftIO do
       createDirectoryIfMissing True outputDir
-      hdr <- withHeader sourceFile pure
       fileNamespaces <- extractNamespaceList sourceFile
       slotNo <- withLatestManifestFrame (\Manifest{..} -> pure slotNo) sourceFile
-      pure (hdr, slotNo, fileNamespaces)
+      pure (slotNo, fileNamespaces)
 
   runResourceT do
     (_, sourceHandle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
@@ -123,7 +123,7 @@ splitFile sourceFile outputDir SplitOptions{..} = do
           withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
             let dataStream = S.yield (ns S.:> stream)
             -- namespace-specific data should be sorted, so we can assume that and dump directly
-            dumpToHandle handle slotNo hdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
+            dumpToHandle handle slotNo mkHdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
           release key
       )
       fileNamespaces
