@@ -11,7 +11,6 @@ import Cardano.SCLS.Internal.Reader
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.External.Impl qualified as External (serialize)
 import Cardano.Types.Namespace qualified as Namespace
-import Cardano.Types.Network (NetworkId (..))
 import Cardano.Types.SlotNo (SlotNo (..))
 import Codec.CBOR.Cuddle.CBOR.Gen (generateCBORTerm')
 import Codec.CBOR.Cuddle.CDDL (Name (..))
@@ -54,7 +53,6 @@ generateDebugFile outputFile namespaceEntries = liftIO do
     runResourceT $
       External.serialize
         outputFile
-        Mainnet
         (SlotNo 1)
         ( defaultSerializationPlan
             & addChunks do

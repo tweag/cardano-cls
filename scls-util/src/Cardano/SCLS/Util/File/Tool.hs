@@ -10,7 +10,6 @@ import Cardano.SCLS.Internal.Entry.CBOREntry
 import Cardano.SCLS.Internal.Entry.ChunkEntry
 import Cardano.SCLS.Internal.Hash (digestToString)
 import Cardano.SCLS.Internal.Reader
-import Cardano.SCLS.Internal.Record.Hdr (Hdr (..))
 import Cardano.SCLS.Internal.Serializer.Dump
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan, mkSortedSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.External.Impl (serialize)
@@ -19,7 +18,6 @@ import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol))
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
-import Cardano.Types.Network (NetworkId (Mainnet))
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Codec.CBOR.Encoding qualified as CBOR
 import Codec.CBOR.Write qualified as CBOR
@@ -158,7 +156,6 @@ mergeFiles outputFile sourceFiles = do
 
     serialize
       outputFile
-      Mainnet
       (SlotNo 1)
       (defaultSerializationPlan & addChunks stream)
 
@@ -200,7 +197,6 @@ extract :: (MonadLogger m, MonadIO m) => FilePath -> FilePath -> ExtractOptions 
 extract sourceFile outputFile ExtractOptions{..} = do
   logDebugN $ "Extracting from file: " <> T.pack sourceFile
   logDebugN $ "Output file: " <> T.pack outputFile
-  Hdr{..} <- liftIO $ withHeader sourceFile pure
 
   liftIO $ runResourceT do
     (_, handle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
@@ -214,8 +210,7 @@ extract sourceFile outputFile ExtractOptions{..} = do
 
     serialize
       outputFile
-      networkId
-      slotNo
+      (SlotNo 0) -- FIXME: put back, currently we do not have it: slotNo
       (defaultSerializationPlan & addChunks chunks)
 
   case extractNamespaces of
