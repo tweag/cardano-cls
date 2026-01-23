@@ -22,7 +22,7 @@
     in flake-utils.lib.eachSystem supportedSystems (system:
       let
         pkgs = import nixpkgs {
-          overlays = [ haskellNix.overlay ];
+          overlays = [ (import ./nix/pkgs) haskellNix.overlay ];
           inherit system;
           inherit (haskellNix) config;
         };
@@ -31,8 +31,14 @@
 
         supportedGhcVersions = [ "ghc910" "ghc912" ];
 
-        project =
-          import ./nix/project.nix { inherit pkgs supportedGhcVersions cips; };
+        referenceCDDLDir = pkgs.runCommand "reference-cddl" { } ''
+          mkdir -p $out
+          cp ${cips}/CIP-0165/namespaces/*.cddl $out/ || true
+        '';
+
+        project = import ./nix/project.nix {
+          inherit pkgs supportedGhcVersions referenceCDDLDir;
+        };
 
         inherit (project) cardanoCanonicalLedger;
 
@@ -59,7 +65,32 @@
         project = cardanoCanonicalLedger;
         legacyPackages = { inherit cardanoCanonicalLedger pkgs; };
 
-        checks = { formatting = treefmtEval.config.build.check self; };
+        checks = {
+          formatting = treefmtEval.config.build.check self;
+          validate-scls-test = pkgs.runCommand "validate-scls-test" {
+            buildInputs = with pkgs; [
+              verify-scls
+              cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util
+            ];
+          } ''
+            scls-util debug generate 1.scls
+            verify-scls 1.scls
+            touch "$out"
+          '';
+          "scls-util:test:scls-util-test" =
+            flake.checks."scls-util:test:scls-util-test".overrideAttrs (old: {
+              preCheck = (old.preCheck or "") + ''
+                export SCLS_UTIL_PATH=${cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util}/bin/scls-util
+              '';
+            });
+          "scls-cardano:test:scls-cardano-test" =
+            flake.checks."scls-cardano:test:scls-cardano-test".overrideAttrs
+            (old: {
+              preCheck = (old.preCheck or "") + ''
+                export REFERENCE_CDDL_DIR=${referenceCDDLDir}
+              '';
+            });
+        };
 
         devShells = let
           mkDevShells = p: {

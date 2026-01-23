@@ -19,20 +19,29 @@ jobs:
           uses: actions/checkout@v3
         - name: Install Nix
           uses: DeterminateSystems/nix-installer-action@main
+          with:
+            extra-conf: "accept-flake-config = true"
         - uses: DeterminateSystems/magic-nix-cache-action@main
         - name: Run `nix build`
           run: |
-            nix build --accept-flake-config \
+            nix build \
+              '.#"mempack-scls:lib:mempack-scls"' \
+              '.#"merkle-tree-incremental:lib:merkle-tree-incremental"' \
               '.#"scls-cardano:exe:gen-cddl"' \
               '.#"scls-cardano:lib:scls-cardano"' \
               '.#"scls-cardano:lib:testlib"' \
               '.#"scls-cardano:lib:validate"' \
-              '.#"scls-cardano:test:scls-util-test"' \
               '.#"scls-cbor:lib:scls-cbor"' \
-              '.#"scls-cbor:test:scls-cbor-test"' \
               '.#"scls-core:lib:scls-core"' \
               '.#"scls-format:lib:scls-format"' \
-              '.#"scls-format:test:scls-format-test"' \
               '.#"scls-util:exe:scls-util"' \
-              '.#"scls-util:lib:scls-util"' \
-              '.#"scls-util:test:scls-util-test"'
+              '.#"scls-util:lib:scls-util"'
+        - name: Run tests
+          run: |
+            nix build \
+              '.#checks.x86_64-linux."merkle-tree-incremental:test:merkle-tree-incremental-test"' \
+              '.#checks.x86_64-linux."scls-cardano:test:scls-cardano-test"' \
+              '.#checks.x86_64-linux."scls-cbor:test:scls-cbor-test"' \
+              '.#checks.x86_64-linux."scls-format:test:scls-format-test"' \
+              '.#checks.x86_64-linux."scls-util:test:scls-util-test"' \
+              '.#checks.x86_64-linux.validate-scls-test'

@@ -21,19 +21,19 @@ import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 
-infoCommandTests :: Spec
-infoCommandTests = describe "info command" do
+infoCommandTests :: Maybe FilePath -> Spec
+infoCommandTests mSclsUtil = describe "info command" do
   it "displays file information" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, _) <- generateTestFile dir
-      (exitCode, _, _) <- runSclsUtil ["file", fileName, "info"]
+      (exitCode, _, _) <- runSclsUtil mSclsUtil ["file", fileName, "info"]
 
       exitCode `shouldBe` ExitSuccess
 
   it "lists all namespaces with their hashes" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, namespaces) <- generateTestFile dir
-      (exitCode, stdout, _) <- runSclsUtil ["file", fileName, "info"]
+      (exitCode, stdout, _) <- runSclsUtil mSclsUtil ["file", fileName, "info"]
 
       exitCode `shouldBe` ExitSuccess
 
@@ -41,19 +41,19 @@ infoCommandTests = describe "info command" do
         stdout `shouldContain` Namespace.asString ns
 
   it "fails for non-existent file" do
-    (exitCode, stdout, stderr) <- runSclsUtil ["file", "/nonexistent/file.scls", "info"]
+    (exitCode, stdout, stderr) <- runSclsUtil mSclsUtil ["file", "/nonexistent/file.scls", "info"]
 
     exitCode `shouldBe` ExitFailure 1
 
     (stdout <> stderr) `shouldContain` "Error"
 
-listNsCommandTests :: Spec
-listNsCommandTests = describe "list-ns command" do
+listNsCommandTests :: Maybe FilePath -> Spec
+listNsCommandTests mSclsUtil = describe "list-ns command" do
   it "includes all expected namespaces" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (fileName, expectedNamespaces) <- generateTestFile dir
 
-      (exitCode, stdout, _) <- runSclsUtil ["file", fileName, "list-ns"]
+      (exitCode, stdout, _) <- runSclsUtil mSclsUtil ["file", fileName, "list-ns"]
 
       exitCode `shouldBe` ExitSuccess
 
@@ -61,7 +61,7 @@ listNsCommandTests = describe "list-ns command" do
         stdout `shouldContain` Namespace.asString ns
 
   it "fails for non-existent file" do
-    (exitCode, stdout, stderr) <- runSclsUtil ["file", "/nonexistent/file.scls", "list-ns"]
+    (exitCode, stdout, stderr) <- runSclsUtil mSclsUtil ["file", "/nonexistent/file.scls", "list-ns"]
 
     exitCode `shouldBe` ExitFailure 1
 
@@ -78,7 +78,7 @@ listNsCommandTests = describe "list-ns command" do
             (SlotNo 1)
             (defaultSerializationPlan & addChunks (S.each []))
 
-      (exitCode, _, stderr) <- runSclsUtil ["file", fileName, "list-ns"]
+      (exitCode, _, stderr) <- runSclsUtil mSclsUtil ["file", fileName, "list-ns"]
 
       exitCode `shouldBe` ExitSuccess
 

@@ -140,6 +140,8 @@ Replace `ghc98` with the desired GHC version to build components with that speci
 
 ## Testing
 
+When implementing new test suites, make sure to add them to the 'Run tests' step in `.github/workflows/nix.yaml`.
+
 To run tests in the project directory run command:
 
 ``` sh

@@ -111,7 +111,7 @@ executable gen-cddl
     scls-core,
     text,
 
-test-suite scls-util-test
+test-suite scls-cardano-test
   import: warnings
   default-language: GHC2021
   type: exitcode-stdio-1.0

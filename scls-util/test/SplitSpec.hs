@@ -21,14 +21,14 @@ import System.IO.Temp (withSystemTempDirectory)
 import Test.Hspec
 import Test.Hspec.Expectations.Contrib
 
-splitCommandTests :: Spec
-splitCommandTests = describe "split command" do
+splitCommandTests :: Maybe FilePath -> Spec
+splitCommandTests mSclsUtil = describe "split command" do
   it "splits a file by namespace" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       (sourceFile, namespaces) <- generateTestFile dir
       let outputDir = dir </> "split"
 
-      (exitCode, _, _) <- runSclsUtil ["file", sourceFile, "split", outputDir]
+      (exitCode, _, _) <- runSclsUtil mSclsUtil ["file", sourceFile, "split", outputDir]
 
       exitCode `shouldBe` ExitSuccess
 
@@ -47,7 +47,7 @@ splitCommandTests = describe "split command" do
       (sourceFile, namespaces) <- generateTestFile dir
       let outputDir = dir </> "split"
 
-      (exitCode, _, _) <- runSclsUtil ["file", sourceFile, "split", outputDir]
+      (exitCode, _, _) <- runSclsUtil mSclsUtil ["file", sourceFile, "split", outputDir]
 
       annotate "exit code" $ exitCode `shouldBe` ExitSuccess
 
@@ -67,7 +67,7 @@ splitCommandTests = describe "split command" do
   it "fails for non-existent file" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       let outputDir = dir </> "split"
-      (exitCode, _, _) <- runSclsUtil ["file", "/nonexistent/file.scls", "split", outputDir]
+      (exitCode, _, _) <- runSclsUtil mSclsUtil ["file", "/nonexistent/file.scls", "split", outputDir]
 
       exitCode `shouldBe` ExitFailure 1
 
@@ -78,7 +78,7 @@ splitCommandTests = describe "split command" do
 
       let namespacesToExtract = [namespaces !! 0, namespaces !! 2]
 
-      (exitCode, _, _) <- runSclsUtil ["file", sourceFile, "extract", outputFile, "--namespaces", T.unpack $ T.intercalate "," (Namespace.asText <$> namespacesToExtract)]
+      (exitCode, _, _) <- runSclsUtil mSclsUtil ["file", sourceFile, "extract", outputFile, "--namespaces", T.unpack $ T.intercalate "," (Namespace.asText <$> namespacesToExtract)]
 
       exitCode `shouldBe` ExitSuccess
 
@@ -99,7 +99,7 @@ splitCommandTests = describe "split command" do
       (sourceFile, _) <- generateTestFile dir
       let outputDir = dir </> "split"
 
-      (exitCode, _, stderr) <- runSclsUtil ["file", sourceFile, "split", outputDir, "--no-verify"]
+      (exitCode, _, stderr) <- runSclsUtil mSclsUtil ["file", sourceFile, "split", outputDir, "--no-verify"]
 
       annotate "exit code" $ exitCode `shouldBe` ExitSuccess
       annotate "skips verification" $ stderr `shouldContain` "Skipping verification"
@@ -111,7 +111,7 @@ splitCommandTests = describe "split command" do
       let outputFile = dir </> "extracted.scls"
           namespacesToExtract = [namespaces !! 0]
 
-      (exitCode, _, stderr) <- runSclsUtil ["file", sourceFile, "extract", outputFile, "--namespaces", T.unpack $ T.intercalate "," (Namespace.asText <$> namespacesToExtract), "--no-verify"]
+      (exitCode, _, stderr) <- runSclsUtil mSclsUtil ["file", sourceFile, "extract", outputFile, "--namespaces", T.unpack $ T.intercalate "," (Namespace.asText <$> namespacesToExtract), "--no-verify"]
 
       annotate "exit code" $ exitCode `shouldBe` ExitSuccess
       annotate "skips verification" $ stderr `shouldContain` "Skipping verification"

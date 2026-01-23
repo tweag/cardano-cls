@@ -8,10 +8,12 @@ python3.pkgs.buildPythonApplication {
   srcs = [
     (fetchurl {
       url =
-        "https://raw.githubusercontent.com/tweag/CIPs/refs/heads/move-slot-no/CIP-0165/format/format.ksy";
-      sha256 = "sha256-N8pSmcW4uJd/rq7ShsooQsaTTJIcpuUKZtQInVpbCjA=";
+        "https://raw.githubusercontent.com/tweag/CIPs/refs/heads/cip-canonical/CIP-0165/format/format.ksy";
+      # Since this is fetched from a git branch HEAD, this hash needs to be updated whenever the
+      # file changes.
+      sha256 = "sha256-V3m67LBwejslshqGlKOWIJf63Ut75CmKjyzbWt6E23A=";
     })
-    ../scripts/verify.py
+    ../../scripts/verify.py
   ];
 
   propagatedBuildInputs = with python3.pkgs; [ kaitaistruct ];

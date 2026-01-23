@@ -38,6 +38,8 @@ generateTestFile dir = do
 
   return (fileName, map fst testData)
 
-runSclsUtil :: [String] -> IO (ExitCode, String, String)
-runSclsUtil args = do
+runSclsUtil :: Maybe FilePath -> [String] -> IO (ExitCode, String, String)
+runSclsUtil Nothing args = do
   readProcessWithExitCode "cabal" (["run", "scls-util", "--"] ++ args) ""
+runSclsUtil (Just path) args = do
+  readProcessWithExitCode path args ""
