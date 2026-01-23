@@ -4,11 +4,12 @@ module Common (generateTestFile, runSclsUtil) where
 
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference
-import Cardano.Types.Namespace (Namespace (..))
+import Cardano.Types.Namespace (Namespace, asString)
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString.Char8 qualified as BS8
 import Data.Function ((&))
+import Data.Map qualified as Map
 import Data.MemPack.Extra (RawBytes (..))
 import Streaming qualified as S
 import Streaming.Prelude qualified as S
@@ -34,6 +35,7 @@ generateTestFile dir = do
     Reference.serialize @RawBytes
       fileName
       (SlotNo 1)
+      (Map.fromList [(asString ns, 1) | (ns, _) <- testData])
       (defaultSerializationPlan & addChunks mkStream)
 
   return (fileName, map fst testData)

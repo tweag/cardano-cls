@@ -38,6 +38,7 @@ import Streaming.Prelude qualified as S
 
 import Control.Monad.Trans.Class (MonadTrans (lift))
 import Control.Monad.Trans.Resource (MonadResource (liftResourceT), ResIO, allocate, release)
+import Data.Map (Map)
 import System.ByteOrder
 import System.Directory (createDirectoryIfMissing, doesFileExist, listDirectory, removeFile, renameFile)
 import System.FilePath (takeDirectory, (<.>), (</>))
@@ -52,16 +53,18 @@ serialize ::
   FilePath ->
   -- | Slot of the current transaction
   SlotNo ->
+  -- | Key sizes for namespaces
+  Map String Int ->
   -- | Serialization plan to use
   SerializationPlan a ResIO ->
   ResIO ()
-serialize resultFilePath slotNo plan = do
+serialize resultFilePath slotNo namespaceKeySizes plan = do
   withTempDirectory (takeDirectory resultFilePath) "tmp.XXXXXX" \tmpDir -> do
     (_, handle) <-
       allocate
         (openBinaryFile resultFilePath WriteMode)
         hClose
-    dumpToHandle handle slotNo mkHdr $
+    dumpToHandle handle slotNo mkHdr namespaceKeySizes $
       mkSortedSerializationPlan
         plan
         ( \s -> do

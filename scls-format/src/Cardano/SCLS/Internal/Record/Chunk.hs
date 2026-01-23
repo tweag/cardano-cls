@@ -53,6 +53,7 @@ data Chunk = Chunk
   { chunkSeq :: Word64
   , chunkFormat :: ChunkFormat
   , chunkNamespace :: Namespace
+  , chunkKeySize :: Word32
   , chunkData :: BS.ByteString -- Use buffer instead (?) or even values generator
   , chunkEntriesCount :: Word32
   , chunkHash :: Digest
@@ -68,6 +69,8 @@ instance Show DebugChunk where
       ++ show chunkFormat
       ++ ", namespace="
       ++ Namespace.asString chunkNamespace
+      ++ ", keySize="
+      ++ show chunkKeySize
       ++ ", data.len="
       ++ show (BS.length chunkData)
       ++ ", entries="
@@ -82,6 +85,7 @@ instance IsFrameRecord 0x10 Chunk where
       + packedByteCount chunkFormat
       + 4
       + (BS.length $ Namespace.asBytes chunkNamespace)
+      + 4
       + BS.length chunkData
       + packedByteCount chunkEntriesCount
       + hashDigestSize
@@ -91,6 +95,7 @@ instance IsFrameRecord 0x10 Chunk where
     packM chunkFormat
     packWord32beM (fromIntegral (BS.length namespace_bytes) :: Word32)
     packByteStringM namespace_bytes
+    packWord32beM chunkKeySize
     packByteStringM chunkData
     packWord32beM chunkEntriesCount
     packM chunkHash
@@ -105,18 +110,20 @@ instance IsFrameRecord 0x10 Chunk where
       (Namespace.parseBytes <$> unpackByteStringM (fromIntegral namespace_size)) >>= \case
         Left e -> fail (show e)
         Right x -> pure x
-    let chunkDataSize = fromIntegral size - 1 - 8 - 1 - 4 - fromIntegral namespace_size - 4 - hashDigestSize
+    let chunkDataSize = fromIntegral size - 1 - 8 - 1 - 4 - fromIntegral namespace_size - 4 - 4 - hashDigestSize
+    chunkKeySize <- unpackBigEndianM
     chunkData <- unpackByteStringM chunkDataSize
     chunkEntriesCount <- unpackBigEndianM
     chunkHash <- unpackM
     pure Chunk{..}
 
-mkChunk :: Word64 -> ChunkFormat -> Namespace -> BS.ByteString -> Word32 -> Chunk
-mkChunk seqno format namespace chunkData entriesCount =
+mkChunk :: Word64 -> ChunkFormat -> Namespace -> Word32 -> BS.ByteString -> Word32 -> Chunk
+mkChunk seqno format namespace chunkKeySize chunkData entriesCount =
   Chunk
     { chunkSeq = seqno
     , chunkFormat = format
     , chunkNamespace = namespace
+    , chunkKeySize = chunkKeySize
     , chunkData = chunkData
     , chunkEntriesCount = entriesCount
     , chunkHash = digest chunkData

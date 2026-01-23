@@ -3,7 +3,7 @@
 
 module Main where
 
-import Cardano.SCLS.CDDL (namespaces)
+import Cardano.SCLS.CDDL (knownNamespaces)
 import Cardano.SCLS.NamespaceSymbol (KnownSpec (namespaceSpec), SomeNamespaceSymbol (SomeNamespaceSymbol), toString)
 
 import Codec.CBOR.Cuddle.CDDL (CDDL)
@@ -24,7 +24,7 @@ main =
   getArgs >>= \case
     [dir] -> do
       createDirectoryIfMissing True dir
-      forM_ namespaces $ \ns@(SomeNamespaceSymbol p) -> do
+      forM_ knownNamespaces $ \ns@(SomeNamespaceSymbol p) -> do
         writeSpec (namespaceSpec p) (dir </> T.unpack (T.replace "/" "_" (T.pack (toString ns))) <.> "cddl")
     _ -> error "Usage: gen-cddl directory"
 

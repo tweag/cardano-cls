@@ -17,6 +17,7 @@ import Control.Monad (forM)
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString.Char8 qualified as BS8
 import Data.Function ((&))
+import Data.Map qualified as Map
 import Data.MemPack.Extra (RawBytes (..))
 import Streaming qualified as S
 import Streaming.Prelude qualified as S
@@ -42,6 +43,7 @@ generateSplitTestFiles dir = do
       Reference.serialize @RawBytes
         fileName
         (SlotNo 1)
+        (Map.fromList [(Namespace.asString ns, 1)])
         (defaultSerializationPlan & addChunks mkStream)
 
     pure (fileName, ns)
@@ -82,9 +84,14 @@ generateOverlappingNsSplitTestFiles dir = do
       Reference.serialize @RawBytes
         fileName
         (SlotNo 1)
+        (Map.fromList [(Namespace.asString ns, 1) | (ns, _) <- nsEntries])
         (defaultSerializationPlan & addChunks stream)
 
     pure (fileName, map fst nsEntries)
+
+runSclsUtilExtraNs :: Maybe FilePath -> [String] -> IO (ExitCode, String, String)
+runSclsUtilExtraNs mSclsUtil args =
+  runSclsUtil mSclsUtil $ ["--namespace-keysize", "namespace1:1", "--namespace-keysize", "namespace2:1", "--namespace-keysize", "namespace3:1"] ++ args
 
 mergeCommandTests :: Maybe FilePath -> Spec
 mergeCommandTests mSclsUtil = describe "merge command" do
@@ -94,7 +101,7 @@ mergeCommandTests mSclsUtil = describe "merge command" do
 
       let mergedFile = dir </> "merged.scls"
 
-      (exitCode, _, _) <- runSclsUtil mSclsUtil $ ["file", mergedFile, "merge"] ++ map fst testData
+      (exitCode, _, _) <- runSclsUtilExtraNs mSclsUtil (["file", mergedFile, "merge"] ++ map fst testData)
 
       exitCode `shouldBe` ExitSuccess
 
@@ -103,7 +110,7 @@ mergeCommandTests mSclsUtil = describe "merge command" do
       files <- generateOverlappingNsSplitTestFiles dir
       let mergedFile = dir </> "merged.scls"
 
-      (exitCode, _, stderr) <- runSclsUtil mSclsUtil $ ["file", mergedFile, "merge"] <> map fst files
+      (exitCode, _, stderr) <- runSclsUtilExtraNs mSclsUtil $ ["file", mergedFile, "merge"] <> map fst files
 
       exitCode `shouldBe` ExitSuccess
       stderr `shouldContain` "3 unique namespace(s)"
@@ -111,7 +118,7 @@ mergeCommandTests mSclsUtil = describe "merge command" do
   it "fails for non-existent source files" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       let mergedFile = dir </> "merged.scls"
-      (exitCode, _, _) <- runSclsUtil mSclsUtil ["file", mergedFile, "merge", "/nonexistent/file.scls"]
+      (exitCode, _, _) <- runSclsUtilExtraNs mSclsUtil ["file", mergedFile, "merge", "/nonexistent/file.scls"]
 
       exitCode `shouldBe` ExitFailure 1
 
@@ -120,12 +127,12 @@ mergeCommandTests mSclsUtil = describe "merge command" do
       (originalFile, namespaces) <- generateTestFile dir
 
       let splitDir = dir </> "split"
-      (splitExitCode, _, _) <- runSclsUtil mSclsUtil ["file", originalFile, "split", splitDir]
+      (splitExitCode, _, _) <- runSclsUtilExtraNs mSclsUtil ["file", originalFile, "split", splitDir]
       annotate "splits successfully" $ splitExitCode `shouldBe` ExitSuccess
 
       let mergedFile = dir </> "merged.scls"
       let splitFiles = [splitDir </> Namespace.humanFileNameFor ns | ns <- namespaces]
-      (mergeExitCode, _, _) <- runSclsUtil mSclsUtil $ ["file", mergedFile, "merge"] ++ splitFiles
+      (mergeExitCode, _, _) <- runSclsUtilExtraNs mSclsUtil (["file", mergedFile, "merge"] ++ splitFiles)
       annotate "merges successfully" $ mergeExitCode `shouldBe` ExitSuccess
 
       originalNamespaces <- extractNamespaceList originalFile

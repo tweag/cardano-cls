@@ -26,7 +26,7 @@ data InfoCmd
 runInfoCmd :: (MonadIO m, MonadLogger m) => InfoCmd -> m Result
 runInfoCmd = \case
   Namespaces -> do
-    liftIO $ for_ namespaces (putStrLn . toString)
+    liftIO $ for_ knownNamespaces (putStrLn . toString)
     return Ok
   CDDL namespace -> do
     case namespaceSymbolFromText namespace of

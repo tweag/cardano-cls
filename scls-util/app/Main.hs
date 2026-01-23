@@ -27,6 +27,7 @@ import System.IO (hPutStrLn, stderr)
 data Options = Options
   { optCommand :: Command
   , optQuiet :: Bool
+  , optNamespaceKeySizes :: [(Namespace, Int)]
   }
 
 data Command
@@ -96,6 +97,7 @@ parseOptions =
               )
         )
     <*> quietSwitch
+    <*> namespaceKeySizeArg
  where
   fileCmd :: Mod CommandFields File.FileCmd
   fileCmd =
@@ -169,6 +171,23 @@ parseOptions =
     argument
       str
       (metavar "NAMESPACE" <> help "Namespace identifier")
+  namespaceKeySizeArg =
+    many $
+      option
+        parseNamespaceKeySize
+        ( long "namespace-keysize"
+            <> metavar "NAMESPACE:SIZE"
+            <> help "Namespace and its key size in bytes"
+        )
+  parseNamespaceKeySize :: ReadM (Namespace, Int)
+  parseNamespaceKeySize = eitherReader $ \arg ->
+    case T.split (== ':') (T.pack arg) of
+      [ns, countText] ->
+        case reads (T.unpack (T.strip countText)) :: [(Int, String)] of
+          [(count, "")] -> Right (Namespace.fromText (T.strip ns), count)
+          _ -> Left $ "Invalid size: " ++ T.unpack countText
+      _ -> Left $ "Invalid namespace keysize: " ++ arg
+
   extractOptions :: Parser File.ExtractOptions
   extractOptions =
     File.ExtractOptions
@@ -253,23 +272,23 @@ main = do
     if optQuiet opts
       then runNoLoggingT $
         catch
-          do runCommand (optCommand opts)
+          do runCommand (optNamespaceKeySizes opts) (optCommand opts)
           \(SomeException e) -> do
             liftIO $ hPutStrLn stderr $ "Error: " <> show e
             pure OtherError
       else runStderrLoggingT $
         catch
-          do runCommand (optCommand opts)
+          do runCommand (optNamespaceKeySizes opts) (optCommand opts)
           \(SomeException e) -> do
             logErrorN $ "Error: " <> T.pack (show e)
             pure OtherError
   exitWith $ toErrorCode result
 
 -- | Execute the selected command
-runCommand :: (MonadLogger m, MonadCatch m, MonadIO m, MonadUnliftIO m) => Command -> m Result
-runCommand = \case
+runCommand :: (MonadLogger m, MonadCatch m, MonadIO m, MonadUnliftIO m) => [(Namespace, Int)] -> Command -> m Result
+runCommand namespaceKeySizes = \case
   Checksum checksumCmd -> runChecksumCmd checksumCmd
-  File fileName fileCmd -> File.runFileCmd fileName fileCmd
+  File fileName fileCmd -> File.runFileCmd namespaceKeySizes fileName fileCmd
   Info infoCmd -> Info.runInfoCmd infoCmd
   Verify file -> check file
   Debug debugCmd -> case debugCmd of

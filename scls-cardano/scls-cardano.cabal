@@ -43,6 +43,7 @@ library
 
   build-depends:
     base >=4.18 && <5,
+    containers,
     cuddle >=1.1,
     heredoc >=0.2,
     scls-core,

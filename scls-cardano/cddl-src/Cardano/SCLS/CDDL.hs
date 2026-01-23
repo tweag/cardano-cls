@@ -3,8 +3,9 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.SCLS.CDDL (
-  namespaces,
   namespaceSymbolFromText,
+  knownNamespaceKeySizes,
+  knownNamespaces,
 ) where
 
 import Cardano.SCLS.Namespace.Blocks qualified as Blocks
@@ -21,15 +22,18 @@ import Cardano.SCLS.NamespaceKey qualified as Spec
 import Cardano.SCLS.NamespaceSymbol (KnownSpec (..), SomeNamespaceSymbol (..), mkNamespaceSymbol, toString)
 import Codec.CBOR.Cuddle.Huddle (Huddle, HuddleItem (HIRule), Rule, collectFromInit)
 import Data.List (find)
+import Data.Map (Map)
+import Data.Map qualified as Map
 import Data.Text (Text)
 import Data.Text qualified as T
+import GHC.TypeLits (symbolVal)
 
 {- | Lookup a namespace symbol from its text representation.
 | Returns 'Nothing' if the namespace is not known.
 -}
 namespaceSymbolFromText :: Text -> Maybe SomeNamespaceSymbol
 namespaceSymbolFromText t =
-  find (\ns -> T.pack (toString ns) == t) namespaces
+  find (\ns -> T.pack (toString ns) == t) knownNamespaces
 
 instance KnownSpec "utxo/v0" where
   namespaceSpec _ = mkDefinition UTxO.record_entry
@@ -64,8 +68,12 @@ instance KnownSpec "gov/proposals/v0" where
 mkDefinition :: Rule -> Huddle
 mkDefinition r = collectFromInit [HIRule r]
 
-namespaces :: [SomeNamespaceSymbol]
-namespaces =
+knownNamespaceKeySizes :: Map String Int
+knownNamespaceKeySizes =
+  Map.fromList $ map (\(SomeNamespaceSymbol (p :: proxy ns)) -> (symbolVal p, Spec.namespaceKeySize @ns)) knownNamespaces
+
+knownNamespaces :: [SomeNamespaceSymbol]
+knownNamespaces =
   [ mkNamespaceSymbol @"utxo/v0"
   , mkNamespaceSymbol @"blocks/v0"
   , mkNamespaceSymbol @"pots/v0"
