@@ -177,7 +177,7 @@ parseOptions =
         parseNamespaceKeySize
         ( long "namespace-keysize"
             <> metavar "NAMESPACE:SIZE"
-            <> help "Namespace and optional number of entries to generate, default is 16"
+            <> help "Namespace and its key size in bytes"
         )
   parseNamespaceKeySize :: ReadM (Namespace, Int)
   parseNamespaceKeySize = eitherReader $ \arg ->
