@@ -7,6 +7,7 @@ module Main where
 
 import Cardano.SCLS.Util.Checksum
 import Cardano.SCLS.Util.Debug
+import Cardano.SCLS.Util.Diff
 import Cardano.SCLS.Util.File qualified as File
 import Cardano.SCLS.Util.Info qualified as Info
 import Cardano.SCLS.Util.Result
@@ -33,6 +34,7 @@ data Options = Options
 data Command
   = Checksum ChecksumCmd
   | Verify FilePath
+  | Diff DiffCmd
   | File FilePath File.FileCmd
   | Debug CommandDebug
   | Info Info.InfoCmd
@@ -61,6 +63,12 @@ parseOptions =
                   ( info
                       (Verify <$> fileArg)
                       (progDesc "Check the integrity and validity of an SCLS file")
+                  )
+                <> command
+                  "diff"
+                  ( info
+                      (Diff <$> diffCmd)
+                      (progDesc "Compare two SCLS files")
                   )
             )
             <|> hsubparser
@@ -211,6 +219,55 @@ parseOptions =
   parseNamespaceList :: ReadM [Namespace]
   parseNamespaceList = eitherReader $ \ns ->
     Right $ map (Namespace.fromText . T.strip) (T.split (== ',') (T.pack ns))
+  diffCmd :: Parser DiffCmd
+  diffCmd =
+    DiffCmd
+      <$> argument str (metavar "FILE1" <> help "First SCLS file")
+      <*> argument str (metavar "FILE2" <> help "Second SCLS file")
+      <*> verbosityOption
+      <*> depthOption
+      <*> switch
+        ( long "only-first"
+            <> help "Ignore entries that exist only in the second file"
+        )
+      <*> namespaceOption
+  verbosityOption :: Parser DiffVerbosity
+  verbosityOption =
+    option
+      parseVerbosity
+      ( long "verbosity"
+          <> short 'v'
+          <> metavar "LEVEL"
+          <> value VerbosityNormal
+          <> help "Verbosity: quiet|normal|verbose or 0|1|2"
+      )
+  depthOption :: Parser DiffDepth
+  depthOption =
+    option
+      parseDepth
+      ( long "depth"
+          <> short 'd'
+          <> metavar "DEPTH"
+          <> value DepthReference
+          <> help "Diff output depth: silent|reference|full"
+      )
+  parseVerbosity :: ReadM DiffVerbosity
+  parseVerbosity = eitherReader $ \v ->
+    case T.toLower (T.pack v) of
+      "quiet" -> Right VerbosityQuiet
+      "normal" -> Right VerbosityNormal
+      "verbose" -> Right VerbosityVerbose
+      "0" -> Right VerbosityQuiet
+      "1" -> Right VerbosityNormal
+      "2" -> Right VerbosityVerbose
+      _ -> Left "Verbosity must be quiet|normal|verbose or 0|1|2"
+  parseDepth :: ReadM DiffDepth
+  parseDepth = eitherReader $ \d ->
+    case T.toLower (T.pack d) of
+      "silent" -> Right DepthSilent
+      "reference" -> Right DepthReference
+      "full" -> Right DepthFull
+      _ -> Left "Depth must be silent|reference|full"
   debugCommand :: Parser CommandDebug
   debugCommand =
     hsubparser
@@ -288,6 +345,7 @@ main = do
 runCommand :: (MonadLogger m, MonadCatch m, MonadIO m, MonadUnliftIO m) => [(Namespace, Int)] -> Command -> m Result
 runCommand namespaceKeySizes = \case
   Checksum checksumCmd -> runChecksumCmd checksumCmd
+  Diff diffCmd -> runDiffCmd diffCmd
   File fileName fileCmd -> File.runFileCmd namespaceKeySizes fileName fileCmd
   Info infoCmd -> Info.runInfoCmd infoCmd
   Verify file -> check file

@@ -24,6 +24,7 @@ library
   exposed-modules:
     Cardano.SCLS.Util.Checksum
     Cardano.SCLS.Util.Debug
+    Cardano.SCLS.Util.Diff
     Cardano.SCLS.Util.File
     Cardano.SCLS.Util.File.Info
     Cardano.SCLS.Util.File.Tool
@@ -32,6 +33,8 @@ library
     Cardano.SCLS.Util.Verify
 
   build-depends:
+    -- drop
+    array,
     base >=4.18 && <5,
     base16-bytestring,
     bytestring,
