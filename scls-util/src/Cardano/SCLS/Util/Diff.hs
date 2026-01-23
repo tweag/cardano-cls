@@ -99,7 +99,7 @@ runDiffCmd namespaceKeySizes DiffCmd{..} = do
   when (diffVerbosity >= VerbosityNormal && diffDepth /= DepthSilent) do
     logInfoN $ "Diff entries: " <> T.pack (show (length filteredDiffs))
   liftIO $ emitDiffOutput diffDepth diffFirstFile diffSecondFile filteredDiffs
-  if hadError
+  if hadError || not (null filteredDiffs)
     then pure OtherError
     else pure $ if null filteredDiffs then Ok else VerifyFailure
 

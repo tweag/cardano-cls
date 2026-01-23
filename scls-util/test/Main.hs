@@ -3,6 +3,7 @@
 module Main (main) where
 
 import ChecksumSpec
+import DiffSpec
 import InfoSpec
 import MergeSpec
 import SplitSpec
@@ -21,4 +22,5 @@ main = do
       listNsCommandTests sclsUtilPath
       splitCommandTests sclsUtilPath
       mergeCommandTests sclsUtilPath
+      diffCommandTests sclsUtilPath
       verifyCommandTests sclsUtilPath
