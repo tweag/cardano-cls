@@ -13,11 +13,10 @@ module Cardano.SCLS.Util.Diff (
   runDiffCmd,
 ) where
 
-import Cardano.SCLS.CDDL (namespaceSymbolFromText)
+import Cardano.SCLS.CDDL
+
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
 import Cardano.SCLS.Internal.Reader (extractNamespaceList, withNamespacedData)
-import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
-import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol))
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
@@ -34,12 +33,13 @@ import Data.List (sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.MemPack.Extra (ByteStringSized (..), CBORTerm (..))
-import Data.Proxy (Proxy)
+import Data.Proxy (Proxy (..))
 import Data.Set qualified as Set
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding (decodeUtf8)
 import Data.Text.IO qualified as TIO
+import GHC.TypeNats
 import Streaming.Prelude qualified as S
 
 data DiffDepth
@@ -79,17 +79,18 @@ data DiffLine
   | LineSecond Text
   deriving (Show, Eq)
 
-runDiffCmd :: (MonadIO m, MonadLogger m) => DiffCmd -> m Result
-runDiffCmd DiffCmd{..} = do
+runDiffCmd :: (MonadIO m, MonadLogger m) => [(Namespace, Int)] -> DiffCmd -> m Result
+runDiffCmd namespaceKeySizes DiffCmd{..} = do
   namespacesFirst <- liftIO $ extractNamespaceList diffFirstFile
   namespacesSecond <- liftIO $ extractNamespaceList diffSecondFile
   let nsFirstSet = Set.fromList namespacesFirst
   let nsSecondSet = Set.fromList namespacesSecond
   let namespacesToCheck = selectNamespaces diffNamespaces nsFirstSet nsSecondSet
+  let extraNs = Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes]
   (hadError, diffs) <-
     foldM
       ( \(anyError, acc) ns -> do
-          (err, nsDiffs) <- diffNamespace diffVerbosity diffFirstFile diffSecondFile ns nsFirstSet nsSecondSet
+          (err, nsDiffs) <- diffNamespace (Map.union knownNamespaceKeySizes extraNs) diffVerbosity diffFirstFile diffSecondFile ns nsFirstSet nsSecondSet
           pure (anyError || err, acc <> nsDiffs)
       )
       (False, [])
@@ -109,8 +110,8 @@ selectNamespaces Nothing nsFirst nsSecond =
 selectNamespaces (Just nsList) nsFirst nsSecond =
   filter (\ns -> Set.member ns nsFirst || Set.member ns nsSecond) nsList
 
-diffNamespace :: (MonadIO m, MonadLogger m) => DiffVerbosity -> FilePath -> FilePath -> Namespace -> Set.Set Namespace -> Set.Set Namespace -> m (Bool, [DiffEntry])
-diffNamespace verbosity fileFirst fileSecond ns nsFirst nsSecond =
+diffNamespace :: (MonadIO m, MonadLogger m) => Map String Int -> DiffVerbosity -> FilePath -> FilePath -> Namespace -> Set.Set Namespace -> Set.Set Namespace -> m (Bool, [DiffEntry])
+diffNamespace namespaceKeySizes verbosity fileFirst fileSecond ns nsFirst nsSecond =
   case (Set.member ns nsFirst, Set.member ns nsSecond) of
     (True, False) -> pure (False, [NamespaceOnly SideFirst ns])
     (False, True) -> pure (False, [NamespaceOnly SideSecond ns])
@@ -118,33 +119,35 @@ diffNamespace verbosity fileFirst fileSecond ns nsFirst nsSecond =
     (True, True) -> do
       when (verbosity >= VerbosityVerbose) do
         logInfoN $ "Comparing namespace: " <> Namespace.asText ns
-      loadNamespaceEntries verbosity fileFirst ns >>= \case
+      loadNamespaceEntries namespaceKeySizes verbosity fileFirst ns >>= \case
         Left _ -> pure (True, [])
         Right firstEntries ->
-          loadNamespaceEntries verbosity fileSecond ns >>= \case
+          loadNamespaceEntries namespaceKeySizes verbosity fileSecond ns >>= \case
             Left _ -> pure (True, [])
             Right secondEntries ->
               pure (False, diffEntries ns firstEntries secondEntries)
 
-loadNamespaceEntries :: (MonadIO m, MonadLogger m) => DiffVerbosity -> FilePath -> Namespace -> m (Either () (Map ByteString CBORTerm))
-loadNamespaceEntries verbosity filePath ns =
-  case namespaceSymbolFromText (Namespace.asText ns) of
+loadNamespaceEntries :: (MonadIO m, MonadLogger m) => Map String Int -> DiffVerbosity -> FilePath -> Namespace -> m (Either () (Map ByteString CBORTerm))
+loadNamespaceEntries namespaceKeySizes verbosity filePath ns =
+  case Map.lookup (Namespace.asString ns) namespaceKeySizes of
     Nothing -> do
       when (verbosity > VerbosityQuiet) do
         logErrorN $ "Unknown namespace, cannot decode entries: " <> Namespace.asText ns
       pure (Left ())
-    Just (SomeNamespaceSymbol (_ :: Proxy nsSymbol)) -> do
-      entries <-
-        liftIO $
-          withNamespacedData @(ChunkEntry (ByteStringSized (NamespaceKeySize nsSymbol)) CBORTerm) filePath ns \stream ->
-            stream
-              & S.fold_
-                ( \acc ChunkEntry{chunkEntryKey = ByteStringSized k, chunkEntryValue = v} ->
-                    Map.insert k v acc
-                )
-                Map.empty
-                id
-      pure (Right entries)
+    Just p -> do
+      case someNatVal (fromIntegral p) of
+        SomeNat (Proxy :: Proxy n) -> do
+          entries <-
+            liftIO $
+              withNamespacedData @(ChunkEntry (ByteStringSized n) CBORTerm) filePath ns \stream ->
+                stream
+                  & S.fold_
+                    ( \acc ChunkEntry{chunkEntryKey = ByteStringSized k, chunkEntryValue = v} ->
+                        Map.insert k v acc
+                    )
+                    Map.empty
+                    id
+          pure (Right entries)
 
 diffEntries :: Namespace -> Map ByteString CBORTerm -> Map ByteString CBORTerm -> [DiffEntry]
 diffEntries ns firstEntries secondEntries =
