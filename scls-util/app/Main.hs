@@ -345,7 +345,7 @@ main = do
 runCommand :: (MonadLogger m, MonadCatch m, MonadIO m, MonadUnliftIO m) => [(Namespace, Int)] -> Command -> m Result
 runCommand namespaceKeySizes = \case
   Checksum checksumCmd -> runChecksumCmd checksumCmd
-  Diff diffCmd -> runDiffCmd diffCmd
+  Diff diffCmd -> runDiffCmd namespaceKeySizes diffCmd
   File fileName fileCmd -> File.runFileCmd namespaceKeySizes fileName fileCmd
   Info infoCmd -> Info.runInfoCmd infoCmd
   Verify file -> check file
