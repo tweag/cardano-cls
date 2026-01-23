@@ -59,17 +59,23 @@ This type is used as input to chunked serialization routines, which expect the d
 -}
 newtype DataStream a m = DataStream {runDataStream :: ChunkStream a m}
 
--- Dumps data to the handle, while splitting it into chunks.
---
--- This is reference implementation and it does not yet care about
--- proper working with the hardware, i.e. flushing and calling fsync
--- at the right moments.
+{- | Dumps data to the handle, while splitting it into chunks.
+
+This is reference implementation and it does not yet care about
+proper working with the hardware, i.e. flushing and calling fsync
+at the right moments.
+-}
 dumpToHandle ::
   (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a, MonadResource m) =>
+  -- | Handle to write to
   Handle ->
+  -- | Slot of the current transaction
   SlotNo ->
+  -- | File header
   Hdr ->
+  -- | Key sizes for namespaces
   Map String Int ->
+  -- | Serialization plan to use
   SortedSerializationPlan a m ->
   m ()
 dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
