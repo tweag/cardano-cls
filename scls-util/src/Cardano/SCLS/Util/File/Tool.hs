@@ -123,7 +123,12 @@ splitFile sourceFile outputDir SplitOptions{..} = do
           withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
             let dataStream = S.yield (ns S.:> stream)
             -- namespace-specific data should be sorted, so we can assume that and dump directly
-            dumpToHandle handle slotNo mkHdr (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
+            dumpToHandle
+              handle
+              slotNo
+              mkHdr
+              knownNamespaceKeySizes
+              (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
           release key
       )
       fileNamespaces
@@ -159,6 +164,7 @@ mergeFiles outputFile sourceFiles = do
     serialize
       outputFile
       (SlotNo 1)
+      knownNamespaceKeySizes
       (defaultSerializationPlan & addChunks stream)
 
   logDebugN "Merge complete"
@@ -214,6 +220,7 @@ extract sourceFile outputFile ExtractOptions{..} = do
     serialize
       outputFile
       slotNo
+      knownNamespaceKeySizes
       (defaultSerializationPlan & addChunks chunks)
 
   case extractNamespaces of

@@ -98,6 +98,7 @@ test-suite scls-util-test
     mempack-scls,
     process,
     resourcet,
+    scls-cardano,
     scls-format,
     streaming,
     temporary,

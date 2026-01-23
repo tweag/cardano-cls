@@ -17,6 +17,7 @@ import Control.Monad (forM)
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString.Char8 qualified as BS8
 import Data.Function ((&))
+import Data.Map qualified as Map
 import Data.MemPack.Extra (RawBytes (..))
 import Streaming qualified as S
 import Streaming.Prelude qualified as S
@@ -42,6 +43,7 @@ generateSplitTestFiles dir = do
       Reference.serialize @RawBytes
         fileName
         (SlotNo 1)
+        (Map.fromList [(Namespace.asString ns, 1)])
         (defaultSerializationPlan & addChunks mkStream)
 
     pure (fileName, ns)
@@ -82,6 +84,7 @@ generateOverlappingNsSplitTestFiles dir = do
       Reference.serialize @RawBytes
         fileName
         (SlotNo 1)
+        (Map.fromList [(Namespace.asString ns, 1) | (ns, _) <- nsEntries])
         (defaultSerializationPlan & addChunks stream)
 
     pure (fileName, map fst nsEntries)

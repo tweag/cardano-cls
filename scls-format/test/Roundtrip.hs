@@ -7,7 +7,7 @@ module Roundtrip (
 ) where
 
 import Cardano.SCLS.CBOR.Canonical.Encoder (canonicalizeTerm)
-import Cardano.SCLS.CDDL (knownNamespaces)
+import Cardano.SCLS.CDDL (knownNamespaceKeySizes, knownNamespaces)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (ChunkEntry))
 import Cardano.SCLS.Internal.Hash (Digest (..))
@@ -37,6 +37,7 @@ import Control.Monad (replicateM)
 import Control.Monad.Trans.Resource (ResIO, runResourceT)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
+import Data.Map (Map)
 import Data.MemPack
 import Data.MemPack.Extra
 import Data.Text qualified as T
@@ -71,6 +72,7 @@ mkRoundtripTestsFor groupName serialize =
             serialize
               fileName
               (SlotNo 1)
+              knownNamespaceKeySizes
               ( defaultSerializationPlan
                   & withManifestComment testComment
               )
@@ -89,6 +91,7 @@ mkRoundtripTestsFor groupName serialize =
             serialize
               fileName
               (SlotNo 1)
+              knownNamespaceKeySizes
               ( defaultSerializationPlan
                   & withTimestamp timestamp
               )
@@ -122,6 +125,7 @@ mkRoundtripTestsFor groupName serialize =
             serialize
               fileName
               (SlotNo 1)
+              knownNamespaceKeySizes
               ( defaultSerializationPlan
                   & addChunks (S.each [namespace S.:> S.each entries])
                   & addMetadata (S.each mEntries)
@@ -164,4 +168,4 @@ mkRoundtripTestsFor groupName serialize =
                   `shouldBe` mEntries
           )
 
-type SerializeF = FilePath -> SlotNo -> SerializationPlan SomeCBOREntry ResIO -> ResIO ()
+type SerializeF = FilePath -> SlotNo -> Map String Int -> SerializationPlan SomeCBOREntry ResIO -> ResIO ()

@@ -54,6 +54,7 @@ generateDebugFile outputFile namespaceEntries = liftIO do
       External.serialize
         outputFile
         (SlotNo 1)
+        knownNamespaceKeySizes
         ( defaultSerializationPlan
             & addChunks do
               S.each

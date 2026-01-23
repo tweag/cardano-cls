@@ -19,7 +19,7 @@ import Cardano.SCLS.Internal.Serializer.ChunksBuilder.InMemory qualified as CB
 import Cardano.SCLS.Internal.Serializer.Dump.Plan
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (..))
 import Cardano.SCLS.Internal.Serializer.MetadataBuilder.InMemory qualified as MB
-import Cardano.Types.Namespace (Namespace)
+import Cardano.Types.Namespace (Namespace, asString)
 import Cardano.Types.SlotNo
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 
@@ -38,7 +38,7 @@ import Data.Text qualified as T
 import Data.Time (getCurrentTime)
 import Data.Time.Format.ISO8601 (ISO8601 (iso8601Format), formatShow)
 import Data.Typeable (Typeable)
-import Data.Word (Word64)
+import Data.Word (Word32, Word64)
 import Streaming (Of (..))
 import Streaming.Internal (Stream (..))
 import Streaming.Prelude qualified as S
@@ -64,8 +64,15 @@ newtype DataStream a m = DataStream {runDataStream :: ChunkStream a m}
 -- This is reference implementation and it does not yet care about
 -- proper working with the hardware, i.e. flushing and calling fsync
 -- at the right moments.
-dumpToHandle :: (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a, MonadResource m) => Handle -> SlotNo -> Hdr -> SortedSerializationPlan a m -> m ()
-dumpToHandle handle slotNo hdr sortedPlan = do
+dumpToHandle ::
+  (HasKey a, MemPack a, Typeable a, MemPackHeaderOffset a, MonadResource m) =>
+  Handle ->
+  SlotNo ->
+  Hdr ->
+  Map String Int ->
+  SortedSerializationPlan a m ->
+  m ()
+dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
   let plan@SerializationPlan{..} = getSerializationPlan sortedPlan
   _ <- liftIO $ hWriteFrame handle hdr
   manifestData <-
@@ -76,7 +83,7 @@ dumpToHandle handle slotNo hdr sortedPlan = do
               & dedup
               & constructChunks_ pChunkFormat pBufferSize -- compose entries into data for chunks records, returns digest of entries
               & S.copy
-              & storeToHandle namespace -- stores data to handle,passes digest of entries
+              & storeToHandle namespace (fromIntegral $ namespaceKeySizes Map.! (asString namespace)) -- stores data to handle,passes digest of entries
               & S.map CB.chunkItemEntriesCount -- keep only number of entries (other things are not needed)
               & S.copy
               & S.length -- returns number of chunks
@@ -110,19 +117,20 @@ dumpToHandle handle slotNo hdr sortedPlan = do
   _ <- liftIO $ hWriteFrame handle manifest
   pure ()
  where
-  storeToHandle :: (MonadIO m) => Namespace -> Stream (Of CB.ChunkItem) m r -> m r
-  storeToHandle namespace s =
+  storeToHandle :: (MonadIO m) => Namespace -> Word32 -> Stream (Of CB.ChunkItem) m r -> m r
+  storeToHandle namespace keySize s =
     s
       & S.zip (S.enumFrom 1)
-      & S.map (chunkToRecord namespace)
+      & S.map (chunkToRecord namespace keySize)
       & S.mapM_ (liftIO . hWriteFrame handle)
 
-  chunkToRecord :: Namespace -> (Word64, CB.ChunkItem) -> Chunk
-  chunkToRecord namespace (seqno, CB.ChunkItem{..}) =
+  chunkToRecord :: Namespace -> Word32 -> (Word64, CB.ChunkItem) -> Chunk
+  chunkToRecord namespace keySize (seqno, CB.ChunkItem{..}) =
     mkChunk
       seqno
       chunkItemFormat
       namespace
+      keySize
       (pinnedByteArrayToByteString chunkItemData)
       (fromIntegral chunkItemEntriesCount)
 

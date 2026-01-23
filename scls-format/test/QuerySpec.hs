@@ -8,11 +8,12 @@ import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
 import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
 import Cardano.SCLS.Query (queryEntry)
-import Cardano.Types.Namespace (Namespace)
+import Cardano.Types.Namespace (Namespace, asString)
 import Cardano.Types.SlotNo (SlotNo (..))
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString qualified as BS
 import Data.Function ((&))
+import Data.Map qualified as Map
 import Data.MemPack (packM, unpackM)
 import Data.MemPack.ByteOrdered (BigEndian (..))
 import Data.MemPack.Extra (RawBytes (..))
@@ -57,7 +58,12 @@ serializeTestData fileName namespaceData = do
                 | (ns, entries) <- namespaceData
                 ]
             )
-  _ <- runResourceT $ Reference.serialize fileName (SlotNo 1) plan
+  runResourceT $
+    Reference.serialize
+      fileName
+      (SlotNo 1)
+      (Map.fromList [(asString ns, keySize @TestKey) | (ns, _) <- namespaceData])
+      plan
   return ()
 
 queryTests :: Spec

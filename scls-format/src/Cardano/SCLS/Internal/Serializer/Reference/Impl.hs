@@ -39,11 +39,14 @@ serialize ::
   FilePath ->
   -- | Slot of the current transaction
   SlotNo ->
+  -- | Key sizes for namespaces
+  Map String Int ->
+  -- | Serialization plan to use
   SerializationPlan a ResIO ->
   ResIO ()
-serialize resultFilePath slotNo plan = do
+serialize resultFilePath slotNo namespaceKeySizes plan = do
   (_, handle) <- allocate (openBinaryFile resultFilePath WriteMode) hClose
-  dumpToHandle handle slotNo mkHdr $
+  dumpToHandle handle slotNo mkHdr namespaceKeySizes $
     mkSortedSerializationPlan
       plan
       ( \s -> do
