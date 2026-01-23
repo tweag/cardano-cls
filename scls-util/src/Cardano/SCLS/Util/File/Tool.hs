@@ -46,6 +46,10 @@ data SplitOptions = SplitOptions
   { splitNoVerify :: Bool
   }
 
+allNamespaceKeySizes :: Map.Map String Int -> Map.Map String Int
+allNamespaceKeySizes extraSizes =
+  Map.union knownNamespaceKeySizes extraSizes
+
 {- | Verify hashes for a set of extracted namespace files, or clean them up on
 failure.
 -}
@@ -102,8 +106,8 @@ file by comparing namespace hashes. If any namespace verification fails,
 all created namespace files are removed and a 'VerifyFailure' result is
 returned.
 -}
-splitFile :: (MonadIO m, MonadLogger m, MonadUnliftIO m) => FilePath -> FilePath -> SplitOptions -> m Result
-splitFile sourceFile outputDir SplitOptions{..} = do
+splitFile :: (MonadIO m, MonadLogger m, MonadUnliftIO m) => [(Namespace, Int)] -> FilePath -> FilePath -> SplitOptions -> m Result
+splitFile namespaceKeySizes sourceFile outputDir SplitOptions{..} = do
   logDebugN $ "Splitting file: " <> T.pack sourceFile
   logDebugN $ "Output directory: " <> T.pack outputDir
   (slotNo, fileNamespaces) <-
@@ -113,6 +117,8 @@ splitFile sourceFile outputDir SplitOptions{..} = do
       slotNo <- withLatestManifestFrame (\Manifest{..} -> pure slotNo) sourceFile
       pure (slotNo, fileNamespaces)
 
+  let namespaceKeySizesMap =
+        allNamespaceKeySizes (Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes])
   runResourceT do
     (_, sourceHandle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
     mapM_
@@ -127,7 +133,7 @@ splitFile sourceFile outputDir SplitOptions{..} = do
               handle
               slotNo
               mkHdr
-              knownNamespaceKeySizes
+              namespaceKeySizesMap
               (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
           release key
       )
@@ -140,11 +146,11 @@ splitFile sourceFile outputDir SplitOptions{..} = do
 Takes a list of input files and combines their namespace data into a single
 output file.
 -}
-mergeFiles :: (MonadLogger m, MonadIO m) => FilePath -> [FilePath] -> m Result
-mergeFiles _ [] = do
+mergeFiles :: (MonadLogger m, MonadIO m) => [(Namespace, Int)] -> FilePath -> [FilePath] -> m Result
+mergeFiles _ _ [] = do
   logErrorN "No source files provided for merging"
   pure OtherError
-mergeFiles outputFile sourceFiles = do
+mergeFiles namespaceKeySizes outputFile sourceFiles = do
   logDebugN $ "Merging " <> T.pack (show (length sourceFiles)) <> " file(s) into: " <> T.pack outputFile
   nsToFiles <- liftIO $ Map.toList <$> collectNamespaceFiles sourceFiles
 
@@ -164,7 +170,7 @@ mergeFiles outputFile sourceFiles = do
     serialize
       outputFile
       (SlotNo 1)
-      knownNamespaceKeySizes
+      (allNamespaceKeySizes (Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes]))
       (defaultSerializationPlan & addChunks stream)
 
   logDebugN "Merge complete"
@@ -201,8 +207,8 @@ file by comparing namespace hashes. If any namespace verification fails,
 all created namespace files are removed and a 'VerifyFailure' result is
 returned.
 -}
-extract :: (MonadLogger m, MonadIO m) => FilePath -> FilePath -> ExtractOptions -> m Result
-extract sourceFile outputFile ExtractOptions{..} = do
+extract :: (MonadLogger m, MonadIO m) => [(Namespace, Int)] -> FilePath -> FilePath -> ExtractOptions -> m Result
+extract namespaceKeySizes sourceFile outputFile ExtractOptions{..} = do
   logDebugN $ "Extracting from file: " <> T.pack sourceFile
   logDebugN $ "Output file: " <> T.pack outputFile
 
@@ -220,7 +226,7 @@ extract sourceFile outputFile ExtractOptions{..} = do
     serialize
       outputFile
       slotNo
-      knownNamespaceKeySizes
+      (allNamespaceKeySizes (Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes]))
       (defaultSerializationPlan & addChunks chunks)
 
   case extractNamespaces of
