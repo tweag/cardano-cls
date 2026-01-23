@@ -25,7 +25,6 @@ import Codec.CBOR.Term (encodeTerm)
 import Control.Monad (foldM, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
-import Data.Array (Array, array, listArray, (!))
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
 import Data.Function ((&))
@@ -39,6 +38,7 @@ import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding (decodeUtf8)
 import Data.Text.IO qualified as TIO
+import Data.TreeDiff.List (Edit (..), diffBy)
 import GHC.TypeNats
 import Streaming.Prelude qualified as S
 
@@ -231,27 +231,10 @@ renderDiffLine = \case
 
 diffLines :: [Text] -> [Text] -> [DiffLine]
 diffLines xs ys =
-  let xLen = length xs
-      yLen = length ys
-      xArr = listArray (1, xLen) xs
-      yArr = listArray (1, yLen) ys
-      lcsArr :: Array (Int, Int) Int
-      lcsArr =
-        array
-          ((0, 0), (xLen, yLen))
-          [((i, j), lcs i j) | i <- [0 .. xLen], j <- [0 .. yLen]]
-      lcs 0 _ = 0
-      lcs _ 0 = 0
-      lcs i j =
-        if xArr ! i == yArr ! j
-          then lcsArr ! (i - 1, j - 1) + 1
-          else max (lcsArr ! (i - 1, j)) (lcsArr ! (i, j - 1))
-      backtrack i j acc
-        | i > 0 && j > 0 && xArr ! i == yArr ! j =
-            backtrack (i - 1) (j - 1) (LineBoth (xArr ! i) : acc)
-        | j > 0 && (i == 0 || lcsArr ! (i, j - 1) >= lcsArr ! (i - 1, j)) =
-            backtrack i (j - 1) (LineSecond (yArr ! j) : acc)
-        | i > 0 =
-            backtrack (i - 1) j (LineFirst (xArr ! i) : acc)
-        | otherwise = acc
-   in backtrack xLen yLen []
+  foldMap renderEdit (diffBy (==) xs ys)
+ where
+  renderEdit = \case
+    Cpy t -> [LineBoth t]
+    Del t -> [LineFirst t]
+    Ins t -> [LineSecond t]
+    Swp t1 t2 -> [LineFirst t1, LineSecond t2]
