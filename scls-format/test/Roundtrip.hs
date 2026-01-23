@@ -7,7 +7,7 @@ module Roundtrip (
 ) where
 
 import Cardano.SCLS.CBOR.Canonical.Encoder (canonicalizeTerm)
-import Cardano.SCLS.CDDL (namespaces)
+import Cardano.SCLS.CDDL (knownNamespaces)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (ChunkEntry))
 import Cardano.SCLS.Internal.Hash (Digest (..))
@@ -60,7 +60,7 @@ mkRoundtripTestsFor groupName serialize =
   describe groupName $ do
     sequence_
       [ context (toString n) $ it "should succeed with stream roundtrip" $ roundtrip n (mapCDDLDropExt $ toCDDL (namespaceSpec p))
-      | n@(SomeNamespaceSymbol p) <- namespaces
+      | n@(SomeNamespaceSymbol p) <- knownNamespaces
       ]
     it "should write/read manifest comment" $ do
       withSystemTempDirectory "scls-format-test-XXXXXX" $ \fn -> do

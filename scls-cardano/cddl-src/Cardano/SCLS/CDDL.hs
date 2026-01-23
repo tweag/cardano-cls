@@ -3,8 +3,8 @@
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Cardano.SCLS.CDDL (
-  namespaces,
   namespaceSymbolFromText,
+  knownNamespaces,
 ) where
 
 import Cardano.SCLS.Namespace.Blocks qualified as Blocks
@@ -29,7 +29,7 @@ import Data.Text qualified as T
 -}
 namespaceSymbolFromText :: Text -> Maybe SomeNamespaceSymbol
 namespaceSymbolFromText t =
-  find (\ns -> T.pack (toString ns) == t) namespaces
+  find (\ns -> T.pack (toString ns) == t) knownNamespaces
 
 instance KnownSpec "utxo/v0" where
   namespaceSpec _ = mkDefinition UTxO.record_entry
@@ -64,8 +64,8 @@ instance KnownSpec "gov/proposals/v0" where
 mkDefinition :: Rule -> Huddle
 mkDefinition r = collectFromInit [HIRule r]
 
-namespaces :: [SomeNamespaceSymbol]
-namespaces =
+knownNamespaces :: [SomeNamespaceSymbol]
+knownNamespaces =
   [ mkNamespaceSymbol @"utxo/v0"
   , mkNamespaceSymbol @"blocks/v0"
   , mkNamespaceSymbol @"pots/v0"

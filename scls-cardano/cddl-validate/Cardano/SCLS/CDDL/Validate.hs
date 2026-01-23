@@ -41,7 +41,7 @@ validSpecs :: Map.Map SomeNamespaceSymbol (CTreeRoot Codec.CBOR.Cuddle.CDDL.Reso
       [ ( nsSym
         , namespaceSpec p
         )
-      | nsSym@(SomeNamespaceSymbol p) <- namespaces
+      | nsSym@(SomeNamespaceSymbol p) <- knownNamespaces
       ]
 
 -- | Validate raw bytes against a rule in the namespace.
