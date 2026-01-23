@@ -11,7 +11,7 @@ python3.pkgs.buildPythonApplication {
         "https://raw.githubusercontent.com/tweag/CIPs/refs/heads/cip-canonical/CIP-0165/format/format.ksy";
       # Since this is fetched from a git branch HEAD, this hash needs to be updated whenever the
       # file changes.
-      sha256 = "sha256-V3m67LBwejslshqGlKOWIJf63Ut75CmKjyzbWt6E23A=";
+      sha256 = "a3cRFdCd1WdUoI7aukw9dffVpLo18Sp4lH/PJlmr5Rs=";
     })
     ../../scripts/verify.py
   ];
