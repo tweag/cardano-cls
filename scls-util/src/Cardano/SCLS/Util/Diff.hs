@@ -16,7 +16,7 @@ module Cardano.SCLS.Util.Diff (
 import Cardano.SCLS.CDDL
 
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
-import Cardano.SCLS.Internal.Reader (extractNamespaceList, withNamespacedData)
+import Cardano.SCLS.Internal.Reader (extractNamespaceList, namespacedData)
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
@@ -27,7 +27,6 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
-import Data.Function ((&))
 import Data.List (sortOn)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -41,6 +40,7 @@ import Data.Text.IO qualified as TIO
 import Data.TreeDiff.List (Edit (..), diffBy)
 import GHC.TypeNats
 import Streaming.Prelude qualified as S
+import System.IO (IOMode (ReadMode), withBinaryFile)
 
 data DiffDepth
   = DepthSilent
@@ -119,57 +119,67 @@ diffNamespace namespaceKeySizes verbosity fileFirst fileSecond ns nsFirst nsSeco
     (True, True) -> do
       when (verbosity >= VerbosityVerbose) do
         logInfoN $ "Comparing namespace: " <> Namespace.asText ns
-      loadNamespaceEntries namespaceKeySizes verbosity fileFirst ns >>= \case
-        Left _ -> pure (True, [])
-        Right firstEntries ->
-          loadNamespaceEntries namespaceKeySizes verbosity fileSecond ns >>= \case
-            Left _ -> pure (True, [])
-            Right secondEntries ->
-              pure (False, diffEntries ns firstEntries secondEntries)
+      case Map.lookup (Namespace.asString ns) namespaceKeySizes of
+        Nothing -> do
+          when (verbosity > VerbosityQuiet) do
+            logErrorN $ "Unknown namespace, cannot decode entries: " <> Namespace.asText ns
+          pure (True, [])
+        Just p -> case someNatVal (fromIntegral p) of
+          SomeNat (Proxy :: Proxy n) -> do
+            diffs <-
+              liftIO $
+                withBinaryFile fileFirst ReadMode \handleFirst ->
+                  withBinaryFile fileSecond ReadMode \handleSecond ->
+                    diffStreams
+                      ns
+                      (namespacedData @(ChunkEntry (ByteStringSized n) CBORTerm) handleFirst ns)
+                      (namespacedData @(ChunkEntry (ByteStringSized n) CBORTerm) handleSecond ns)
+            pure (False, diffs)
 
-loadNamespaceEntries :: (MonadIO m, MonadLogger m) => Map String Int -> DiffVerbosity -> FilePath -> Namespace -> m (Either () (Map ByteString CBORTerm))
-loadNamespaceEntries namespaceKeySizes verbosity filePath ns =
-  case Map.lookup (Namespace.asString ns) namespaceKeySizes of
-    Nothing -> do
-      when (verbosity > VerbosityQuiet) do
-        logErrorN $ "Unknown namespace, cannot decode entries: " <> Namespace.asText ns
-      pure (Left ())
-    Just p -> do
-      case someNatVal (fromIntegral p) of
-        SomeNat (Proxy :: Proxy n) -> do
-          entries <-
-            liftIO $
-              withNamespacedData @(ChunkEntry (ByteStringSized n) CBORTerm) filePath ns \stream ->
-                stream
-                  & S.fold_
-                    ( \acc ChunkEntry{chunkEntryKey = ByteStringSized k, chunkEntryValue = v} ->
-                        Map.insert k v acc
-                    )
-                    Map.empty
-                    id
-          pure (Right entries)
+diffStreams ::
+  forall n.
+  Namespace ->
+  S.Stream (S.Of (ChunkEntry (ByteStringSized n) CBORTerm)) IO () ->
+  S.Stream (S.Of (ChunkEntry (ByteStringSized n) CBORTerm)) IO () ->
+  IO [DiffEntry]
+diffStreams ns streamFirst streamSecond = go streamFirst streamSecond []
+ where
+  go s1 s2 acc = do
+    next1 <- S.next s1
+    next2 <- S.next s2
+    case (next1, next2) of
+      (Left _, Left _) -> pure (reverse acc)
+      (Left _, Right (e2, r2)) -> do
+        rest <- collectRemaining SideSecond e2 r2 acc
+        pure (reverse rest)
+      (Right (e1, r1), Left _) -> do
+        rest <- collectRemaining SideFirst e1 r1 acc
+        pure (reverse rest)
+      (Right (e1, r1), Right (e2, r2)) ->
+        case compare (entryKey e1) (entryKey e2) of
+          LT -> go r1 (S.cons e2 r2) (KeyOnly SideFirst ns (entryKey e1) : acc)
+          GT -> go (S.cons e1 r1) r2 (KeyOnly SideSecond ns (entryKey e2) : acc)
+          EQ ->
+            let acc' =
+                  if getEncodedBytes (entryValue e1) == getEncodedBytes (entryValue e2)
+                    then acc
+                    else ValueDiff ns (entryKey e1) (entryValue e1) (entryValue e2) : acc
+             in go r1 r2 acc'
 
-diffEntries :: Namespace -> Map ByteString CBORTerm -> Map ByteString CBORTerm -> [DiffEntry]
-diffEntries ns firstEntries secondEntries =
-  let keysFirst = Map.keysSet firstEntries
-      keysSecond = Map.keysSet secondEntries
-      onlyFirst = Set.toAscList (Set.difference keysFirst keysSecond)
-      onlySecond = Set.toAscList (Set.difference keysSecond keysFirst)
-      shared = Set.toAscList (Set.intersection keysFirst keysSecond)
-      onlyFirstDiffs = map (KeyOnly SideFirst ns) onlyFirst
-      onlySecondDiffs = map (KeyOnly SideSecond ns) onlySecond
-      valueDiffs =
-        foldMap
-          ( \k ->
-              case (Map.lookup k firstEntries, Map.lookup k secondEntries) of
-                (Just v1, Just v2) ->
-                  if getEncodedBytes v1 == getEncodedBytes v2
-                    then []
-                    else [ValueDiff ns k v1 v2]
-                _ -> []
-          )
-          shared
-   in onlyFirstDiffs <> onlySecondDiffs <> valueDiffs
+  collectRemaining side entry rest acc = do
+    acc' <-
+      S.foldM_
+        (\a e -> pure (KeyOnly side ns (entryKey e) : a))
+        (pure (KeyOnly side ns (entryKey entry) : acc))
+        pure
+        rest
+    pure acc'
+
+entryKey :: ChunkEntry (ByteStringSized n) CBORTerm -> ByteString
+entryKey ChunkEntry{chunkEntryKey = ByteStringSized k} = k
+
+entryValue :: ChunkEntry (ByteStringSized n) CBORTerm -> CBORTerm
+entryValue ChunkEntry{chunkEntryValue = v} = v
 
 applyOnlyFirst :: Bool -> [DiffEntry] -> [DiffEntry]
 applyOnlyFirst onlyFirst =
