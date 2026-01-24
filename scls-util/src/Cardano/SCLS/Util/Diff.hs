@@ -161,9 +161,9 @@ diffStreams ns streamFirst streamSecond = go streamFirst streamSecond []
           GT -> go (S.cons e1 r1) r2 (KeyOnly SideSecond ns (entryKey e2) : acc)
           EQ ->
             let acc' =
-                  if getEncodedBytes (entryValue e1) == getEncodedBytes (entryValue e2)
+                  if getEncodedBytes (chunkEntryValue e1) == getEncodedBytes (chunkEntryValue e2)
                     then acc
-                    else ValueDiff ns (entryKey e1) (entryValue e1) (entryValue e2) : acc
+                    else ValueDiff ns (entryKey e1) (chunkEntryValue e1) (chunkEntryValue e2) : acc
              in go r1 r2 acc'
 
   collectRemaining side entry rest acc = do
@@ -177,9 +177,6 @@ diffStreams ns streamFirst streamSecond = go streamFirst streamSecond []
 
 entryKey :: ChunkEntry (ByteStringSized n) CBORTerm -> ByteString
 entryKey ChunkEntry{chunkEntryKey = ByteStringSized k} = k
-
-entryValue :: ChunkEntry (ByteStringSized n) CBORTerm -> CBORTerm
-entryValue ChunkEntry{chunkEntryValue = v} = v
 
 applyOnlyFirst :: Bool -> [DiffEntry] -> [DiffEntry]
 applyOnlyFirst onlyFirst =
