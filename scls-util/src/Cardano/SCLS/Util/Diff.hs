@@ -179,18 +179,9 @@ entryKey :: ChunkEntry (ByteStringSized n) CBORTerm -> ByteString
 entryKey ChunkEntry{chunkEntryKey = ByteStringSized k} = k
 
 applyOnlyFirst :: Bool -> [DiffEntry] -> [DiffEntry]
-applyOnlyFirst onlyFirst =
-  if onlyFirst
-    then filter (not . isSecondOnly)
-    else id
-
-isSecondOnly :: DiffEntry -> Bool
-isSecondOnly = \case
-  NamespaceOnly SideSecond _ -> True
-  KeyOnly SideSecond _ _ -> True
-  ValueDiff{} -> False
-  NamespaceOnly SideFirst _ -> False
-  KeyOnly SideFirst _ _ -> False
+applyOnlyFirst True [] = []
+applyOnlyFirst True (x : _) = [x]
+applyOnlyFirst False diffs = diffs
 
 emitDiffOutput :: DiffDepth -> FilePath -> FilePath -> [DiffEntry] -> IO ()
 emitDiffOutput depth fileFirst fileSecond diffs =

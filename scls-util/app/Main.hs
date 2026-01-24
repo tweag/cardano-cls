@@ -228,7 +228,7 @@ parseOptions =
       <*> depthOption
       <*> switch
         ( long "only-first"
-            <> help "Ignore entries that exist only in the second file"
+            <> help "Output only the first difference per namespace"
         )
       <*> namespaceOption
   verbosityOption :: Parser DiffVerbosity
