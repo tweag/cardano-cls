@@ -91,7 +91,7 @@ gov_pparams_out =
         , (idx 26 ==> drep_voting_thresholds) //- "drep voting thresholds"
         , (idx 27 ==> VUInt `sized` (2 :: Word64)) //- "min committee size"
         , (idx 28 ==> epoch_interval) //- "committee term limit"
-        , (idx 29 ==> epoch_interval) //- "goveranance action validity period"
+        , (idx 29 ==> epoch_interval) //- "governance action validity period"
         , (idx 30 ==> coin) //- "governance action deposit"
         , (idx 31 ==> coin) //- "drep deposit"
         , (idx 32 ==> epoch_interval) //- "drep inactivity period"
