@@ -157,7 +157,7 @@ nix develop -c validate-scls
 It generate a scls file and validate file against
 the specification.
 
-Whenever the reference specification is updated, the flake input `cips` should be updated accordingly. This ensures that the latest specification is used for validation. You can run `nix flake update cips` to update the `cips` input to its latest version.
+Whenever the reference specification is updated, the flake input `cips` should be updated accordingly. This ensures that the latest specification is used for validation. You can run `nix develop -c update-reference` to update the `cips` input to its latest version, as well as the Haskell CI workflow.
 
 ## Generating documentation and setting up hoogle
 
