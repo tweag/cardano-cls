@@ -7,15 +7,14 @@ module Cardano.SCLS.Internal.Serializer.Reference.Impl (
   InputChunk,
 ) where
 
-import Cardano.SCLS.Internal.Record.Hdr
-import Cardano.SCLS.Internal.Serializer.Dump (dumpToHandle)
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, InputChunk, SerializationPlan, mkSortedSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump qualified as Dump
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, InputChunk, SerializationPlan)
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (getKey))
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.SlotNo
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.ST (runST)
-import Control.Monad.Trans.Resource (ResIO, allocate, runResourceT)
+import Control.Monad.Trans.Resource (ResIO, runResourceT)
 import Data.Function (on)
 import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
@@ -25,14 +24,10 @@ import Data.Typeable (Typeable)
 import Data.Vector qualified as V
 import Data.Vector.Algorithms.Tim qualified as Tim
 import Streaming.Prelude qualified as S
-import System.IO (IOMode (WriteMode), hClose, openBinaryFile)
 import VectorBuilder.Builder qualified as Builder
 import VectorBuilder.MVector qualified as Builder
 
-{- | Reference serialization interface. Performs all operations in memory
-
-At this point it accepts values from one namespace only.
--}
+-- | Reference serialization interface. Performs all operations in memory
 serialize ::
   (MemPack a, Typeable a, HasKey a, MemPackHeaderOffset a) =>
   -- | path to resulting file
@@ -43,16 +38,13 @@ serialize ::
   Map String Int ->
   -- | Serialization plan to use
   SerializationPlan a ResIO ->
-  ResIO ()
-serialize resultFilePath slotNo namespaceKeySizes plan = do
-  (_, handle) <- allocate (openBinaryFile resultFilePath WriteMode) hClose
-  dumpToHandle handle slotNo mkHdr namespaceKeySizes $
-    mkSortedSerializationPlan
-      plan
-      ( \s -> do
-          !orderedStream <- liftIO $ runResourceT $ mkVectors s
-          S.each [n S.:> S.each v | (n, v) <- Map.toList orderedStream]
-      )
+  ResIO (Either [Namespace] ())
+serialize resultFilePath slotNo namespaceKeySizes plan =
+  Dump.serialize resultFilePath slotNo namespaceKeySizes plan $
+    ( \s -> do
+        !orderedStream <- liftIO $ runResourceT $ mkVectors s
+        S.each [n S.:> S.each v | (n, v) <- Map.toList orderedStream]
+    )
  where
   mkVectors :: (HasKey a, Monad m) => ChunkStream a m -> m (Map Namespace (V.Vector a))
   mkVectors = do

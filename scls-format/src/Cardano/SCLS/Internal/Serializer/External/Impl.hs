@@ -7,9 +7,9 @@ module Cardano.SCLS.Internal.Serializer.External.Impl (
   serialize,
 ) where
 
-import Cardano.SCLS.Internal.Record.Hdr
-import Cardano.SCLS.Internal.Serializer.Dump (DataStream (DataStream, runDataStream), dumpToHandle)
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, SerializationPlan, mkSortedSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump (DataStream (DataStream, runDataStream))
+import Cardano.SCLS.Internal.Serializer.Dump qualified as Dump
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (ChunkStream, SerializationPlan)
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (Key, getKey))
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
@@ -57,20 +57,14 @@ serialize ::
   Map String Int ->
   -- | Serialization plan to use
   SerializationPlan a ResIO ->
-  ResIO ()
-serialize resultFilePath slotNo namespaceKeySizes plan = do
-  withTempDirectory (takeDirectory resultFilePath) "tmp.XXXXXX" \tmpDir -> do
-    (_, handle) <-
-      allocate
-        (openBinaryFile resultFilePath WriteMode)
-        hClose
-    dumpToHandle handle slotNo mkHdr namespaceKeySizes $
-      mkSortedSerializationPlan
-        plan
-        ( \s -> do
-            lift $ liftResourceT $ prepareExternalSortNamespaced tmpDir s
-            runDataStream $ sourceNs tmpDir
-        )
+  ResIO (Either [Namespace] ())
+serialize resultFilePath slotNo namespaceKeySizes plan =
+  withTempDirectory (takeDirectory resultFilePath) "tmp.XXXXXX" \tmpDir ->
+    Dump.serialize resultFilePath slotNo namespaceKeySizes plan $
+      ( \s -> do
+          lift $ liftResourceT $ prepareExternalSortNamespaced tmpDir s
+          runDataStream $ sourceNs tmpDir
+      )
 
 {- | Accepts an unordered stream of entries, and prepares a structure of
 the sorted files in the filesystem.

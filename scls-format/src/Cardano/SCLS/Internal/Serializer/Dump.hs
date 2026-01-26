@@ -7,6 +7,7 @@
 module Cardano.SCLS.Internal.Serializer.Dump (
   DataStream (..),
   dumpToHandle,
+  serialize,
 ) where
 
 import Cardano.SCLS.Internal.Frame
@@ -29,7 +30,8 @@ import Data.Map (Map)
 import Data.Map.Strict qualified as Map
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
-import Control.Monad.Trans.Resource (MonadResource)
+import Control.Monad.Trans.Resource (MonadResource, ResIO, allocate, release)
+import Data.Either (fromLeft, fromRight)
 import Data.Maybe (fromMaybe)
 import Data.MemPack
 import Data.MemPack.Buffer (pinnedByteArrayToByteString)
@@ -42,7 +44,8 @@ import Data.Word (Word32, Word64)
 import Streaming (Of (..))
 import Streaming.Internal (Stream (..))
 import Streaming.Prelude qualified as S
-import System.IO (Handle)
+import System.Directory (removeFile)
+import System.IO (Handle, IOMode (WriteMode), hClose, openBinaryFile)
 
 {- | A stream of values grouped by namespace.
 
@@ -77,51 +80,62 @@ dumpToHandle ::
   Map String Int ->
   -- | Serialization plan to use
   SortedSerializationPlan a m ->
-  m ()
+  m (Either [Namespace] ())
 dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
   let plan@SerializationPlan{..} = getSerializationPlan sortedPlan
   _ <- liftIO $ hWriteFrame handle hdr
-  manifestData <-
+  manifestDataOrUnknownNamespaces <-
     pChunkStream -- output our sorted stream
       & S.mapM
         ( \(namespace :> inner) -> do
-            inner
-              & dedup
-              & constructChunks_ pChunkFormat pBufferSize -- compose entries into data for chunks records, returns digest of entries
-              & S.copy
-              & storeToHandle namespace (fromIntegral $ namespaceKeySizes Map.! (asString namespace)) -- stores data to handle,passes digest of entries
-              & S.map CB.chunkItemEntriesCount -- keep only number of entries (other things are not needed)
-              & S.copy
-              & S.length -- returns number of chunks
-              & S.sum -- returns number of entries
-              & fmap (namespace,)
+            case Map.lookup (asString namespace) namespaceKeySizes of
+              Nothing -> pure $ Left namespace
+              Just keySize ->
+                inner
+                  & dedup
+                  & constructChunks_ pChunkFormat pBufferSize -- compose entries into data for chunks records, returns digest of entries
+                  & S.copy
+                  & storeToHandle namespace (fromIntegral keySize) -- stores data to handle,passes digest of entries
+                  & S.map CB.chunkItemEntriesCount -- keep only number of entries (other things are not needed)
+                  & S.copy
+                  & S.length -- returns number of chunks
+                  & S.sum -- returns number of entries
+                  & fmap (Right . (namespace,))
         )
       & S.fold_
         do
-          \rest (namespace, (entries :> (chunks :> rootHash))) ->
-            let ni =
-                  NamespaceInfo
-                    { namespaceEntries = fromIntegral entries
-                    , namespaceChunks = fromIntegral chunks
-                    , namespaceHash = rootHash
-                    }
-             in Map.insert namespace ni rest
-        mempty
-        ManifestInfo
+          \rest -> do
+            let unknownNamespaces = fromLeft mempty rest
+                mInfo = fromRight mempty rest
+            \case
+              Right (namespace, (entries :> (chunks :> rootHash))) ->
+                let ni =
+                      NamespaceInfo
+                        { namespaceEntries = fromIntegral entries
+                        , namespaceChunks = fromIntegral chunks
+                        , namespaceHash = rootHash
+                        }
+                 in Right $ Map.insert namespace ni mInfo
+              Left ns -> Left (ns : unknownNamespaces)
+        (Right mempty)
+        (fmap ManifestInfo)
 
-  case pMetadataStream of
-    Nothing -> pure ()
-    Just s -> do
-      _rootHash <- -- TODO: parametrize builder machine to customize accumulator operation (replace hash computation with something else)
-        s
-          & constructMetadata_ pBufferSize -- compose entries into data for metadata records, returns digest of entries
-          & S.map metadataToRecord
-          & S.mapM_ (liftIO . hWriteFrame handle)
-      pure ()
+  case manifestDataOrUnknownNamespaces of
+    Left unknownNamespaces -> pure $ Left unknownNamespaces
+    Right manifestData -> do
+      case pMetadataStream of
+        Nothing -> pure ()
+        Just s -> do
+          _rootHash <- -- TODO: parametrize builder machine to customize accumulator operation (replace hash computation with something else)
+            s
+              & constructMetadata_ pBufferSize -- compose entries into data for metadata records, returns digest of entries
+              & S.map metadataToRecord
+              & S.mapM_ (liftIO . hWriteFrame handle)
+          pure ()
 
-  manifest <- liftIO $ mkManifest slotNo manifestData plan
-  _ <- liftIO $ hWriteFrame handle manifest
-  pure ()
+      manifest <- liftIO $ mkManifest slotNo manifestData plan
+      _ <- liftIO $ hWriteFrame handle manifest
+      pure $ Right ()
  where
   storeToHandle :: (MonadIO m) => Namespace -> Word32 -> Stream (Of CB.ChunkItem) m r -> m r
   storeToHandle namespace keySize s =
@@ -145,6 +159,35 @@ dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
     mkMetadata
       (pinnedByteArrayToByteString metadataItemData)
       (fromIntegral metadataItemEntriesCount)
+
+-- | Serializes data to a file.
+serialize ::
+  (MemPack b, Typeable b, HasKey b, MemPackHeaderOffset b) =>
+  -- | path to resulting file
+  FilePath ->
+  -- | Slot of the current transaction
+  SlotNo ->
+  -- | Key sizes for namespaces
+  Map String Int ->
+  -- | Serialization plan to use
+  SerializationPlan a ResIO ->
+  -- | Sorting logic to apply to the data stream
+  (ChunkStream a ResIO -> ChunkStream b ResIO) ->
+  ResIO (Either [Namespace] ())
+serialize resultFilePath slotNo namespaceKeySizes plan sortStream = do
+  (key, handle) <- allocate (openBinaryFile resultFilePath WriteMode) hClose
+  result <-
+    dumpToHandle handle slotNo mkHdr namespaceKeySizes $
+      mkSortedSerializationPlan
+        plan
+        sortStream
+  case result of
+    Left unknownNamespaces -> liftIO $ do
+      -- cleanup partial file
+      release key
+      removeFile resultFilePath
+      pure $ Left unknownNamespaces
+    Right () -> pure $ Right ()
 
 dedup ::
   (HasKey a, Monad m) =>
