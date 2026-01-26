@@ -22,7 +22,12 @@
     in flake-utils.lib.eachSystem supportedSystems (system:
       let
         pkgs = import nixpkgs {
-          overlays = [ (import ./nix/pkgs) haskellNix.overlay ];
+          overlays = [
+            (import ./nix/pkgs {
+              referenceSpecKsy = "${cips}/CIP-0165/format/format.ksy";
+            })
+            haskellNix.overlay
+          ];
           inherit system;
           inherit (haskellNix) config;
         };
