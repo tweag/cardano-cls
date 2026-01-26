@@ -154,8 +154,10 @@ To test that generated file matches the kaitai specification run:
 nix develop -c validate-scls
 ```
 
-It will download latest specification, generate a scls file and validate file against
+It generate a scls file and validate file against
 the specification.
+
+Whenever the reference specification is updated, the flake input `cips` should be updated accordingly. This ensures that the latest specification is used for validation. You can run `nix develop -c update-reference` to update the `cips` input to its latest version, as well as the Haskell CI workflow.
 
 ## Generating documentation and setting up hoogle
 

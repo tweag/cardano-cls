@@ -57,7 +57,7 @@ in {
         pkgs.writeShellScriptBin "haskell-language-server-wrapper" ''
           exec haskell-language-server "$@"
         '';
-    in with pkgs; [ nixfmt-classic hls-wrapper validate-scls ];
+    in with pkgs; [ nixfmt-classic hls-wrapper validate-scls update-reference ];
 
     # Make reference CDDL files available to tests
     shell.shellHook = ''

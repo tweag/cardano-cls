@@ -1,20 +1,11 @@
-{ fetchurl, python3Packages, kaitai-struct-compiler, python3 }:
+{ python3Packages, kaitai-struct-compiler, python3, referenceSpecKsy }:
 python3.pkgs.buildPythonApplication {
   pname = "verify-scls";
   version = "0.0.1";
   doCheck = false;
   format = "setuptools";
 
-  srcs = [
-    (fetchurl {
-      url =
-        "https://raw.githubusercontent.com/tweag/CIPs/refs/heads/cip-canonical/CIP-0165/format/format.ksy";
-      # Since this is fetched from a git branch HEAD, this hash needs to be updated whenever the
-      # file changes.
-      sha256 = "a3cRFdCd1WdUoI7aukw9dffVpLo18Sp4lH/PJlmr5Rs=";
-    })
-    ../../scripts/verify.py
-  ];
+  srcs = [ referenceSpecKsy ../../scripts/verify.py ];
 
   propagatedBuildInputs = with python3.pkgs; [ kaitaistruct ];
 
@@ -23,10 +14,10 @@ python3.pkgs.buildPythonApplication {
   nativeBuildInputs = [ kaitai-struct-compiler ];
 
   unpackPhase = ''
-        for _src in $srcs; do
-          cp "$_src" $(stripHash "$_src")
-        done
-        cat > setup.py << EOF
+    for _src in $srcs; do
+      cp "$_src" $(stripHash "$_src")
+    done
+    cat > setup.py << EOF
     from setuptools import setup
 
     setup(
@@ -42,6 +33,6 @@ python3.pkgs.buildPythonApplication {
       },
     )
     EOF
-        ${kaitai-struct-compiler}/bin/kaitai-struct-compiler -t python format.ksy
+    ${kaitai-struct-compiler}/bin/kaitai-struct-compiler -t python format.ksy
   '';
 }
