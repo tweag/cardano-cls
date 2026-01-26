@@ -182,10 +182,10 @@ serialize resultFilePath slotNo namespaceKeySizes plan sortStream = do
         plan
         sortStream
   case result of
-    Left unknownNamespaces -> liftIO $ do
+    Left unknownNamespaces -> do
       -- cleanup partial file
       release key
-      removeFile resultFilePath
+      liftIO $ removeFile resultFilePath
       pure $ Left unknownNamespaces
     Right () -> pure $ Right ()
 
