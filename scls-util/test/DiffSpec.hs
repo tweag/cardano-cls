@@ -191,7 +191,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
       stdout `shouldContain` ("--- " <> file1)
       stdout `shouldContain` ("+++ " <> file2)
 
-  it "filters out second-only entries with --only-first" do
+  it "stops after the first reported difference with --only-first" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
       let file1 = dir </> "file1.scls"
       let file2 = dir </> "file2.scls"
