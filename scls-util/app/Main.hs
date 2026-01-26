@@ -228,7 +228,7 @@ parseOptions =
       <*> depthOption
       <*> switch
         ( long "only-first"
-            <> help "Output only the first difference per namespace"
+            <> help "Output only the first difference"
         )
       <*> namespaceOption
   verbosityOption :: Parser DiffVerbosity
