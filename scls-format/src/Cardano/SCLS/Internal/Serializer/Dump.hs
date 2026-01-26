@@ -31,7 +31,6 @@ import Data.Map.Strict qualified as Map
 
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Control.Monad.Trans.Resource (MonadResource, ResIO, allocate, release)
-import Data.Either (fromLeft, fromRight)
 import Data.Maybe (fromMaybe)
 import Data.MemPack
 import Data.MemPack.Buffer (pinnedByteArrayToByteString)
@@ -104,9 +103,7 @@ dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
         )
       & S.fold_
         do
-          \rest -> do
-            let unknownNamespaces = fromLeft mempty rest
-                mInfo = fromRight mempty rest
+          \(unknownNamespaces, mInfo) ->
             \case
               Right (namespace, (entries :> (chunks :> rootHash))) ->
                 let ni =
@@ -115,10 +112,15 @@ dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
                         , namespaceChunks = fromIntegral chunks
                         , namespaceHash = rootHash
                         }
-                 in Right $ Map.insert namespace ni mInfo
-              Left ns -> Left (ns : unknownNamespaces)
-        (Right mempty)
-        (fmap ManifestInfo)
+                 in (unknownNamespaces, Map.insert namespace ni mInfo)
+              Left ns -> (ns : unknownNamespaces, mInfo)
+        mempty
+        ( \case
+            ([], mInfo) ->
+              Right (ManifestInfo mInfo)
+            (unknownNamespaces, _) ->
+              Left unknownNamespaces
+        )
 
   case manifestDataOrUnknownNamespaces of
     Left unknownNamespaces -> pure $ Left unknownNamespaces
