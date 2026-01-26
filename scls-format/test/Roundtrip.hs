@@ -21,6 +21,7 @@ import Cardano.SCLS.Internal.Serializer.HasKey (nubByKey, sortByKey)
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference (serialize)
 import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (KnownSpec (namespaceSpec), SomeNamespaceSymbol (..), toString)
+import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.SlotNo (SlotNo (..))
 import Codec.CBOR.Cuddle.CBOR.Gen (generateCBORTerm')
@@ -168,4 +169,4 @@ mkRoundtripTestsFor groupName serialize =
                   `shouldBe` mEntries
           )
 
-type SerializeF = FilePath -> SlotNo -> Map String Int -> SerializationPlan SomeCBOREntry ResIO -> ResIO ()
+type SerializeF = FilePath -> SlotNo -> Map String Int -> SerializationPlan SomeCBOREntry ResIO -> ResIO (Either [Namespace] ())
