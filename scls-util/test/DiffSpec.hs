@@ -191,19 +191,20 @@ diffCommandTests mSclsUtil = describe "diff command" do
       stdout `shouldContain` ("--- " <> file1)
       stdout `shouldContain` ("+++ " <> file2)
 
-  {-
-    it "filters out second-only entries with --only-first" do
-      withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
-        let file1 = dir </> "file1.scls"
-        let file2 = dir </> "file2.scls"
-        _ <- writeNamespaceFile (Proxy @(NamespaceKeySize "blocks/v0")) file1 "blocks/v0" [(key1, TInt 1)]
-        _ <- writeNamespaceFile (Proxy @(NamespaceKeySize "blocks/v0")) file2 "blocks/v0" [(key1, TInt 1), (key2, TInt 2)]
+  it "filters out second-only entries with --only-first" do
+    withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
+      let file1 = dir </> "file1.scls"
+      let file2 = dir </> "file2.scls"
+      _ <- writeNamespaceFile file1 [("test/v0", [(K 1, TInt 1), (K 2, TInt 2)]), ("test/v1", [(K 1, TInt 1)])]
+      _ <- writeNamespaceFile file2 [("test/v0", [(K 1, TInt 2), (K 2, TInt 1)]), ("test/v1", [(K 1, TInt 2)])]
 
-        (exitCode, stdout, _) <- runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "reference", "--only-first"]
+      (exitCode, stdout, _) <-
+        runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "reference", "--only-first", "--namespace-keysize", "test/v0:1", "--namespace-keysize", "test/v1:1"]
 
-        exitCode `shouldBe` ExitSuccess
-        stdout `shouldBe` ""
-    -}
+      exitCode `shouldBe` ExitFailure 1
+      stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 1))
+      stdout `shouldNotContain` ("* " <> renderKeyRef "test/v0" (K 2))
+      stdout `shouldNotContain` ("* " <> renderKeyRef "test/v1" (K 1))
 
   it "restricts comparison to --namespaces selection" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
@@ -217,20 +218,6 @@ diffCommandTests mSclsUtil = describe "diff command" do
 
       exitCode `shouldBe` ExitSuccess
       stdout `shouldContain` "OK"
-
-{-
-it "fails for unknown namespaces in the file" do
-  withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
-    let file1 = dir </> "file1.scls"
-    let file2 = dir </> "file2.scls"
-    _ <- writeNamespaceFile file1 [("unknown/v0", [(K 1, TInt 1)])]
-    _ <- writeNamespaceFile file2 [("unknown/v0", [(K 1, TInt 1)])]
-
-    (exitCode, _stdout, stderr) <- runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "silent", "--namespace-keysize", "test/v0:1"]
-
-    exitCode `shouldBe` ExitFailure 2
-    stderr `shouldContain` "Unknown namespace"
--}
 
 writeNamespaceFile :: FilePath -> [(T.Text, [(K, Term)])] -> IO FilePath
 writeNamespaceFile filePath nsEntries = do
