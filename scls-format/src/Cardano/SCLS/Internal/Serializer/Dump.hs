@@ -79,6 +79,7 @@ dumpToHandle ::
   Map String Int ->
   -- | Serialization plan to use
   SortedSerializationPlan a m ->
+  -- | Returns either a list of unknown namespaces or a success unit
   m (Either [Namespace] ())
 dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
   let plan@SerializationPlan{..} = getSerializationPlan sortedPlan
