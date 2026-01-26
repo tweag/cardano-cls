@@ -11,6 +11,7 @@
 module Cardano.SCLS.Namespace.GovPParams where
 
 import Cardano.SCLS.Common
+import Codec.CBOR.Cuddle.Comments ((//-))
 import Codec.CBOR.Cuddle.Huddle
 import Data.Word (Word64)
 import Text.Heredoc (str)
@@ -62,65 +63,39 @@ record_entry =
 gov_pparams_out :: Rule
 gov_pparams_out =
   comment
-    [str| Governance protocol parameters
-              |   - min_fee_a: the linear factor for the minimum fee calculation
-              |   - min_fee_b: the constant factor for the minimum fee calculation
-              |   - max_block_size: maximal block body size in bytes
-              |   - max_block_header_size: maximal block header size in bytes
-              |   - max_tx_size: maximal transaction size in bytes
-              |   - key_deposit: The amount of a key registration deposit
-              |   - pool_deposit: The amount of a pool registration deposit
-              |   - epoch_max: epoch bound on pool retirement
-              |   - n_opt: desired number of pools
-              |   - a0: pool influence factor
-              |   - rho: monetary expansion
-              |   - tau: treasury expansion
-              |   - d: decentralisation parameter
-              |   - min_pool_cost: minimum pool cost
-              |   - min_utxo_value: Minimum Lovelace in a UTxO deprecated by AdaPerUTxOWord
-              |   - ada_per_utxo_byte: Cost in ada per 1 byte of UTxO storage instead of _coinsPerUTxOWord
-              |   - cost_models: Cost models for non-native script languages
-              |   - prices: Prices of execution units for non-native script languages
-              |   - max_tx_ex_units: Max total script execution resources units allowed per tx
-              |   - max_block_ex_units: Max total script execution resources units allowed per block
-              |   - max_value_size: Max size of a Value in an output
-              |   - collateral_percentage: The scaling percentage of the collateral relative to the fee
-              |   - max_collateral_inputs: Maximum number of collateral inputs allowed in a transaction
-              |   - min_fee_ref_script_cost_per_byte: Reference scripts fee for the minimum fee calculation
-              |]
+    [str| Governance protocol parameters |]
     $ "gov_pparams_out"
       =:= mp
-        [ "a0" ==> nonnegative_interval
-        , "rho" ==> unit_interval
-        , "tau" ==> unit_interval
-        , "n_opt" ==> VUInt `sized` (2 :: Word64)
-        , "prices" ==> ex_unit_prices
-        , "epoch_max" ==> epoch_interval
-        , "min_fee_a" ==> coin
-        , "min_fee_b" ==> coin
-        , "cost_models" ==> cost_models
-        , "key_deposit" ==> coin
-        , "max_tx_size" ==> VUInt `sized` (4 :: Word64)
-        , "drep_deposit" ==> coin
-        , "max_val_size" ==> VUInt `sized` (4 :: Word64)
-        , "pool_deposit" ==> coin
-        , "drep_activity" ==> epoch_interval
-        , "min_pool_cost" ==> coin
-        , "max_block_size" ==> VUInt `sized` (4 :: Word64)
-        , "max_tx_ex_units" ==> ex_units
-        , "protocol_version" ==> protocol_version
-        , "coin_per_utxo_byte" ==> coin
-        , "gov_action_deposit" ==> coin
-        , "max_block_ex_units" ==> ex_units
-        , "min_committee_size" ==> VUInt `sized` (2 :: Word64)
-        , "gov_action_lifetime" ==> epoch_interval
-        , "committee_term_limit" ==> epoch_interval
-        , "collateral_percentage" ==> VUInt `sized` (2 :: Word64)
-        , "max_block_header_size" ==> VUInt `sized` (2 :: Word64)
-        , "max_collateral_inputs" ==> VUInt `sized` (2 :: Word64)
-        , "drep_voting_thresholds" ==> drep_voting_thresholds
-        , "pool_voting_thresholds" ==> pool_voting_thresholds
-        , "min_fee_ref_script_cost_per_byte" ==> (nonnegative_interval / VNil)
+        [ (idx 0 ==> coin) //- "min_fee_a: the linear factor for the minimum fee calculation"
+        , (idx 1 ==> coin) //- "min_fee_b: the constant factor for the minimum fee calculation"
+        , (idx 2 ==> VUInt `sized` (4 :: Word64)) //- "max_block_size: maximal block body size in bytes"
+        , (idx 3 ==> VUInt `sized` (4 :: Word64)) //- "max_tx_size: maximal transaction size in bytes"
+        , (idx 4 ==> VUInt `sized` (2 :: Word64)) //- "max_block_header_size: maximal block header size in bytes"
+        , (idx 5 ==> coin) //- "key_deposit: The amount of a key registration deposit"
+        , (idx 6 ==> coin) //- "pool_deposit: The amount of a pool registration deposit"
+        , (idx 7 ==> epoch_interval) //- "maximum_epoch: maximum epoch"
+        , (idx 8 ==> VUInt `sized` (2 :: Word64)) //- "n_opt: desired number of pools"
+        , (idx 9 ==> nonnegative_interval) //- "a0: pool pledge influence factor"
+        , (idx 10 ==> unit_interval) //- "rho: monetary expansion rate"
+        , (idx 11 ==> unit_interval) //- "tau: treasury expansion"
+        , (idx 16 ==> coin) //- "min_pool_cost: minimum pool cost"
+        , (idx 17 ==> coin) //- "ada_per_utxo_byte: Cost in ada per 1 byte of UTxO storage instead of _coinsPerUTxOWord"
+        , (idx 18 ==> cost_models) //- "cost_models: Cost models for non-native script languages"
+        , (idx 19 ==> ex_unit_prices) //- "prices: Prices of execution units for non-native script languages"
+        , (idx 20 ==> ex_units) //- "max_tx_ex_units: Max total script execution resources units allowed per tx"
+        , (idx 21 ==> ex_units) //- "max_block_ex_units: Max total script execution resources units allowed per block"
+        , (idx 22 ==> VUInt `sized` (4 :: Word64)) //- "max_value_size: Max size of a Value in an output"
+        , (idx 23 ==> VUInt `sized` (2 :: Word64)) //- "collateral_percentage: The scaling percentage of the collateral relative to the fee"
+        , (idx 24 ==> VUInt `sized` (2 :: Word64)) //- "max_collateral_inputs: Maximum number of collateral inputs allowed in a transaction"
+        , (idx 25 ==> pool_voting_thresholds) //- "pool voting thresholds"
+        , (idx 26 ==> drep_voting_thresholds) //- "drep voting thresholds"
+        , (idx 27 ==> VUInt `sized` (2 :: Word64)) //- "min committee size"
+        , (idx 28 ==> epoch_interval) //- "committee term limit"
+        , (idx 29 ==> epoch_interval) //- "goveranance action validity period"
+        , (idx 30 ==> coin) //- "governance action deposit"
+        , (idx 31 ==> coin) //- "drep deposit"
+        , (idx 32 ==> epoch_interval) //- "drep inactivity period"
+        , (idx 33 ==> nonnegative_interval) //- "min_fee_ref_script_cost_per_byte: Reference scripts fee for the minimum fee calculation"
         ]
 
 epoch_interval :: Rule
