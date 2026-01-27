@@ -199,7 +199,7 @@ parseOptions =
   extractOptions :: Parser File.ExtractOptions
   extractOptions =
     File.ExtractOptions
-      <$> namespaceOption
+      <$> namespaceOption "Comma-separated list of namespaces to extract"
       <*> switch (long "no-verify" <> help "Skip hash verification after extraction")
   splitOptions :: Parser File.SplitOptions
   splitOptions =
@@ -207,14 +207,14 @@ parseOptions =
       <$> switch (long "no-verify" <> help "Skip hash verification after split")
   unpackOptions =
     pure File.UnpackOptions
-  namespaceOption =
+  namespaceOption msgHelp =
     optional $
       option
         parseNamespaceList
         ( long "namespaces"
             <> short 'n'
             <> metavar "NAMESPACES"
-            <> help "Comma-separated list of namespaces to extract"
+            <> help msgHelp
         )
   parseNamespaceList :: ReadM [Namespace]
   parseNamespaceList = eitherReader $ \ns ->
@@ -230,7 +230,7 @@ parseOptions =
         ( long "only-first"
             <> help "Output only the first difference"
         )
-      <*> namespaceOption
+      <*> namespaceOption "Comma-separated list of namespaces to include"
   verbosityOption :: Parser DiffVerbosity
   verbosityOption =
     option

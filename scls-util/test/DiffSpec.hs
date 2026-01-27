@@ -90,7 +90,6 @@ diffCommandTests mSclsUtil = describe "diff command" do
         runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "silent", "--namespaces", "test/v0", "--namespace-keysize", "test/v0:1"]
 
       exitCode `shouldBe` ExitSuccess
-      stdout `shouldContain` "OK"
 
   it "returns DIFF in silent mode when values differ" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
@@ -103,7 +102,6 @@ diffCommandTests mSclsUtil = describe "diff command" do
         runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "silent", "--namespace-keysize", "test/v0:1"]
 
       exitCode `shouldBe` ExitFailure 1
-      stdout `shouldContain` "DIFF"
 
   it "reports namespace-only differences in reference mode" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
@@ -217,7 +215,6 @@ diffCommandTests mSclsUtil = describe "diff command" do
         runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "silent", "--namespaces", "gov/pparams/v0", "--namespace-keysize", "test/v0:1"]
 
       exitCode `shouldBe` ExitSuccess
-      stdout `shouldContain` "OK"
 
 writeNamespaceFile :: FilePath -> [(T.Text, [(K, Term)])] -> IO FilePath
 writeNamespaceFile filePath nsEntries = do

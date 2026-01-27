@@ -186,8 +186,7 @@ applyOnlyFirst False diffs = diffs
 emitDiffOutput :: DiffDepth -> FilePath -> FilePath -> [DiffEntry] -> IO ()
 emitDiffOutput depth fileFirst fileSecond diffs =
   case depth of
-    DepthSilent ->
-      putStrLn $ if null diffs then "OK" else "DIFF"
+    DepthSilent -> return ()
     DepthReference ->
       mapM_ (TIO.putStrLn . renderReference) diffs
     DepthFull ->
