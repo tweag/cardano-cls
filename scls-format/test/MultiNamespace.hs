@@ -72,7 +72,7 @@ mkTestsFor serialize = do
     let input = [("ns0", []), ("ns1", ["data"]), ("ns2", [])]
     roundtrip serialize input
 
-type SerializeF = FilePath -> SlotNo -> Map.Map String Int -> SerializationPlan RawBytes ResIO -> ResIO ()
+type SerializeF = FilePath -> SlotNo -> Map.Map String Int -> SerializationPlan RawBytes ResIO -> ResIO (Either [Namespace] ())
 
 roundtrip :: SerializeF -> [(Namespace, [ByteString])] -> IO ()
 roundtrip serialize input = do

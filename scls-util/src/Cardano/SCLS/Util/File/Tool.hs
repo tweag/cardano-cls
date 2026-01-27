@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -10,10 +11,9 @@ import Cardano.SCLS.Internal.Entry.CBOREntry
 import Cardano.SCLS.Internal.Entry.ChunkEntry
 import Cardano.SCLS.Internal.Hash (digestToString)
 import Cardano.SCLS.Internal.Reader
-import Cardano.SCLS.Internal.Record.Hdr
 import Cardano.SCLS.Internal.Record.Manifest
-import Cardano.SCLS.Internal.Serializer.Dump
-import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan, mkSortedSerializationPlan)
+import Cardano.SCLS.Internal.Serializer.Dump qualified as Dump
+import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializationPlan)
 import Cardano.SCLS.Internal.Serializer.External.Impl (serialize)
 import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol))
@@ -26,7 +26,7 @@ import Codec.CBOR.Write qualified as CBOR
 import Control.Monad (foldM, forM)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
-import Control.Monad.Trans.Resource (MonadUnliftIO, allocate, release, runResourceT)
+import Control.Monad.Trans.Resource (MonadResource (liftResourceT), MonadUnliftIO, allocate, runResourceT)
 import Data.ByteString.Lazy qualified as BL
 import Data.Function ((&))
 import Data.List (nub)
@@ -125,17 +125,21 @@ splitFile namespaceKeySizes sourceFile outputDir SplitOptions{..} = do
       ( \ns -> do
           let outputFile = outputDir </> Namespace.humanFileNameFor ns
           logDebugN $ "  Creating " <> T.pack outputFile <> " for namespace " <> Namespace.asText ns
-          (key, handle) <- allocate (openBinaryFile outputFile WriteMode) hClose
-          withNamespacedDataHandle @RawBytes sourceHandle ns $ \stream -> do
-            let dataStream = S.yield (ns S.:> stream)
+          let dataStream = S.yield (ns S.:> namespacedData @RawBytes sourceHandle ns)
+          result <-
             -- namespace-specific data should be sorted, so we can assume that and dump directly
-            dumpToHandle
-              handle
-              slotNo
-              mkHdr
-              namespaceKeySizesMap
-              (mkSortedSerializationPlan (defaultSerializationPlan & addChunks dataStream) id)
-          release key
+            liftResourceT $
+              Dump.serialize
+                outputFile
+                slotNo
+                namespaceKeySizesMap
+                (defaultSerializationPlan & addChunks dataStream)
+                id
+          case result of
+            Left missingNamespaces -> do
+              logErrorN $ "Failed to serialize namespace " <> Namespace.asText ns <> ". Missing namespaces: " <> T.pack (show missingNamespaces)
+            Right () ->
+              pure ()
       )
       fileNamespaces
 
@@ -156,25 +160,30 @@ mergeFiles namespaceKeySizes outputFile sourceFiles = do
 
   logDebugN $ "Found " <> T.pack (show (length nsToFiles)) <> " unique namespace(s)"
 
-  liftIO $ runResourceT $ do
-    let stream =
-          S.each nsToFiles
-            & S.mapM_ \(ns, files) -> do
-              S.each files
-                & S.mapM
-                  ( \file -> do
-                      (_, handle) <- allocate (openFile file ReadMode) hClose
-                      pure (ns S.:> namespacedData @RawBytes handle ns)
-                  )
+  result <-
+    liftIO $ runResourceT $ do
+      let stream =
+            S.each nsToFiles
+              & S.mapM_ \(ns, files) -> do
+                S.each files
+                  & S.mapM
+                    ( \file -> do
+                        (_, handle) <- allocate (openFile file ReadMode) hClose
+                        pure (ns S.:> namespacedData @RawBytes handle ns)
+                    )
+      serialize
+        outputFile
+        (SlotNo 1)
+        (allNamespaceKeySizes (Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes]))
+        (defaultSerializationPlan & addChunks stream)
 
-    serialize
-      outputFile
-      (SlotNo 1)
-      (allNamespaceKeySizes (Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes]))
-      (defaultSerializationPlan & addChunks stream)
-
-  logDebugN "Merge complete"
-  pure Ok
+  case result of
+    Left missingNamespaces -> do
+      logErrorN $ "Failed to serialize merged file. Missing namespaces: " <> T.pack (show missingNamespaces)
+      pure OtherError
+    Right () -> do
+      logDebugN "Merge complete"
+      pure Ok
  where
   collectNamespaceFiles :: [FilePath] -> IO (Map.Map Namespace [FilePath])
   collectNamespaceFiles files = do
@@ -213,26 +222,32 @@ extract namespaceKeySizes sourceFile outputFile ExtractOptions{..} = do
   logDebugN $ "Output file: " <> T.pack outputFile
 
   slotNo <- liftIO $ withLatestManifestFrame (\Manifest{..} -> pure slotNo) sourceFile
-  liftIO $ runResourceT do
-    (_, handle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
-    let chunks =
-          case extractNamespaces of
-            Nothing -> S.each []
-            Just nsList ->
-              S.each nsList
-                & S.map
-                  (\ns -> (ns S.:> namespacedData @RawBytes handle ns))
+  result <-
+    liftIO $ runResourceT do
+      (_, handle) <- allocate (openBinaryFile sourceFile ReadMode) hClose
+      let chunks =
+            case extractNamespaces of
+              Nothing -> S.each []
+              Just nsList ->
+                S.each nsList
+                  & S.map
+                    (\ns -> (ns S.:> namespacedData @RawBytes handle ns))
 
-    serialize
-      outputFile
-      slotNo
-      (allNamespaceKeySizes (Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes]))
-      (defaultSerializationPlan & addChunks chunks)
+      serialize
+        outputFile
+        slotNo
+        (allNamespaceKeySizes (Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes]))
+        (defaultSerializationPlan & addChunks chunks)
 
-  case extractNamespaces of
-    Nothing -> pure Ok
-    Just nsList ->
-      verifyOrCleanup extractNoVerify sourceFile [(ns, outputFile) | ns <- nsList]
+  case result of
+    Left missingNamespaces -> do
+      logErrorN $ "Failed to serialize extracted file. Missing namespaces: " <> T.pack (show missingNamespaces)
+      pure OtherError
+    Right () -> do
+      case extractNamespaces of
+        Nothing -> pure Ok
+        Just nsList ->
+          verifyOrCleanup extractNoVerify sourceFile [(ns, outputFile) | ns <- nsList]
 
 data UnpackOptions = UnpackOptions
 
