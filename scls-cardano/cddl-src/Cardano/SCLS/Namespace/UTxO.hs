@@ -47,7 +47,10 @@ record_entry =
     $ "record_entry" =:= tx_out
 
 tx_out :: Rule
-tx_out = "tx_out" =:= arr [0, a (VBytes `cbor` shelley_tx_out)] / arr [1, a (VBytes `cbor` babbage_tx_out)]
+tx_out = "tx_out" =:= VBytes `cbor` tx_rule
+
+tx_rule :: Rule
+tx_rule = "rule" =:= shelley_tx_out / babbage_tx_out
 
 shelley_tx_out :: Rule
 shelley_tx_out =
@@ -66,7 +69,7 @@ babbage_tx_out =
         [ idx 0 ==> address
         , idx 1 ==> value
         , opt $ idx 2 ==> datum_option
-        , opt $ idx 3 ==> ("script_ref" =:= script)
+        , opt $ idx 3 ==> script_ref
         ]
 
 plutus_data :: Rule
@@ -99,6 +102,9 @@ constr = binding $ \x ->
         ( [tag i (arr [0 <+ a x]) | i <- [122 .. 127]]
             ++ [tag i (arr [0 <+ a x]) | i <- [1280 .. 1400]]
         )
+
+script_ref :: Rule
+script_ref = "script_ref" =:= tag 24 (VBytes `cbor` script)
 
 script :: Rule
 script =
