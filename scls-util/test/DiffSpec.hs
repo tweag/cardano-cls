@@ -19,6 +19,7 @@ import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializati
 import Cardano.SCLS.Internal.Serializer.Reference.Impl qualified as Reference
 import Cardano.SCLS.NamespaceCodec (CanonicalCBOREntryDecoder (..), CanonicalCBOREntryEncoder (..), KnownNamespace (..))
 import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
+import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Codec.CBOR.Term (Term (..))
@@ -101,7 +102,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
       (exitCode, _, _) <-
         runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "silent", "--namespace-keysize", "test/v0:1"]
 
-      exitCode `shouldBe` ExitFailure 1
+      exitCode `shouldBe` toErrorCode VerifyFailure
 
   it "reports namespace-only differences in reference mode" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
@@ -136,7 +137,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
           , "test/v2:1"
           ]
 
-      exitCode `shouldBe` ExitFailure 1
+      exitCode `shouldBe` toErrorCode VerifyFailure
       stdout `shouldContain` "- test/v0"
       stdout `shouldContain` "+ test/v1"
       stdout `shouldNotContain` "test/v2"
@@ -160,7 +161,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
           , "test/v0:1"
           ]
 
-      exitCode `shouldBe` ExitFailure 1
+      exitCode `shouldBe` toErrorCode VerifyFailure
       stdout `shouldContain` ("- " <> renderKeyRef "test/v0" (K 1))
       stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 2))
       stdout `shouldContain` ("+ " <> renderKeyRef "test/v0" (K 3))
@@ -184,7 +185,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
           , "test/v0:1"
           ]
 
-      exitCode `shouldBe` ExitFailure 1
+      exitCode `shouldBe` toErrorCode VerifyFailure
       stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 1))
       stdout `shouldContain` ("--- " <> file1)
       stdout `shouldContain` ("+++ " <> file2)
@@ -199,7 +200,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
       (exitCode, stdout, _) <-
         runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "reference", "--only-first", "--namespace-keysize", "test/v0:1", "--namespace-keysize", "test/v1:1"]
 
-      exitCode `shouldBe` ExitFailure 1
+      exitCode `shouldBe` toErrorCode VerifyFailure
       stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 1))
       stdout `shouldNotContain` ("* " <> renderKeyRef "test/v0" (K 2))
       stdout `shouldNotContain` ("* " <> renderKeyRef "test/v1" (K 1))
