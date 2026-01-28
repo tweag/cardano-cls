@@ -47,7 +47,7 @@ record_entry =
     $ "record_entry" =:= tx_out
 
 tx_out :: Rule
-tx_out = "tx_out" =:= arr [0, a shelley_tx_out] / arr [1, a babbage_tx_out]
+tx_out = "tx_out" =:= arr [0, a (VBytes `cbor` shelley_tx_out)] / arr [1, a (VBytes `cbor` babbage_tx_out)]
 
 shelley_tx_out :: Rule
 shelley_tx_out =
