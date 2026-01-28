@@ -107,6 +107,7 @@ test-suite scls-util-test
     scls-cbor,
     scls-core,
     scls-format,
+    scls-util,
     streaming,
     temporary,
     text,

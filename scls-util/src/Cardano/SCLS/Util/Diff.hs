@@ -22,13 +22,15 @@ import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
 import Codec.CBOR.Pretty (prettyHexEnc)
 import Codec.CBOR.Term (encodeTerm)
-import Control.Monad (foldM, when)
+import Control.Monad (when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
+import Control.Monad.Trans.Resource (MonadUnliftIO, allocate, runResourceT)
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
+import Data.Either (partitionEithers)
+import Data.Function ((&))
 import Data.List (sortOn)
-import Data.Map.Strict (Map)
 import Data.Map.Strict qualified as Map
 import Data.MemPack.Extra (ByteStringSized (..), CBORTerm (..))
 import Data.Proxy (Proxy (..))
@@ -39,8 +41,10 @@ import Data.Text.Encoding (decodeUtf8)
 import Data.Text.IO qualified as TIO
 import Data.TreeDiff.List (Edit (..), diffBy)
 import GHC.TypeNats
+import Streaming qualified as S
+import Streaming.Internal qualified as S
 import Streaming.Prelude qualified as S
-import System.IO (IOMode (ReadMode), withBinaryFile)
+import System.IO (Handle, IOMode (ReadMode), hClose, openFile)
 
 data DiffDepth
   = DepthSilent
@@ -79,7 +83,7 @@ data DiffLine
   | LineSecond Text
   deriving (Show, Eq)
 
-runDiffCmd :: (MonadIO m, MonadLogger m) => [(Namespace, Int)] -> DiffCmd -> m Result
+runDiffCmd :: (MonadLogger m, MonadUnliftIO m) => [(Namespace, Int)] -> DiffCmd -> m Result
 runDiffCmd namespaceKeySizes DiffCmd{..} = do
   namespacesFirst <- liftIO $ extractNamespaceList diffFirstFile
   namespacesSecond <- liftIO $ extractNamespaceList diffSecondFile
@@ -87,21 +91,32 @@ runDiffCmd namespaceKeySizes DiffCmd{..} = do
   let nsSecondSet = Set.fromList namespacesSecond
   let namespacesToCheck = selectNamespaces diffNamespaces nsFirstSet nsSecondSet
   let extraNs = Map.fromList [(Namespace.asString ns, fromIntegral size) | (ns, size) <- namespaceKeySizes]
-  (hadError, diffs) <-
-    foldM
-      ( \(anyError, acc) ns -> do
-          (err, nsDiffs) <- diffNamespace (Map.union knownNamespaceKeySizes extraNs) diffVerbosity diffFirstFile diffSecondFile ns nsFirstSet nsSecondSet
-          pure (anyError || err, acc <> nsDiffs)
-      )
-      (False, [])
-      namespacesToCheck
-  let filteredDiffs = applyOnlyFirst diffOnlyFirst diffs
-  when (diffVerbosity >= VerbosityNormal && diffDepth /= DepthSilent) do
-    logInfoN $ "Diff entries: " <> T.pack (show (length filteredDiffs))
-  liftIO $ emitDiffOutput diffDepth diffFirstFile diffSecondFile filteredDiffs
-  if hadError || not (null filteredDiffs)
-    then pure OtherError
-    else pure $ if null filteredDiffs then Ok else VerifyFailure
+  let allKeySizes = Map.union knownNamespaceKeySizes extraNs
+  let (unknownNamespaces, namespaceKeySizesToCheck) =
+        namespacesToCheck
+          & partitionEithers
+            . map \ns ->
+              case Map.lookup (Namespace.asString ns) allKeySizes of
+                Nothing -> Left ns
+                Just keySize -> Right (ns, keySize)
+  runResourceT $ do
+    (_, handleFirst) <- allocate (openFile diffFirstFile ReadMode) hClose
+    (_, handleSecond) <- allocate (openFile diffSecondFile ReadMode) hClose
+    let diffs =
+          S.for
+            (S.each namespaceKeySizesToCheck)
+            (\(ns, keySize) -> diffNamespace keySize diffVerbosity handleFirst handleSecond ns nsFirstSet nsSecondSet)
+    if not (null unknownNamespaces) && diffVerbosity >= VerbosityNormal
+      then do
+        logErrorN $ "Unknown namespaces (no key size info): " <> T.intercalate ", " (map Namespace.asText unknownNamespaces)
+        pure OtherError
+      else do
+        let filteredDiffs = if diffOnlyFirst then S.take 1 diffs else diffs
+        nDiffs <- emitDiffOutput diffDepth diffFirstFile diffSecondFile filteredDiffs
+        when (diffVerbosity >= VerbosityNormal) $
+          logInfoN $
+            "Total differences found: " <> T.pack (show nDiffs)
+        pure $ if nDiffs == 0 then Ok else VerifyFailure
 
 -- | Select only intersting namespaces.
 selectNamespaces :: Maybe [Namespace] -> Set.Set Namespace -> Set.Set Namespace -> [Namespace]
@@ -110,87 +125,83 @@ selectNamespaces Nothing nsFirst nsSecond =
 selectNamespaces (Just nsList) nsFirst nsSecond =
   filter (\ns -> Set.member ns nsFirst || Set.member ns nsSecond) nsList
 
-diffNamespace :: (MonadIO m, MonadLogger m) => Map String Int -> DiffVerbosity -> FilePath -> FilePath -> Namespace -> Set.Set Namespace -> Set.Set Namespace -> m (Bool, [DiffEntry])
-diffNamespace namespaceKeySizes verbosity fileFirst fileSecond ns nsFirst nsSecond =
+diffNamespace :: (MonadIO m, MonadLogger m) => Int -> DiffVerbosity -> Handle -> Handle -> Namespace -> Set.Set Namespace -> Set.Set Namespace -> S.Stream (S.Of DiffEntry) m ()
+diffNamespace keySize verbosity handleFirst handleSecond ns nsFirst nsSecond =
   case (Set.member ns nsFirst, Set.member ns nsSecond) of
-    (True, False) -> pure (False, [NamespaceOnly SideFirst ns])
-    (False, True) -> pure (False, [NamespaceOnly SideSecond ns])
-    (False, False) -> pure (False, [])
+    (True, False) -> S.yield (NamespaceOnly SideFirst ns)
+    (False, True) -> S.yield (NamespaceOnly SideSecond ns)
+    (False, False) -> pure ()
     (True, True) -> do
-      when (verbosity >= VerbosityVerbose) do
-        logInfoN $ "Comparing namespace: " <> Namespace.asText ns
-      case Map.lookup (Namespace.asString ns) namespaceKeySizes of
-        Nothing -> do
-          when (verbosity > VerbosityQuiet) do
-            logErrorN $ "Unknown namespace, cannot decode entries: " <> Namespace.asText ns
-          pure (True, [])
-        Just p -> case someNatVal (fromIntegral p) of
-          SomeNat (Proxy :: Proxy n) -> do
-            diffs <-
-              liftIO $
-                withBinaryFile fileFirst ReadMode \handleFirst ->
-                  withBinaryFile fileSecond ReadMode \handleSecond ->
-                    diffStreams
-                      ns
-                      (namespacedData @(ChunkEntry (ByteStringSized n) CBORTerm) handleFirst ns)
-                      (namespacedData @(ChunkEntry (ByteStringSized n) CBORTerm) handleSecond ns)
-            pure (False, diffs)
-
+      case someNatVal (fromIntegral keySize) of
+        SomeNat (Proxy :: Proxy n) -> do
+          when (verbosity >= VerbosityVerbose) do
+            S.lift $ logInfoN $ "Comparing namespace: " <> Namespace.asText ns
+          let streamFirst =
+                namespacedData @(ChunkEntry (ByteStringSized n) CBORTerm) handleFirst ns
+          let streamSecond =
+                namespacedData @(ChunkEntry (ByteStringSized n) CBORTerm) handleSecond ns
+          diffStreams
+            ns
+            streamFirst
+            streamSecond
 diffStreams ::
-  forall n.
+  (Monad m) =>
   Namespace ->
-  S.Stream (S.Of (ChunkEntry (ByteStringSized n) CBORTerm)) IO () ->
-  S.Stream (S.Of (ChunkEntry (ByteStringSized n) CBORTerm)) IO () ->
-  IO [DiffEntry]
-diffStreams ns streamFirst streamSecond = go streamFirst streamSecond []
+  S.Stream (S.Of (ChunkEntry (ByteStringSized n) CBORTerm)) m () ->
+  S.Stream (S.Of (ChunkEntry (ByteStringSized n) CBORTerm)) m () ->
+  S.Stream (S.Of DiffEntry) m ()
+diffStreams ns = go
  where
-  go s1 s2 acc = do
-    next1 <- S.next s1
-    next2 <- S.next s2
-    case (next1, next2) of
-      (Left _, Left _) -> pure (reverse acc)
-      (Left _, Right (e2, r2)) -> do
-        rest <- collectRemaining SideSecond e2 r2 acc
-        pure (reverse rest)
-      (Right (e1, r1), Left _) -> do
-        rest <- collectRemaining SideFirst e1 r1 acc
-        pure (reverse rest)
-      (Right (e1, r1), Right (e2, r2)) ->
-        case compare (entryKey e1) (entryKey e2) of
-          LT -> go r1 (S.cons e2 r2) (KeyOnly SideFirst ns (entryKey e1) : acc)
-          GT -> go (S.cons e1 r1) r2 (KeyOnly SideSecond ns (entryKey e2) : acc)
-          EQ ->
-            let acc' =
-                  if getEncodedBytes (chunkEntryValue e1) == getEncodedBytes (chunkEntryValue e2)
-                    then acc
-                    else ValueDiff ns (entryKey e1) (chunkEntryValue e1) (chunkEntryValue e2) : acc
-             in go r1 r2 acc'
+  go s1 s2 = do
+    case (s1, s2) of
+      -- Both streams have entries
+      (S.Step (e1 S.:> r1), S.Step (e2 S.:> r2)) -> do
+        let k1 = entryKey e1
+            k2 = entryKey e2
+        case compare k1 k2 of
+          LT -> do
+            S.yield (KeyOnly SideFirst ns k1)
+            go r1 (S.cons e2 r2)
+          GT -> do
+            S.yield (KeyOnly SideSecond ns k2)
+            go (S.cons e1 r1) r2
+          EQ -> do
+            let v1 = chunkEntryValue e1
+                v2 = chunkEntryValue e2
+            when (getEncodedBytes v1 /= getEncodedBytes v2) do
+              S.yield (ValueDiff ns k1 v1 v2)
+            go r1 r2
+      -- Only first stream has entries
+      (S.Step (e1 S.:> r1), S.Return _) -> do
+        collectRemaining SideFirst e1 r1
+      -- Only second stream has entries
+      (S.Return _, S.Step (e2 S.:> r2)) -> do
+        collectRemaining SideSecond e2 r2
+      -- One stream has an effect, apply it and continue
+      (S.Effect m, _) ->
+        S.Effect $ fmap (\str -> go str s2) m
+      (_, S.Effect m) ->
+        S.Effect $ fmap (\str -> go s1 str) m
+      -- Both streams are done
+      (S.Return _, S.Return _) -> pure ()
 
-  collectRemaining side entry rest acc = do
-    acc' <-
-      S.foldM_
-        (\a e -> pure (KeyOnly side ns (entryKey e) : a))
-        (pure (KeyOnly side ns (entryKey entry) : acc))
-        pure
+  collectRemaining side entry rest = do
+    S.yield (KeyOnly side ns (entryKey entry))
+      <> S.map
+        (\e -> KeyOnly side ns (entryKey e))
         rest
-    pure acc'
 
 entryKey :: ChunkEntry (ByteStringSized n) CBORTerm -> ByteString
 entryKey ChunkEntry{chunkEntryKey = ByteStringSized k} = k
 
-applyOnlyFirst :: Bool -> [DiffEntry] -> [DiffEntry]
-applyOnlyFirst True [] = []
-applyOnlyFirst True (x : _) = [x]
-applyOnlyFirst False diffs = diffs
-
-emitDiffOutput :: DiffDepth -> FilePath -> FilePath -> [DiffEntry] -> IO ()
+emitDiffOutput :: (MonadIO m) => DiffDepth -> FilePath -> FilePath -> S.Stream (S.Of DiffEntry) m () -> m Int
 emitDiffOutput depth fileFirst fileSecond diffs =
   case depth of
-    DepthSilent -> return ()
+    DepthSilent -> S.length_ diffs
     DepthReference ->
-      mapM_ (TIO.putStrLn . renderReference) diffs
+      S.mapM_ (liftIO . TIO.putStrLn . renderReference) $ S.length_ $ S.copy $ diffs
     DepthFull ->
-      mapM_ (renderFull fileFirst fileSecond) diffs
+      S.mapM_ (liftIO . renderFull fileFirst fileSecond) $ S.length_ $ S.copy $ diffs
 
 renderReference :: DiffEntry -> Text
 renderReference = \case
