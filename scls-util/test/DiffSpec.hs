@@ -218,15 +218,16 @@ diffCommandTests mSclsUtil = describe "diff command" do
 
 writeNamespaceFile :: FilePath -> [(T.Text, [(K, Term)])] -> IO FilePath
 writeNamespaceFile filePath nsEntries = do
-  runResourceT $
-    Reference.serialize @(ChunkEntry K CBORTerm)
-      filePath
-      (SlotNo 1)
-      testNamespaces
-      ( defaultSerializationPlan
-          & addChunks
-            (S.each $ nsEntries <&> \(namespace, entries) -> (Namespace.fromText namespace S.:> S.each (map mkEntry entries)))
-      )
+  _ <-
+    runResourceT $
+      Reference.serialize @(ChunkEntry K CBORTerm)
+        filePath
+        (SlotNo 1)
+        testNamespaces
+        ( defaultSerializationPlan
+            & addChunks
+              (S.each $ nsEntries <&> \(namespace, entries) -> (Namespace.fromText namespace S.:> S.each (map mkEntry entries)))
+        )
   pure filePath
  where
   mkEntry (key, term) = ChunkEntry key (mkCBORTerm term)
