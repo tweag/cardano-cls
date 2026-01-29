@@ -31,12 +31,13 @@ generateTestFile dir = do
           | (ns, entries) <- testData
           ]
 
-  runResourceT $
-    Reference.serialize @RawBytes
-      fileName
-      (SlotNo 1)
-      (Map.fromList [(asString ns, 1) | (ns, _) <- testData])
-      (defaultSerializationPlan & addChunks mkStream)
+  _ <-
+    runResourceT $
+      Reference.serialize @RawBytes
+        fileName
+        (SlotNo 1)
+        (Map.fromList [(asString ns, 1) | (ns, _) <- testData])
+        (defaultSerializationPlan & addChunks mkStream)
 
   return (fileName, map fst testData)
 
