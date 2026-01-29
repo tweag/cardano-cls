@@ -50,10 +50,11 @@ jobs:
               '.#"scls-util:lib:scls-util"'
         - name: Run tests
           run: |
+            current_system=$(nix eval --impure --expr 'builtins.currentSystem')
             nix build \
-              '.#checks.x86_64-linux."merkle-tree-incremental:test:merkle-tree-incremental-test"' \
-              '.#checks.x86_64-linux."scls-cardano:test:scls-cardano-test"' \
-              '.#checks.x86_64-linux."scls-cbor:test:scls-cbor-test"' \
-              '.#checks.x86_64-linux."scls-format:test:scls-format-test"' \
-              '.#checks.x86_64-linux."scls-util:test:scls-util-test"' \
-              '.#checks.x86_64-linux.validate-scls-test'
+              ".#checks.${current_system}.merkle-tree-incremental:test:merkle-tree-incremental-test" \
+              ".#checks.${current_system}.scls-cardano:test:scls-cardano-test" \
+              ".#checks.${current_system}.scls-cbor:test:scls-cbor-test" \
+              ".#checks.${current_system}.scls-format:test:scls-format-test" \
+              ".#checks.${current_system}.scls-util:test:scls-util-test" \
+              ".#checks.${current_system}.validate-scls-test"
