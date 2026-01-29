@@ -106,9 +106,10 @@ runDiffCmd namespaceKeySizes DiffCmd{..} = do
           S.for
             (S.each namespaceKeySizesToCheck)
             (\(ns, keySize) -> diffNamespace keySize diffVerbosity handleFirst handleSecond ns nsFirstSet nsSecondSet)
-    if not (null unknownNamespaces) && diffVerbosity >= VerbosityNormal
+    if not (null unknownNamespaces)
       then do
-        logErrorN $ "Unknown namespaces (no key size info): " <> T.intercalate ", " (map Namespace.asText unknownNamespaces)
+        when (diffVerbosity >= VerbosityNormal) do
+          logErrorN $ "Unknown namespaces (no key size info): " <> T.intercalate ", " (map Namespace.asText unknownNamespaces)
         pure OtherError
       else do
         let filteredDiffs = if diffOnlyFirst then S.take 1 diffs else diffs
