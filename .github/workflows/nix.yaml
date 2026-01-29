@@ -10,6 +10,10 @@ on:
     branches:
       - "*"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
     build_and_test_nix:
         name: Test and build canonical-ledger-state using Nix
