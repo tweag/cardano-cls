@@ -87,7 +87,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
       _ <- writeNamespaceFile file1 [("test/v0", [(K 1, TInt 1)])]
       _ <- writeNamespaceFile file2 [("test/v0", [(K 1, TInt 1)])]
 
-      (exitCode, stdout, _) <-
+      (exitCode, _, _) <-
         runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "silent", "--namespaces", "test/v0", "--namespace-keysize", "test/v0:1"]
 
       exitCode `shouldBe` ExitSuccess
