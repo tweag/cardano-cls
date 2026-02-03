@@ -163,7 +163,7 @@ diffStreams ns = go
                   tree1 = termToTree term1
                   tree2 = termToTree term2
                   diff = treeDiff tree1 tree2
-              S.yield (SwpValueTree ns k1 diff)
+              S.yield (SwpValue ns k1 diff)
             go r1 r2
       -- Only first stream has entries
       (S.Step (e1 S.:> r1), S.Return _) -> do

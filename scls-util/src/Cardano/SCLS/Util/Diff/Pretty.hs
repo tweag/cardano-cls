@@ -19,14 +19,14 @@ import Data.Text.Encoding (decodeUtf8)
 import Data.Tree (Tree (Node))
 import Data.TreeDiff (Edit (..))
 import Data.TreeDiff.Tree (EditTree (EditNode))
-import Numeric (showHex)
-import Prettyprinter (Doc, Pretty (pretty), align, annotate, fillSep, hcat, nest, vsep)
+import Prettyprinter (Doc, Pretty (pretty), annotate, emptyDoc, nest, vsep, (<+>))
 import Prettyprinter.Render.Terminal (AnsiStyle, Color (Green, Red), color)
+import Text.Printf (printf)
 
 ppIns :: Doc AnsiStyle -> Doc AnsiStyle
-ppIns = \d -> (annotate (color Green) (pretty '+')) <> d
+ppIns = \d -> annotate (color Green) (pretty '+' <+> d)
 ppDel :: Doc AnsiStyle -> Doc AnsiStyle
-ppDel = \d -> (annotate (color Red) (pretty '-')) <> d
+ppDel = \d -> annotate (color Red) (pretty '-' <+> d)
 
 ppEditDiffEntry :: DiffEntry -> Doc AnsiStyle
 ppEditDiffEntry (CpyNamespace ns) =
@@ -41,11 +41,14 @@ ppEditDiffEntry (InsKey ns key) =
   ppIns (pretty $ renderKeyRef ns key)
 ppEditDiffEntry (DelKey ns key) =
   ppDel (pretty $ renderKeyRef ns key)
-ppEditDiffEntry (SwpValue _ _ _ _) =
-  -- TODO: implement
-  undefined
-ppEditDiffEntry (SwpValueTree ns key diff) =
+ppEditDiffEntry (SwpValue ns key diff) =
   nest 2 $ vsep [pretty (renderKeyRef ns key), ppDiffEditTree diff]
+
+ppOffset :: Word -> Doc ann
+ppOffset offset = pretty (printf "0x%04x" offset :: String)
+
+ppByteString :: ByteString -> Doc ann
+ppByteString = pretty . decodeUtf8 . Base16.encode
 
 renderKeyRef :: Namespace -> ByteString -> Text
 renderKeyRef ns key =
@@ -57,7 +60,8 @@ ppToken (TInteger n) = "integer(" <> pretty n <> ")"
 ppToken (TBytesLen n) = "bytes(" <> pretty n <> ")"
 ppToken (TString s) = "string(" <> pretty s <> ")"
 ppToken (TStringLen n) = "string(" <> pretty n <> ")"
-ppToken (TByte n) = pretty $ if n < 16 then ("0" <> showHex n "") else showHex n ""
+ppToken (TByteOffset n) = "@ " <> pretty (printf "0x%04x" n :: String)
+ppToken (TBytes offset bs) = nest 2 $ vsep ["@ " <> ppOffset offset, ppByteString bs]
 ppToken TNull = "null"
 ppToken (TBool b) = "bool(" <> pretty b <> ")"
 ppToken (TBreak) = "break"
@@ -78,21 +82,23 @@ ppTokenTree (Node t subtrees) =
   vsep [ppToken t, nest 2 $ vsep $ map ppTokenTree subtrees]
 
 ppEditTree :: (EditTree Token) -> Doc AnsiStyle
-ppEditTree (EditNode (TBytesLen n) edits) =
-  nest 2 $ vsep $ ("bytes(" <> pretty n <> ")") : [align $ fillSep $ map ppDiffEditTreeBytes edits]
+ppEditTree (EditNode t@(TBytesLen _) edits) =
+  nest 2 $ vsep $ ppToken t : map ppDiffEditTreeBytes edits
+ppEditTree (EditNode t@TBytesBegin edits) =
+  nest 2 $ vsep $ ppToken t : map ppDiffEditTreeBytes edits
 ppEditTree (EditNode t edits) =
   nest 2 $ vsep $ ppToken t : map ppDiffEditTree edits
 
 ppDiffEditTreeBytes :: Edit (EditTree Token) -> Doc AnsiStyle
-ppDiffEditTreeBytes = \case
-  Cpy t -> ppEditTree t
-  Ins t -> ppIns $ ppEditTree t
-  Del t -> ppDel $ ppEditTree t
-  Swp t1 t2 -> hcat [ppDiffEditTreeBytes (Del t1), ppDiffEditTreeBytes (Ins t2)]
+ppDiffEditTreeBytes (Cpy _) = emptyDoc
+ppDiffEditTreeBytes t = ppDiffEditTree t
 
 ppDiffEditTree :: Edit (EditTree Token) -> Doc AnsiStyle
 ppDiffEditTree = \case
   Cpy t -> ppEditTree t
-  Ins t -> annotate (color Green) "+" <> ppEditTree t
-  Del t -> annotate (color Red) "-" <> ppEditTree t
+  Ins t -> ppIns $ ppEditTree t
+  Del t -> ppDel $ ppEditTree t
+  Swp (EditNode (TBytes offset1 bs1) []) (EditNode (TBytes offset2 b2) [])
+    | offset1 == offset2 ->
+        nest 2 $ vsep ["@ " <> ppOffset offset1, ppDel (ppByteString bs1), ppIns (ppByteString b2)]
   Swp t1 t2 -> vsep [ppDiffEditTree (Del t1), ppDiffEditTree (Ins t2)]
