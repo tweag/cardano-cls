@@ -12,6 +12,7 @@ module Cardano.SCLS.Util.Diff.TermDiff (
 ) where
 
 import Codec.CBOR.FlatTerm (FlatTerm, TermToken (..))
+import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
 import Data.Text qualified as T
 import Data.Tree (Tree (Node))
@@ -21,7 +22,8 @@ data Token
   = TInt !Int
   | TInteger !Integer
   | TBytesLen !Word
-  | TByte !Word8
+  | TByteOffset !Word
+  | TBytes !Word !ByteString
   | TBytesBegin
   | TStringLen !Word
   | TString !T.Text
@@ -43,7 +45,7 @@ data Token
 termTokenToDiffTreeTokenNode :: TermToken -> Tree Token
 termTokenToDiffTreeTokenNode (TkInt n) = Node (TInt n) []
 termTokenToDiffTreeTokenNode (TkInteger n) = Node (TInteger n) []
-termTokenToDiffTreeTokenNode (TkBytes bs) = Node (TBytesLen (fromIntegral $ BS.length bs)) (map (flip Node [] . TByte) (BS.unpack bs))
+termTokenToDiffTreeTokenNode (TkBytes bs) = Node (TBytesLen (fromIntegral $ BS.length bs)) (map (flip Node [] . uncurry TBytes) (chunksOf 16 bs))
 termTokenToDiffTreeTokenNode (TkString s) = Node (TStringLen (fromIntegral $ T.length s)) [Node (TString s) []]
 termTokenToDiffTreeTokenNode TkBytesBegin = Node TBytesBegin []
 termTokenToDiffTreeTokenNode TkStringBegin = Node TStringBegin []
@@ -59,6 +61,15 @@ termTokenToDiffTreeTokenNode (TkSimple n) = Node (TSimple n) []
 termTokenToDiffTreeTokenNode (TkFloat16 f) = Node (TFloat16 f) []
 termTokenToDiffTreeTokenNode (TkFloat32 f) = Node (TFloat32 f) []
 termTokenToDiffTreeTokenNode (TkFloat64 f) = Node (TFloat64 f) []
+
+chunksOf :: Int -> ByteString -> [(Word, ByteString)]
+chunksOf n = go [] 0
+ where
+  go acc offset bs
+    | BS.null chunk = reverse acc
+    | otherwise = go ((offset, chunk) : acc) (offset + fromIntegral (BS.length chunk)) rest
+   where
+    (chunk, rest) = BS.splitAt n bs
 
 termToTree :: FlatTerm -> Tree Token
 termToTree [] = error "Unexpected end of tokens"
