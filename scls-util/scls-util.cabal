@@ -25,6 +25,9 @@ library
     Cardano.SCLS.Util.Checksum
     Cardano.SCLS.Util.Debug
     Cardano.SCLS.Util.Diff
+    Cardano.SCLS.Util.Diff.Entry
+    Cardano.SCLS.Util.Diff.Pretty
+    Cardano.SCLS.Util.Diff.TermDiff
     Cardano.SCLS.Util.File
     Cardano.SCLS.Util.File.Info
     Cardano.SCLS.Util.File.Tool
@@ -46,6 +49,7 @@ library
     merkle-tree-incremental,
     monad-logger,
     prettyprinter,
+    prettyprinter-ansi-terminal,
     random >=1.2,
     resourcet,
     scls-cardano,
