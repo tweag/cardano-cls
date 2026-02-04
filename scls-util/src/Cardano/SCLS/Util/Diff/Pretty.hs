@@ -42,7 +42,7 @@ ppEditDiffEntry (InsKey ns key) =
 ppEditDiffEntry (DelKey ns key) =
   ppDel (pretty $ renderKeyRef ns key)
 ppEditDiffEntry (SwpValue ns key diff) =
-  nest 2 $ vsep [pretty (renderKeyRef ns key), ppDiffEditTree diff]
+  nest 2 $ vsep ["* " <> pretty (renderKeyRef ns key), ppDiffEditTree diff]
 
 ppOffset :: Word -> Doc ann
 ppOffset offset = pretty (printf "0x%04x" offset :: String)
