@@ -14,12 +14,12 @@ import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
 import Data.ByteString (ByteString)
 import Data.ByteString.Base16 qualified as Base16
-import Data.Text (Text)
+import Data.Text (Text, chunksOf)
 import Data.Text.Encoding (decodeUtf8)
 import Data.Tree (Tree (Node))
 import Data.TreeDiff (Edit (..))
 import Data.TreeDiff.Tree (EditTree (EditNode))
-import Prettyprinter (Doc, Pretty (pretty), annotate, emptyDoc, nest, vsep, (<+>))
+import Prettyprinter (Doc, Pretty (pretty), annotate, emptyDoc, hsep, nest, vsep, (<+>))
 import Prettyprinter.Render.Terminal (AnsiStyle, Color (Green, Red), color)
 import Text.Printf (printf)
 
@@ -48,7 +48,7 @@ ppOffset :: Word -> Doc ann
 ppOffset offset = pretty (printf "0x%04x" offset :: String)
 
 ppByteString :: ByteString -> Doc ann
-ppByteString = pretty . decodeUtf8 . Base16.encode
+ppByteString = hsep . map pretty . chunksOf 2 . decodeUtf8 . Base16.encode
 
 renderKeyRef :: Namespace -> ByteString -> Text
 renderKeyRef ns key =
