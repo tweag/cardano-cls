@@ -14,8 +14,18 @@
 #
 name: Haskell-CI
 on:
-  - push
-  - pull_request
+  push:
+    paths:
+      - '**.hs'
+      - '**.cabal'
+      - 'cabal.project'
+      - 'cabal.project.*'
+  pull_request:
+    paths:
+      - '**.hs'
+      - '**.cabal'
+      - 'cabal.project'
+      - 'cabal.project.*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
