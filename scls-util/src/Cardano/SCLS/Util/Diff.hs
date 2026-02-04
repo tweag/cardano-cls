@@ -187,6 +187,7 @@ entryKey ChunkEntry{chunkEntryKey = ByteStringSized k} = k
 
 emitDiffOutput :: (MonadIO m) => DiffDepth -> S.Stream (S.Of DiffEntry) m () -> m Int
 emitDiffOutput depth diffs =
+  -- TODO: properly distinguish between DepthReference and DepthFull
   case depth of
     DepthSilent -> S.length_ diffs
     DepthReference -> do
