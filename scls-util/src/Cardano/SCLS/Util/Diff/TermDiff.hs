@@ -90,45 +90,54 @@ termToTree (xt : ts) = go xt restEmptyOrError [] ts
   go t = \f _ xs ->
     f (termTokenToDiffTreeTokenNode t) xs
 
-  restEmptyOrError t [] = t
-  restEmptyOrError _ (_ : _) = error "Unexpected tokens"
+  restEmptyOrError t = \case
+    [] -> t
+    (_ : _) -> error $ "Unexpected tokens"
 
-  lenIndef _ _ _ [] = error "Unexpected end of tokens in indefinite-length structure"
-  lenIndef token f acc (TkBreak : xs) = f (Node token (reverse acc)) xs
-  lenIndef token f acc (TkListBegin : xs) =
-    lenIndef TListBegin (lenIndef token f . flip (:) acc) [] xs
-  lenIndef token f acc (TkBytesBegin : xs) =
-    lenIndef TBytesBegin (lenIndef token f . flip (:) acc) [] xs
-  lenIndef token f acc (TkStringBegin : xs) =
-    lenIndef TStringBegin (lenIndef token f . flip (:) acc) [] xs
-  lenIndef token f acc (TkMapBegin : xs) =
-    lenIndef TMapBegin (lenIndef token f . flip (:) acc) [] xs
-  lenIndef token f acc (TkListLen len : xs) =
-    fixedLength (TListLen len) len (lenIndef token f . flip (:) acc) [] xs
-  lenIndef token f acc (TkMapLen len : xs) =
-    fixedLength (TMapLen len) len (lenIndef token f . flip (:) acc) [] xs
-  lenIndef token f acc (t : xs) =
+lenIndef :: Token -> (Tree Token -> [TermToken] -> t) -> [Tree Token] -> [TermToken] -> t
+lenIndef token f acc = \case
+  [] -> error "Unexpected end of tokens in indefinite-length structure"
+  TkBreak : xs ->
+    f (Node token (reverse acc)) xs
+  TkListBegin : xs ->
+    lenIndef TListBegin cont [] xs
+  TkBytesBegin : xs ->
+    lenIndef TBytesBegin cont [] xs
+  TkStringBegin : xs ->
+    lenIndef TStringBegin cont [] xs
+  TkMapBegin : xs ->
+    lenIndef TMapBegin cont [] xs
+  TkListLen len : xs ->
+    fixedLength (TListLen len) len cont [] xs
+  TkMapLen len : xs ->
+    fixedLength (TMapLen len) len cont [] xs
+  t : xs ->
     lenIndef token f (termTokenToDiffTreeTokenNode t : acc) xs
+ where
+  cont = lenIndef token f . flip (:) acc
 
-  fixedLength token@(TMapLen _) len f acc xs
-    | length acc == fromIntegral len * 2 =
-        f (Node token (reverse acc)) xs
-  fixedLength token len f acc xs
-    | length acc == fromIntegral len =
-        f (Node token (reverse acc)) xs
-  fixedLength _ _ _ _ [] =
-    error "Unexpected end of tokens in fixed-length structure"
-  fixedLength token len f acc (TkListBegin : xs) =
-    lenIndef TListBegin (fixedLength token len f . flip (:) acc) [] xs
-  fixedLength token len f acc (TkBytesBegin : xs) =
-    lenIndef TBytesBegin (fixedLength token len f . flip (:) acc) [] xs
-  fixedLength token len f acc (TkStringBegin : xs) =
-    lenIndef TStringBegin (fixedLength token len f . flip (:) acc) [] xs
-  fixedLength token len f acc (TkMapBegin : xs) =
-    lenIndef TMapBegin (fixedLength token len f . flip (:) acc) [] xs
-  fixedLength token len f acc (TkListLen l : xs) =
-    fixedLength (TListLen l) l (fixedLength token len f . flip (:) acc) [] xs
-  fixedLength token len f acc (TkMapLen l : xs) =
-    fixedLength (TMapLen l) l (fixedLength token len f . flip (:) acc) [] xs
-  fixedLength token len f acc (t : xs) =
+fixedLength :: Token -> Word -> (Tree Token -> [TermToken] -> t) -> [Tree Token] -> [TermToken] -> t
+fixedLength token@(TMapLen _) len f acc
+  | length acc == fromIntegral len * 2 =
+      f (Node token (reverse acc))
+fixedLength token@(TListLen _) len f acc
+  | length acc == fromIntegral len =
+      f (Node token (reverse acc))
+fixedLength token len f acc = \case
+  [] -> error "Unexpected end of tokens in fixed-length structure"
+  TkListBegin : xs ->
+    lenIndef TListBegin cont [] xs
+  TkBytesBegin : xs ->
+    lenIndef TBytesBegin cont [] xs
+  TkStringBegin : xs ->
+    lenIndef TStringBegin cont [] xs
+  TkMapBegin : xs ->
+    lenIndef TMapBegin cont [] xs
+  TkListLen l : xs ->
+    fixedLength (TListLen l) l cont [] xs
+  TkMapLen l : xs ->
+    fixedLength (TMapLen l) l cont [] xs
+  t : xs ->
     fixedLength token len f (termTokenToDiffTreeTokenNode t : acc) xs
+ where
+  cont = fixedLength token len f . flip (:) acc
