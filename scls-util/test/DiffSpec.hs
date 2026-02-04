@@ -163,7 +163,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
 
       exitCode `shouldBe` toErrorCode VerifyFailure
       stdout `shouldContain` ("- " <> renderKeyRef "test/v0" (K 1))
-      stdout `shouldContain` (renderKeyRef "test/v0" (K 2))
+      stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 2))
       stdout `shouldContain` ("- int(2)")
       stdout `shouldContain` ("+ int(3)")
       stdout `shouldContain` ("+ " <> renderKeyRef "test/v0" (K 3))
@@ -188,7 +188,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
           ]
 
       exitCode `shouldBe` toErrorCode VerifyFailure
-      stdout `shouldContain` (renderKeyRef "test/v0" (K 1))
+      stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 1))
       stdout `shouldContain` ("- int(1)")
       stdout `shouldContain` ("+ int(2)")
 
@@ -203,7 +203,7 @@ diffCommandTests mSclsUtil = describe "diff command" do
         runSclsUtil mSclsUtil ["diff", file1, file2, "--depth", "reference", "--only-first", "--namespace-keysize", "test/v0:1", "--namespace-keysize", "test/v1:1"]
 
       exitCode `shouldBe` toErrorCode VerifyFailure
-      stdout `shouldContain` (renderKeyRef "test/v0" (K 1))
+      stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 1))
       stdout `shouldNotContain` (renderKeyRef "test/v0" (K 2))
       stdout `shouldNotContain` (renderKeyRef "test/v1" (K 1))
 
