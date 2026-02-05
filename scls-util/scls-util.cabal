@@ -48,6 +48,7 @@ library
     mempack-scls,
     merkle-tree-incremental,
     monad-logger,
+    monad-loops,
     prettyprinter,
     prettyprinter-ansi-terminal,
     random >=1.2,
@@ -59,6 +60,7 @@ library
     scls-format,
     streaming,
     text,
+    transformers,
     tree-diff,
 
   default-language: GHC2021
