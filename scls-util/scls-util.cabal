@@ -25,6 +25,9 @@ library
     Cardano.SCLS.Util.Checksum
     Cardano.SCLS.Util.Debug
     Cardano.SCLS.Util.Diff
+    Cardano.SCLS.Util.Diff.Entry
+    Cardano.SCLS.Util.Diff.Pretty
+    Cardano.SCLS.Util.Diff.TermDiff
     Cardano.SCLS.Util.File
     Cardano.SCLS.Util.File.Info
     Cardano.SCLS.Util.File.Tool
@@ -45,7 +48,9 @@ library
     mempack-scls,
     merkle-tree-incremental,
     monad-logger,
+    monad-loops,
     prettyprinter,
+    prettyprinter-ansi-terminal,
     random >=1.2,
     resourcet,
     scls-cardano,
@@ -55,6 +60,7 @@ library
     scls-format,
     streaming,
     text,
+    transformers,
     tree-diff,
 
   default-language: GHC2021
@@ -88,6 +94,7 @@ test-suite scls-util-test
     InfoSpec
     MergeSpec
     SplitSpec
+    TermDiffSpec
     VerifySpec
 
   build-depends:

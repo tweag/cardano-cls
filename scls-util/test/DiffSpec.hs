@@ -164,6 +164,8 @@ diffCommandTests mSclsUtil = describe "diff command" do
       exitCode `shouldBe` toErrorCode VerifyFailure
       stdout `shouldContain` ("- " <> renderKeyRef "test/v0" (K 1))
       stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 2))
+      stdout `shouldContain` ("- int(2)")
+      stdout `shouldContain` ("+ int(3)")
       stdout `shouldContain` ("+ " <> renderKeyRef "test/v0" (K 3))
 
   it "prints full diff output for value changes" do
@@ -187,8 +189,8 @@ diffCommandTests mSclsUtil = describe "diff command" do
 
       exitCode `shouldBe` toErrorCode VerifyFailure
       stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 1))
-      stdout `shouldContain` ("--- " <> file1)
-      stdout `shouldContain` ("+++ " <> file2)
+      stdout `shouldContain` ("- int(1)")
+      stdout `shouldContain` ("+ int(2)")
 
   it "stops after the first reported difference with --only-first" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do
@@ -202,8 +204,8 @@ diffCommandTests mSclsUtil = describe "diff command" do
 
       exitCode `shouldBe` toErrorCode VerifyFailure
       stdout `shouldContain` ("* " <> renderKeyRef "test/v0" (K 1))
-      stdout `shouldNotContain` ("* " <> renderKeyRef "test/v0" (K 2))
-      stdout `shouldNotContain` ("* " <> renderKeyRef "test/v1" (K 1))
+      stdout `shouldNotContain` (renderKeyRef "test/v0" (K 2))
+      stdout `shouldNotContain` (renderKeyRef "test/v1" (K 1))
 
   it "restricts comparison to --namespaces selection" do
     withSystemTempDirectory "scls-util-test-XXXXXX" \dir -> do

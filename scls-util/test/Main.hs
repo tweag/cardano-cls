@@ -8,6 +8,7 @@ import InfoSpec
 import MergeSpec
 import SplitSpec
 import System.Environment (lookupEnv)
+import TermDiffSpec
 import Test.Hspec
 import VerifySpec
 
@@ -23,4 +24,5 @@ main = do
       splitCommandTests sclsUtilPath
       mergeCommandTests sclsUtilPath
       diffCommandTests sclsUtilPath
+      termDiffTests
       verifyCommandTests sclsUtilPath
