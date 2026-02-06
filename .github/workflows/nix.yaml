@@ -10,18 +10,30 @@ on:
     branches:
       - "*"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
 jobs:
     build_and_test_nix:
+        strategy:
+          matrix:
+            os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
         name: Test and build canonical-ledger-state using Nix
-        runs-on: ubuntu-latest
+        runs-on: ${{ matrix.os }}
         steps:
         - name: git checkout
           uses: actions/checkout@v3
-        - name: Install Nix
-          uses: DeterminateSystems/nix-installer-action@main
+        - uses: cachix/install-nix-action@v31
           with:
-            extra-conf: "accept-flake-config = true"
-        - uses: DeterminateSystems/magic-nix-cache-action@main
+            nix_path: nixpkgs=channel:nixos-unstable
+            extra_nix_config: |
+              experimental-features = nix-command flakes
+              accept-flake-config = true
+        - uses: cachix/cachix-action@v15
+          with:
+            name: tweag-cardano-cls
+            authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
         - name: Run `nix build`
           run: |
             nix build \
@@ -38,10 +50,11 @@ jobs:
               '.#"scls-util:lib:scls-util"'
         - name: Run tests
           run: |
+            current_system=$(nix eval --impure --expr 'builtins.currentSystem')
             nix build \
-              '.#checks.x86_64-linux."merkle-tree-incremental:test:merkle-tree-incremental-test"' \
-              '.#checks.x86_64-linux."scls-cardano:test:scls-cardano-test"' \
-              '.#checks.x86_64-linux."scls-cbor:test:scls-cbor-test"' \
-              '.#checks.x86_64-linux."scls-format:test:scls-format-test"' \
-              '.#checks.x86_64-linux."scls-util:test:scls-util-test"' \
-              '.#checks.x86_64-linux.validate-scls-test'
+              ".#checks.${current_system}.merkle-tree-incremental:test:merkle-tree-incremental-test" \
+              ".#checks.${current_system}.scls-cardano:test:scls-cardano-test" \
+              ".#checks.${current_system}.scls-cbor:test:scls-cbor-test" \
+              ".#checks.${current_system}.scls-format:test:scls-format-test" \
+              ".#checks.${current_system}.scls-util:test:scls-util-test" \
+              ".#checks.${current_system}.validate-scls-test"
