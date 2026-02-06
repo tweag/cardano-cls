@@ -47,13 +47,13 @@ data Token
   deriving (Eq, Show)
 
 chunksOf :: Int -> ByteString -> [(Word, ByteString)]
-chunksOf n = go [] 0
+chunksOf n = go 0
  where
-  go acc offset bs
-    | BS.null chunk = reverse acc
-    | otherwise = go ((offset, chunk) : acc) (offset + fromIntegral (BS.length chunk)) rest
-   where
-    (chunk, rest) = BS.splitAt n bs
+  go !offset bs
+    | BS.null bs = []
+    | otherwise =
+        let (chunk, rest) = BS.splitAt n bs
+         in (offset, chunk) : go (offset + fromIntegral n) rest
 
 termToTree :: FlatTerm -> Tree Token
 termToTree [] = error "Unexpected end of tokens"
