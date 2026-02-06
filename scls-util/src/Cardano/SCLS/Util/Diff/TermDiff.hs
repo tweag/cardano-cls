@@ -21,6 +21,7 @@ import Data.Functor ((<&>))
 import Data.Text qualified as T
 import Data.Tree (Tree (Node))
 import Data.Word (Word64, Word8)
+import GHC.Stack (HasCallStack)
 
 data Token
   = TInt !Int
@@ -55,7 +56,7 @@ chunksOf n = go 0
         let (chunk, rest) = BS.splitAt n bs
          in (offset, chunk) : go (offset + fromIntegral n) rest
 
-termToTree :: FlatTerm -> Tree Token
+termToTree :: (HasCallStack) => FlatTerm -> Tree Token
 termToTree [] = error "Unexpected end of tokens"
 termToTree term = case runState (go "Unexpected end of tokens") term of
   (tree, []) -> tree
