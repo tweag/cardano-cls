@@ -28,7 +28,7 @@ termDiffTests = do
         termToTree [TkNull] `shouldBe` Node TNull []
 
       it "tagged value" do
-        termToTree [TkTag 24] `shouldBe` Node (TTag 24) []
+        termToTree [TkTag 24, TkNull] `shouldBe` Node (TTag 24) [Node TNull []]
 
       it "simple value" do
         termToTree [TkSimple 0] `shouldBe` Node (TSimple 0) []
