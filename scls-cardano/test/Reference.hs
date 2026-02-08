@@ -65,7 +65,6 @@ allReferenceCDDLs =
   -- This should match the CDDL files listed in CIP-0165
   [ ("utxo/v0", "utxo_v0.cddl")
   , ("blocks/v0", "blocks_v0.cddl")
-  , ("pots/v0", "pots_v0.cddl")
   , ("pool_stake/v0", "pool_stake_v0.cddl")
   , ("snapshots/v0", "snapshots_v0.cddl")
   , ("nonces/v0", "nonces_v0.cddl")
