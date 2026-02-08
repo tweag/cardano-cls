@@ -37,7 +37,6 @@ library
     Cardano.SCLS.Namespace.GovProposals
     Cardano.SCLS.Namespace.Nonces
     Cardano.SCLS.Namespace.PoolStake
-    Cardano.SCLS.Namespace.Pots
     Cardano.SCLS.Namespace.Snapshots
     Cardano.SCLS.Namespace.UTxO
 

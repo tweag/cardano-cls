@@ -46,7 +46,7 @@ Out of this, we care about the following:
 - We need the pool distribution
 
 We do not need to care about the reward update (internal Haskell node detail)
-nor the AVVM addresses  
+nor the AVVM addresses
 
 
 ```haskell
@@ -145,7 +145,7 @@ data PoolDistr = PoolDistr
   -- the stake considered for the `individualPoolStake` Rational, we add
   -- proposal-deposits to this field.
   }
-  
+
 ```
 
 I think we can ignore the total active stake here, it is derivable from
@@ -158,7 +158,7 @@ other components
   value: (Nat, Nat) - blocks made previous epoch, blocks made this epoch
   type: BlocksMade
 
-- pots/v0
+- pots/v0 (not canonical)
   key: Treasury / Reserves / Deposit / Fee / Donation
   value: Coin
   type: ChainAccountState, UTxOState
