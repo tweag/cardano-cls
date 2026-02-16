@@ -21,6 +21,7 @@ module Cardano.SCLS.Testlib (
   -- * Debug tools
   debugValidateType,
   debugEncodeType,
+  prettyError,
 ) where
 
 import Cardano.SCLS.CBOR.Canonical (getRawDecoder, getRawEncoding)
@@ -28,11 +29,12 @@ import Cardano.SCLS.CBOR.Canonical.Encoder
 import Cardano.SCLS.CDDL.Validate
 import Cardano.SCLS.NamespaceCodec
 import Cardano.SCLS.Versioned
-import Codec.CBOR.Cuddle.CBOR.Validator (CBORTermResult (..), CDDLResult (Valid))
 import Codec.CBOR.FlatTerm (fromFlatTerm, toFlatTerm)
 import Codec.CBOR.Term (decodeTerm)
 import Codec.CBOR.Write (toStrictByteString)
 
+import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced, ValidationTrace, defaultTraceOptions, prettyValidationResult)
+import Codec.CBOR.Cuddle.CBOR.Validator.Trace qualified as VT
 import Data.ByteString qualified as B
 import Data.ByteString.Base16 qualified as Base16
 import Data.Either (isRight)
@@ -40,6 +42,8 @@ import Data.Proxy
 import Data.Text qualified as T
 import Data.Typeable
 import GHC.TypeLits
+import Prettyprinter (defaultLayoutOptions, layoutPretty)
+import Prettyprinter.Render.Terminal qualified as Ansi
 import Test.Hspec
 import Test.Hspec.Expectations.Contrib (annotate)
 import Test.Hspec.QuickCheck
@@ -91,7 +95,7 @@ testNS =
 propNamespaceEntryConformsToSpec :: forall ns. (KnownSymbol ns, KnownNamespace ns, Arbitrary (NamespaceEntry ns)) => NamespaceEntry ns -> Bool
 propNamespaceEntryConformsToSpec = \a ->
   case validateBytesAgainst (toStrictByteString (getRawEncoding $ encodeEntry @ns a)) nsName "record_entry" of
-    Just (CBORTermResult _ Valid{}) -> True
+    Just res -> VT.isValid res
     _ -> False
  where
   nsName = T.pack (symbolVal (Proxy @ns))
@@ -99,7 +103,7 @@ propNamespaceEntryConformsToSpec = \a ->
 propTypeConformsToSpec :: forall ns a. (KnownSymbol ns, ToCanonicalCBOR ns a) => T.Text -> a -> Bool
 propTypeConformsToSpec t = \a ->
   case validateBytesAgainst (toStrictByteString $ getRawEncoding (toCanonicalCBOR (Proxy @ns) a)) nsName t of
-    Just (CBORTermResult _ Valid{}) -> True
+    Just res -> VT.isValid res
     _ -> False
  where
   nsName = T.pack (symbolVal (Proxy @ns))
@@ -137,7 +141,7 @@ propNamespaceEntryRoundTrip = \a -> do
         r -> r `shouldSatisfy` isRight
     r -> r `shouldSatisfy` isRight
 
-debugValidateType :: forall ns a. (KnownSymbol ns, ToCanonicalCBOR ns a) => T.Text -> a -> Maybe CBORTermResult
+debugValidateType :: forall ns a. (KnownSymbol ns, ToCanonicalCBOR ns a) => T.Text -> a -> Maybe (Evidenced ValidationTrace)
 debugValidateType t a = validateBytesAgainst (toStrictByteString $ getRawEncoding (toCanonicalCBOR (Proxy @ns) a)) nsName t
  where
   nsName = T.pack (symbolVal (Proxy @ns))
@@ -154,3 +158,10 @@ propTypeIsCanonical = \a ->
           let encodedTerm = toFlatTerm (getRawEncoding $ toCanonicalCBOR (Proxy @ns) decodedAsTerm)
           encodedTerm `shouldBe` encodedData
         r -> r `shouldSatisfy` isRight
+
+prettyError :: ValidationTrace v -> String
+prettyError =
+  T.unpack
+    . Ansi.renderStrict
+    . layoutPretty defaultLayoutOptions
+    . prettyValidationResult defaultTraceOptions

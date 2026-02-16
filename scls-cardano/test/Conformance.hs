@@ -1,3 +1,4 @@
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -9,8 +10,9 @@ module Conformance (
   Direction (..),
 ) where
 
-import Codec.CBOR.Cuddle.CBOR.Gen (generateCBORTerm')
-import Codec.CBOR.Cuddle.CBOR.Validator (CBORTermResult (..), CDDLResult (..), validateCBOR)
+import Cardano.SCLS.Util.Verify (prettyError)
+import Codec.CBOR.Cuddle.CBOR.Validator (validateCBOR)
+import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced (..), SValidity (..))
 import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.CTree (CTreeRoot)
 import Codec.CBOR.Cuddle.CDDL.Resolve (MonoReferenced)
@@ -62,7 +64,7 @@ propReferenceAcceptsCBOR genSpec validateSpec direction = do
 
   let result = validateCBOR cbor (Name (T.pack "record_entry")) (mapIndex validateSpec)
   case result of
-    CBORTermResult _ Valid{} ->
+    Evidenced SValid _ ->
       pure $ Right ()
-    CBORTermResult _ problem ->
-      pure $ Left $ FailureInfo direction (TE.decodeUtf8 $ Base16.encode cbor) (T.pack $ show problem)
+    Evidenced SInvalid trc ->
+      pure $ Left $ FailureInfo direction (TE.decodeUtf8 $ Base16.encode cbor) (prettyError trc)

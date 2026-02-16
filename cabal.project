@@ -44,6 +44,6 @@ allow-newer:
 -- Contains hotfix for cuddle dependency needed for conformance tests
 source-repository-package
   type: git
-  location: https://github.com/tweag/cuddle.git
-  tag: 797108ad059b5807e30f945a619bc9324acd13b3
-  --sha256: 1kml5d9nnhp0v6jmqpgyvwfczg0aakj2dign78j6lbr1b20ws6sf
+  location: https://github.com/input-output-hk/cuddle.git
+  tag: f8fe433764ee432d3ab274a1fcd221b224b8361b
+  --sha256: sha256-XbNxkBV/VLPZI3ZxzJeNyJIRiaO5pVahswXVKo9q+gc=
