@@ -12,8 +12,6 @@ import Cardano.SCLS.Internal.Serializer.Dump.Plan (addChunks, defaultSerializati
 import Cardano.SCLS.Internal.Serializer.External.Impl qualified as External (serialize)
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.SlotNo (SlotNo (..))
-import Codec.CBOR.Cuddle.CBOR.Gen (generateCBORTerm')
-import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.CTree (CTreeRoot)
 import Codec.CBOR.Cuddle.CDDL.Resolve (
   MonoReferenced,
@@ -35,7 +33,7 @@ import Data.MemPack.Extra
 import Data.Text qualified as T
 import GHC.TypeNats (KnownNat)
 import Streaming.Prelude qualified as S
-import System.Random.Stateful (applyAtomicGen, globalStdGen, uniformByteStringM)
+import System.Random.Stateful (globalStdGen, uniformByteStringM)
 
 import Cardano.SCLS.CBOR.Canonical.Encoder (canonicalizeTerm)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
@@ -74,10 +72,10 @@ generateDebugFile outputFile namespaceEntries = liftIO do
   pure Ok
 
 generateNamespaceEntries :: (KnownNat (NamespaceKeySize ns), MonadIO m, MonadFail m) => proxy ns -> Int -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry (NamespaceKeySize ns))) m ()
-generateNamespaceEntries (p :: proxy ns) count spec = replicateM_ count do
+generateNamespaceEntries (p :: proxy ns) count _spec = replicateM_ count do
   let size = namespaceKeySize @ns
   keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
-  term <- liftIO $ applyAtomicGen (generateCBORTerm' spec (Name (T.pack "record_entry"))) globalStdGen
+  term <- undefined -- liftIO $ applyAtomicGen (generateFromName spec (Name (T.pack "record_entry"))) globalStdGen
   Right canonicalTerm <- pure $ canonicalizeTerm p term
   S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
 

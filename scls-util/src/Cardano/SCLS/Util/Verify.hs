@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -29,10 +30,12 @@ import Cardano.SCLS.Internal.Reader (extractNamespaceList, streamChunkEntries, w
 import Cardano.SCLS.Internal.Record.Chunk (Chunk (..))
 import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol), toString)
+import Cardano.SCLS.Testlib (prettyError)
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
-import Codec.CBOR.Cuddle.CBOR.Validator (CBORTermResult (..), CDDLResult (..), validateCBOR)
+import Codec.CBOR.Cuddle.CBOR.Validator (validateCBOR)
+import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced (..), SValidity (..), ValidationTrace, Validity (..))
 import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.CTree (CTreeRoot (..))
 import Codec.CBOR.Cuddle.CDDL.Resolve (
@@ -40,17 +43,14 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
  )
 import Codec.CBOR.Cuddle.IndexMappable (IndexMappable (mapIndex))
 import Codec.CBOR.Cuddle.Pretty ()
-import Codec.CBOR.Pretty
 import Codec.CBOR.Read (deserialiseFromBytes)
-import Codec.CBOR.Term (Term, decodeTerm, encodeTerm)
+import Codec.CBOR.Term (Term, decodeTerm)
 import Codec.CBOR.Write (toLazyByteString)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
 import Data.Foldable (for_)
 import Data.Function ((&))
-import Data.List (intercalate)
-import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust, isNothing)
 import Data.MemPack.Extra (CBORTerm (..), Entry (..), RawBytes (..))
@@ -75,8 +75,7 @@ data CheckError
   | -- | CDDL validation failed for an entry
     CDDLValidationError
       { entryIndex :: Int
-      , errorResult :: CDDLResult
-      , errorTerm :: Term
+      , errorResult :: ValidationTrace IsInvalid
       }
   | -- | Failed to parse CBOR data
     CBORParseError
@@ -233,8 +232,8 @@ validateCDDLAgainst :: CTreeRoot MonoReferenced -> (Int, GenericCBOREntry n) -> 
 validateCDDLAgainst cddl (seqNum, GenericCBOREntry (ChunkEntry _key cTerm)) =
   let name = Name (T.pack "record_entry")
    in case validateCBOR (getEncodedBytes cTerm) name (mapIndex cddl) of
-        CBORTermResult _term Valid{} -> Nothing
-        CBORTermResult bad_term problem -> Just (CDDLValidationError seqNum problem bad_term)
+        Evidenced SValid _ -> Nothing
+        Evidenced SInvalid trc -> Just (CDDLValidationError seqNum trc)
 
 -- | Format an error for display.
 formatError :: CheckError -> String
@@ -243,13 +242,11 @@ formatError = \case
     "Checksum mismatch: expected " ++ digestToString expected ++ ", got " ++ digestToString actual
   EntryCountMismatch expected actual ->
     "Entry count mismatch: expected " ++ show expected ++ ", got " ++ show actual
-  CDDLValidationError idx err term ->
+  CDDLValidationError idx err ->
     "CDDL validation error at entry #"
       ++ show idx
       ++ ":\n"
       ++ prettyError err
-      ++ "\n\nData:\n"
-      ++ prettyHexEnc (encodeTerm term)
   CBORParseError idx msg ->
     "CBOR parse error at entry " ++ show idx ++ ": " ++ T.unpack msg
   CBORIsNotCanonicalError idx expected current ->
@@ -260,36 +257,3 @@ formatError = \case
       ++ show expected
       ++ "\n    Current: "
       ++ show current
-
-prettyError :: CDDLResult -> String
-prettyError Valid{} = "sorry, everything is valid"
-prettyError (ChoiceFail rule _alt alt_result) =
-  "Choice failed for rule: "
-    ++ (show rule)
-    ++ "\n"
-    ++ "Alternatives:\n"
-    ++ intercalate
-      "\n"
-      (map (\(r, res) -> " - " <> (show r) <> ": " <> prettyErrorShort res) $ NE.toList alt_result)
-prettyError (ListExpansionFail rule _expansions _expasions_with_result) =
-  "List expansion failed for rule: " ++ (show rule) ++ "\n"
-prettyError (MapExpansionFail rule _expansions _expasions_with) =
-  "Map expansion failed for rule: " ++ (show rule) ++ "\n"
-prettyError (InvalidControl rule _result) =
-  "The rule was valid but the control failed: " ++ (show rule) ++ "\n"
-prettyError (InvalidRule rule) =
-  "The rule is invalid: " ++ (show rule) ++ "\n"
-prettyError (InvalidTagged rule _result) =
-  "The tagged rule is invalid: " ++ (show rule) ++ "\n"
-prettyError (UnapplicableRule _info rule) =
-  "The rule is unapplicable: " ++ (show rule) ++ "\n"
-
-prettyErrorShort :: CDDLResult -> String
-prettyErrorShort Valid{} = "Valid"
-prettyErrorShort ChoiceFail{} = "choice failed"
-prettyErrorShort ListExpansionFail{} = "list expansion failed"
-prettyErrorShort MapExpansionFail{} = "map expansion failed"
-prettyErrorShort InvalidControl{} = "invalid control"
-prettyErrorShort InvalidRule{} = "invalid rule"
-prettyErrorShort InvalidTagged{} = "invalid tagged"
-prettyErrorShort UnapplicableRule{} = "unapplicable rule"
