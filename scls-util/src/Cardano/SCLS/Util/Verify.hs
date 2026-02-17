@@ -30,12 +30,11 @@ import Cardano.SCLS.Internal.Reader (extractNamespaceList, streamChunkEntries, w
 import Cardano.SCLS.Internal.Record.Chunk (Chunk (..))
 import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol), toString)
-import Cardano.SCLS.Testlib (prettyError)
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
 import Codec.CBOR.Cuddle.CBOR.Validator (validateCBOR)
-import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced (..), SValidity (..), ValidationTrace, Validity (..))
+import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced (..), SValidity (..), ValidationTrace, Validity (..), showValidationTrace)
 import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.CTree (CTreeRoot (..))
 import Codec.CBOR.Cuddle.CDDL.Resolve (
@@ -246,7 +245,7 @@ formatError = \case
     "CDDL validation error at entry #"
       ++ show idx
       ++ ":\n"
-      ++ prettyError err
+      ++ showValidationTrace err
   CBORParseError idx msg ->
     "CBOR parse error at entry " ++ show idx ++ ": " ++ T.unpack msg
   CBORIsNotCanonicalError idx expected current ->

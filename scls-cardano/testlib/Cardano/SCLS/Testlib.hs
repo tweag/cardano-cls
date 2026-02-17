@@ -21,7 +21,6 @@ module Cardano.SCLS.Testlib (
   -- * Debug tools
   debugValidateType,
   debugEncodeType,
-  prettyError,
 ) where
 
 import Cardano.SCLS.CBOR.Canonical (getRawDecoder, getRawEncoding)
@@ -33,7 +32,7 @@ import Codec.CBOR.FlatTerm (fromFlatTerm, toFlatTerm)
 import Codec.CBOR.Term (decodeTerm)
 import Codec.CBOR.Write (toStrictByteString)
 
-import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced, ValidationTrace, defaultTraceOptions, prettyValidationResult)
+import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced, ValidationTrace)
 import Codec.CBOR.Cuddle.CBOR.Validator.Trace qualified as VT
 import Data.ByteString qualified as B
 import Data.ByteString.Base16 qualified as Base16
@@ -42,8 +41,6 @@ import Data.Proxy
 import Data.Text qualified as T
 import Data.Typeable
 import GHC.TypeLits
-import Prettyprinter (defaultLayoutOptions, layoutPretty)
-import Prettyprinter.Render.Terminal qualified as Ansi
 import Test.Hspec
 import Test.Hspec.Expectations.Contrib (annotate)
 import Test.Hspec.QuickCheck
@@ -158,10 +155,3 @@ propTypeIsCanonical = \a ->
           let encodedTerm = toFlatTerm (getRawEncoding $ toCanonicalCBOR (Proxy @ns) decodedAsTerm)
           encodedTerm `shouldBe` encodedData
         r -> r `shouldSatisfy` isRight
-
-prettyError :: ValidationTrace v -> String
-prettyError =
-  T.unpack
-    . Ansi.renderStrict
-    . layoutPretty defaultLayoutOptions
-    . prettyValidationResult defaultTraceOptions
