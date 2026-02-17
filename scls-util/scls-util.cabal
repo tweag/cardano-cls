@@ -54,7 +54,6 @@ library
     random >=1.2,
     resourcet,
     scls-cardano,
-    scls-cardano:testlib,
     scls-cardano:validate,
     scls-cbor,
     scls-core,

@@ -88,8 +88,6 @@ library testlib
     cuddle,
     hspec,
     hspec-expectations,
-    prettyprinter,
-    prettyprinter-ansi-terminal,
     scls-cardano:{validate},
     scls-cbor,
     scls-core,
