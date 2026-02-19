@@ -10,7 +10,8 @@ module Cardano.SCLS.CDDL.Validate (
 
 import Cardano.SCLS.CDDL
 import Cardano.SCLS.NamespaceSymbol (KnownSpec (namespaceSpec), SomeNamespaceSymbol (SomeNamespaceSymbol))
-import Codec.CBOR.Cuddle.CBOR.Validator (CBORTermResult (..), validateCBOR)
+import Codec.CBOR.Cuddle.CBOR.Validator (validateCBOR)
+import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced, ValidationTrace)
 import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.CTree (CTreeRoot (..))
 import Codec.CBOR.Cuddle.CDDL.Resolve (
@@ -45,7 +46,7 @@ validSpecs :: Map.Map SomeNamespaceSymbol (CTreeRoot Codec.CBOR.Cuddle.CDDL.Reso
       ]
 
 -- | Validate raw bytes against a rule in the namespace.
-validateBytesAgainst :: ByteString -> Text -> Text -> Maybe CBORTermResult
+validateBytesAgainst :: ByteString -> Text -> Text -> Maybe (Evidenced ValidationTrace)
 validateBytesAgainst bytes namespace name = do
   cddl <- namespaceSymbolFromText namespace >>= flip Map.lookup validSpecs
   pure $ validateCBOR bytes (Name name) (mapIndex cddl)
