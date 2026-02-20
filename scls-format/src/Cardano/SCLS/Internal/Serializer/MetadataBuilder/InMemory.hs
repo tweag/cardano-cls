@@ -26,6 +26,7 @@ instance B.BuilderItem MetadataItem where
   bItemData = metadataItemData
   bItemEntriesCount = metadataItemEntriesCount
   bMkItem _ data_ count = MetadataItem{metadataItemData = data_, metadataItemEntriesCount = count}
+  bHashPrefix _ = mempty
 
 type BuilderMachine = (B.BuilderMachine MetadataItem)
 

@@ -93,7 +93,7 @@ dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
               Just keySize ->
                 inner
                   & dedup
-                  & constructChunks_ pChunkFormat pBufferSize -- compose entries into data for chunks records, returns digest of entries
+                  & constructChunks_ (namespace, pChunkFormat) pBufferSize -- compose entries into data for chunks records, returns digest of entries
                   & S.copy
                   & storeToHandle namespace (fromIntegral keySize) -- stores data to handle,passes digest of entries
                   & S.map CB.chunkItemEntriesCount -- keep only number of entries (other things are not needed)
@@ -212,13 +212,13 @@ dedup s0 = initialize s0
 constructChunks_ ::
   forall a r m.
   (MemPack a, Typeable a, MemPackHeaderOffset a, MonadIO m) =>
-  ChunkFormat ->
+  (Namespace, ChunkFormat) ->
   Int ->
   Stream (Of a) m r ->
   Stream (Of CB.ChunkItem) m (Digest)
-constructChunks_ format bufferSize s0 = liftIO initialize >>= consume s0
+constructChunks_ params bufferSize s0 = liftIO initialize >>= consume s0
  where
-  initialize = CB.mkMachine bufferSize format
+  initialize = CB.mkMachine bufferSize params
   consume ::
     Stream (Of a) m r ->
     CB.BuilderMachine ->

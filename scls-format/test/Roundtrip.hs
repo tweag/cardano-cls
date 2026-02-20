@@ -152,7 +152,8 @@ mkRoundtripTestsFor groupName serialize =
         -- Check roundtrip of root hash
         file_digest <- extractRootHash fileName
         expected_digest <-
-          S.each (fmap packByteString $ sortByKey entries)
+          S.each (sortByKey entries)
+            & S.map ((<>) (Namespace.asBytes namespace) . packByteString)
             & S.fold_ MT.add (MT.empty undefined) (Digest . MT.merkleRootHash . MT.finalize)
         annotate
           "Root hash roundtrip successful"

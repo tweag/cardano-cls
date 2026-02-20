@@ -106,7 +106,7 @@ roundtrip serialize input = do
         expectedDigest <-
           S.each (sort q)
             & S.nubOrd
-            & S.fold_ MT.add (MT.empty undefined) (Digest . MT.merkleRootHash . MT.finalize)
+            & S.fold_ (\mt -> MT.addWithPrefix mt (Namespace.asBytes n)) (MT.empty undefined) (Digest . MT.merkleRootHash . MT.finalize)
         annotate (Namespace.asString n <> " hash matches expected") do
           fileDigest `shouldBe` (Just expectedDigest)
         pure expectedDigest
