@@ -147,7 +147,7 @@ mkLeaf a =
     }
 
 mkLeafRootHash :: (B.ByteArrayAccess a) => a -> MerkleRoot a
-mkLeafRootHash a = MerkleRoot $ merkleHash (BS.singleton 0 <> B.convert a)
+mkLeafRootHash a = MerkleRoot $ merkleHash (BS.singleton 1 <> B.convert a)
 
 mkBranch :: MerkleNode a -> MerkleNode a -> MerkleNode a
 mkBranch a b =
@@ -162,7 +162,7 @@ mkRootHash (MerkleRoot l) (MerkleRoot r) =
   MerkleRoot $
     merkleHash $
       mconcat
-        [BS.singleton 1, B.convert l, B.convert r]
+        [BS.singleton 0, B.convert l, B.convert r]
 
 -- | Smart constructor for 'MerkleTree'.
 mkMerkleTree :: [BS.ByteString] -> MerkleTree BS.ByteString

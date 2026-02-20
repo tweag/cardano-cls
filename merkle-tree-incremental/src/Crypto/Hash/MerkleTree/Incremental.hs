@@ -110,7 +110,7 @@ merkleRootHash (MerkleTreeRoot h) = h
 This function creates a hash for leaf nodes by:
 
 1. Initializing a hash context
-2. Adding a prefix byte 0 to distinguish leaves from internal nodes
+2. Adding a prefix byte 1 to distinguish leaves from internal nodes
 3. Adding the element data
 4. Finalizing the hash
 
@@ -119,7 +119,7 @@ hashes, preventing certain types of attacks on the tree structure.
 -}
 leafHash :: forall a b. (HashAlgorithm a, ByteArrayAccess b) => b -> MerkleHash a
 leafHash b =
-  hashFinalize $ flip hashUpdate b $ hashUpdate hashInit $ B.singleton 0
+  hashFinalize $ flip hashUpdate b $ hashUpdate hashInit $ B.singleton 1
 
 {- | Compute the hash for an internal node from two child hashes.
 
@@ -135,12 +135,12 @@ The order of arguments matters: @nodeHash left right ≠ nodeHash right left@.
 The first argument (@h1@) represents the left child, and the second (@h2@)
 represents the right child in the tree structure.
 
-The prefix byte (1) ensures that internal node hashes are distinct from
+The prefix byte (0) ensures that internal node hashes are distinct from
 leaf hashes, maintaining the integrity of the tree structure.
 -}
 nodeHash :: forall a. (HashAlgorithm a) => MerkleHash a -> MerkleHash a -> MerkleHash a
 nodeHash h1 h2 =
-  hashFinalize $ flip hashUpdates [h1, h2] $ hashUpdate hashInit $ B.singleton 1
+  hashFinalize $ flip hashUpdates [h1, h2] $ hashUpdate hashInit $ B.singleton 0
 
 -- ----------------------------------------------------------------
 -- Incremental Merkle Tree construction
