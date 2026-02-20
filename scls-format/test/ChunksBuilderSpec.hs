@@ -1,6 +1,10 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module ChunksBuilderSpec (chunksBuilderTests) where
 
 import Cardano.SCLS.Internal.Hash (Digest (..))
+import Cardano.Types.Namespace ()
+
 import Cardano.SCLS.Internal.Record.Chunk
 import Cardano.SCLS.Internal.Serializer.ChunksBuilder.InMemory
 import Control.Monad
@@ -15,7 +19,7 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 
 mkMachine' :: Int -> IO BuilderMachine
-mkMachine' = flip mkMachine ChunkFormatRaw
+mkMachine' = flip mkMachine ("test", ChunkFormatRaw)
 
 chunksBuilderTests :: Spec
 chunksBuilderTests =
