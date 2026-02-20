@@ -51,6 +51,7 @@ module Crypto.Hash.MerkleTree.Incremental (
   merkleRootHash,
   empty,
   add,
+  addWithPrefix,
   finalize,
 )
 where
@@ -117,9 +118,9 @@ This function creates a hash for leaf nodes by:
 The prefix byte ensures that leaf hashes are distinct from internal node
 hashes, preventing certain types of attacks on the tree structure.
 -}
-leafHash :: forall a b. (HashAlgorithm a, ByteArrayAccess b) => b -> MerkleHash a
-leafHash b =
-  hashFinalize $ flip hashUpdate b $ hashUpdate hashInit $ B.singleton 1
+leafHash :: (HashAlgorithm a, ByteArrayAccess b1, ByteArrayAccess b2) => b1 -> b2 -> MerkleHash a
+leafHash prefix b =
+  hashFinalize $ flip hashUpdate b $ flip hashUpdate prefix $ hashUpdate hashInit $ B.singleton 1
 
 {- | Compute the hash for an internal node from two child hashes.
 
@@ -212,7 +213,24 @@ add ::
   -- | The updated tree construction state with the element incorporated
   MerkleTreeState a
 add (MerkleTreeState state) bytes =
-  join (MerkleTreeState (MerkleTreeStateNode{cLevel = 0, cHash = leafHash bytes} : state))
+  addWithPrefix (MerkleTreeState state) B.empty bytes
+
+{- | Add a new element with a prefix to the incremental Merkle tree construction.
+This function is similar to 'add' but allows you to specify a prefix (e.g. a namespace) that is included in the leaf hash computation. The prefix can be used to create
+distinct namespaces within the same tree, ensuring that elements with the same content but different prefixes produce different hashes.
+-}
+addWithPrefix ::
+  (HashAlgorithm a, ByteArrayAccess b1, ByteArrayAccess b2) =>
+  -- | The current tree construction state
+  MerkleTreeState a ->
+  -- | A prefix (e.g. namespace) (must implement 'ByteArrayAccess')
+  b1 ->
+  -- | The element to add (must implement 'ByteArrayAccess')
+  b2 ->
+  -- | The updated tree construction state with the element incorporated
+  MerkleTreeState a
+addWithPrefix (MerkleTreeState state) prefix bytes =
+  join (MerkleTreeState (MerkleTreeStateNode{cLevel = 0, cHash = leafHash prefix bytes} : state))
 
 {- | Combine adjacent subtrees of the same level in the construction state.
 
