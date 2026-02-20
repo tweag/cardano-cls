@@ -115,7 +115,7 @@ mkMachine bufferSize params = do
                     if l > bufferSize
                       then do
                         let !tmpBuffer = pack entry
-                            !merkleTreeState' = MT.add merkleTreeState (uncheckedByteArrayEntryContents @a tmpBuffer)
+                            !merkleTreeState' = MT.add merkleTreeState (uncheckedByteArrayEntryContents @(Entry a) tmpBuffer)
                         return
                           ( machine 0 0 merkleTreeState'
                           , mkDataToEmit [(params, frozenBuffer, entriesCount), (params, tmpBuffer, 1)]
@@ -144,8 +144,9 @@ unsafeAppendEntryToBuffer :: forall u. (MemPack u, Typeable u, MemPackHeaderOffs
 unsafeAppendEntryToBuffer !merkleTreeState !storage !offset u = do
   newOffset <- unsafeAppendToBuffer storage offset u
   let l = newOffset - offset
+      headerOffset = headerSizeOffset @(Entry u)
   merkleTreeState' <- withMutableByteArrayContents storage $ \ptr -> do
-    let csb = CStringLenBuffer (ptr `plusPtr` (offset + headerSizeOffset @u), l - headerSizeOffset @u)
+    let csb = CStringLenBuffer (ptr `plusPtr` (offset + headerOffset), l - headerOffset)
     return $! MT.add merkleTreeState csb
   return (merkleTreeState', newOffset)
 

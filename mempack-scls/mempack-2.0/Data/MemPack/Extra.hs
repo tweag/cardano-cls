@@ -100,6 +100,9 @@ instance (Typeable u, MemPack u) => MemPack (Entry u) where
     u <- isolated (fromIntegral l)
     return (Entry u)
 
+instance (Typeable u, MemPack u) => MemPackHeaderOffset (Entry u) where
+  headerSizeOffset = 4
+
 {- | Isolate a decoder to operate with a fixed number of bytes, and fail if fewer bytes
 were consumed, or more bytes were attempted to be consumed. If the given decoder fails,
 isolate will also fail.
