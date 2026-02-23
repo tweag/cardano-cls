@@ -61,6 +61,7 @@ test-suite merkle-tree-incremental-test
 
   build-depends:
     base >=4.7 && <5,
+    bytestring,
     bytestring >=0.11.0.0,
     crypton >=1.0.0,
     hspec,
