@@ -8,10 +8,6 @@ module TestEntry (
   TestEntry (..),
   TestEntryKey (..),
   NamespacedTestEntry (..),
-  genKey,
-  genEntry,
-  genUTxO,
-  genBlock,
   chunkEntryFromBlock,
   chunkEntryFromUTxO,
 ) where
@@ -28,20 +24,11 @@ import Data.ByteString qualified as BS
 import Data.Data (Proxy (Proxy))
 import Data.MemPack (packByteStringM, unpackByteStringM)
 import Data.MemPack.Extra (ByteStringSized (ByteStringSized))
-import System.Random.Stateful (Uniform (uniformM), globalStdGen, uniformByteStringM)
 import Test.QuickCheck
 
 -- | Example data type for testing
 newtype TestEntryKey = TestEntryKey BS.ByteString
   deriving (Eq, Ord, Show)
-
-instance IsKey TestEntryKey where
-  keySize = 34
-
-  packKeyM (TestEntryKey bs) = packByteStringM bs
-
-  unpackKeyM =
-    TestEntryKey <$> unpackByteStringM (keySize @TestEntryKey)
 
 data TestEntry = TestEntry
   { key :: BS.ByteString
@@ -49,12 +36,12 @@ data TestEntry = TestEntry
   }
   deriving (Eq, Show)
 
-instance Arbitrary TestEntry where
-  arbitrary = TestEntry <$> (BS.pack <$> arbitrary) <*> arbitrary
-
 newtype TestUTxO = TestUTxO TestEntry
   deriving (Eq, Show)
-  deriving newtype (Arbitrary)
+
+instance Arbitrary TestUTxO where
+  arbitrary =
+    TestUTxO . unNamespacedTestEntry <$> genEntry (Proxy @"utxo/v0")
 
 newtype TestUTxOKey = TestUTxOKey BS.ByteString
   deriving (Eq, Ord)
@@ -70,7 +57,10 @@ instance IsKey TestUTxOKey where
 
 newtype TestBlock = TestBlock TestEntry
   deriving (Eq, Show)
-  deriving newtype (Arbitrary)
+
+instance Arbitrary TestBlock where
+  arbitrary =
+    TestBlock . unNamespacedTestEntry <$> genEntry (Proxy @"blocks/v0")
 
 newtype TestBlockKey = TestBlockKey BS.ByteString
   deriving (Eq, Ord)
@@ -116,25 +106,17 @@ instance CanonicalCBOREntryDecoder "blocks/v0" Int where
 instance CanonicalCBOREntryEncoder "blocks/v0" Int where
   encodeEntry = toCanonicalCBOR Proxy . (+ 1)
 
-genKey :: forall ns. (KnownNamespace ns) => Proxy ns -> IO (ByteStringSized (NamespaceKeySize ns))
-genKey _ =
-  ByteStringSized <$> uniformByteStringM (namespaceKeySize @ns) globalStdGen
+genKey :: (KnownNamespace ns) => Proxy ns -> Gen (ByteStringSized (NamespaceKeySize ns))
+genKey (_ :: proxy ns) =
+  ByteStringSized . BS.pack <$> vectorOf (namespaceKeySize @ns) arbitrary
 
 newtype NamespacedTestEntry ns = NamespacedTestEntry {unNamespacedTestEntry :: TestEntry}
 
-genEntry :: forall ns. (KnownNamespace ns) => Proxy ns -> IO (NamespacedTestEntry ns)
+genEntry :: forall ns. (KnownNamespace ns) => Proxy ns -> Gen (NamespacedTestEntry ns)
 genEntry p = do
   (ByteStringSized key) <- genKey p
-  value <- uniformM globalStdGen
+  value <- arbitrary
   pure $ NamespacedTestEntry $ TestEntry key value
-
-genUTxO :: IO TestUTxO
-genUTxO =
-  TestUTxO . unNamespacedTestEntry <$> genEntry (Proxy @"utxo/v0")
-
-genBlock :: IO TestBlock
-genBlock =
-  TestBlock . unNamespacedTestEntry <$> genEntry (Proxy @"blocks/v0")
 
 chunkEntryFromUTxO :: TestUTxO -> ChunkEntry TestUTxOKey TestUTxO
 chunkEntryFromUTxO (e@(TestUTxO (TestEntry k _))) =
