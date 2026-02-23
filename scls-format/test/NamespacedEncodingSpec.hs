@@ -17,40 +17,34 @@ import Cardano.SCLS.Testlib
 import Cardano.SCLS.Versioned (Versioned (Versioned))
 import Codec.CBOR.Read (deserialiseFromBytes)
 import Codec.CBOR.Write
-import Control.Monad (replicateM)
 import Data.Function ((&))
 import Data.Proxy (Proxy (Proxy))
 import Streaming.Prelude qualified as S
 import Test.Hspec (Spec, describe, it, shouldBe)
+import Test.Hspec.QuickCheck (prop)
 import TestEntry
 
 spec :: Spec
 spec = do
   describe "CanonicalCBOREncoder" $ do
-    it "should encode TestEntry in utxo/v0 namespace" $ do
-      val <- genUTxO
-      let _ = encodeEntry @"utxo/v0" val
-      -- Just checking if the compiler and type-checker are fine
-      pure ()
+    prop "should roundtrip encode/decode TestEntry successfully" $
+      \(val :: TestUTxO) -> do
+        let encoded = toLazyByteString $ getRawEncoding $ encodeEntry @"utxo/v0" val
+        Right (_, Versioned decoded) <- pure $ deserialiseFromBytes (getRawDecoder $ decodeEntry @"utxo/v0") encoded
 
-    it "should roundtrip encode/decode TestEntry successfully" $ do
-      val <- genUTxO
-
-      Right (_, decoded) <- pure $ deserialiseFromBytes (getRawDecoder $ decodeEntry @"utxo/v0") $ toLazyByteString $ getRawEncoding $ encodeEntry @"utxo/v0" val
-
-      decoded `shouldBe` (Versioned val)
+        decoded `shouldBe` val
 
   describe "SerializationPlan" $ do
     it "should accept chunks of different namespaces" $ do
-      utxos <- replicateM 10 (chunkEntryFromUTxO <$> genUTxO)
-      blocks <- replicateM 10 (chunkEntryFromBlock <$> genBlock)
-      let _plan =
+      let utxos = map chunkEntryFromUTxO []
+          blocks = map chunkEntryFromBlock []
+          _plan =
             defaultSerializationPlan @IO
               & addNamespacedChunks (Proxy @"utxo/v0") (S.each utxos)
               -- type error: & addNamespacedChunks (Proxy @"utxo/v0") (S.each blocks)
               & addNamespacedChunks (Proxy @"blocks/v0") (S.each blocks)
       -- Just checking if the type-checker is happy
-      pure ()
+      pure () :: IO ()
 
   describe "TestEntry passes tests" do
     testNS @"blocks/v0"
