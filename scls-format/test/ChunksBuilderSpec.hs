@@ -1,22 +1,29 @@
+{-# LANGUAGE DataKinds #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module ChunksBuilderSpec (chunksBuilderTests) where
 
 import Cardano.SCLS.Internal.Hash (Digest (..))
-import Cardano.Types.Namespace ()
 
 import Cardano.SCLS.Internal.Record.Chunk
 import Cardano.SCLS.Internal.Serializer.ChunksBuilder.InMemory
+import Cardano.Types.Namespace (asBytes)
 import Control.Monad
+import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.ByteString qualified as BS
+import Data.Function ((&))
 import Data.Maybe
+import Data.MemPack (packByteString)
 import Data.MemPack.Extra
 import Data.Primitive.ByteArray
+import Streaming.Prelude qualified as S
 import Test.HUnit
 import Test.Hspec
 import Test.Hspec.Expectations.Contrib
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
+import TestEntry (TestUTxO)
 
 mkMachine' :: Int -> IO BuilderMachine
 mkMachine' = flip mkMachine ("test", ChunkFormatRaw)
@@ -26,6 +33,7 @@ chunksBuilderTests =
   describe "ChunksBuilder.InMemory" $ do
     bufferBoundaryTests
     finalizationTests
+    merkleRootHashTests
 
 bufferFittingChunks :: Gen (Int, [Int])
 bufferFittingChunks = do
@@ -220,3 +228,27 @@ finalizationTests =
             annotate "finalized chunk should use correct format" $ chunkItemFormat chunk `shouldBe` ChunkFormatRaw
             annotate "finalized chunk data should have correct size" $ (sizeofByteArray $ chunkItemData chunk) `shouldBe` (sum $ map (+ 4) chunkLengths)
           Nothing -> assertFailure "Expected chunk on finalization with data"
+
+merkleRootHashTests :: Spec
+merkleRootHashTests =
+  describe "Merkle Root Hash Tests" $ do
+    prop "entry digest computed by chunks builder should be H(0x01 || ns_str || key || value)" $
+      \(entries :: [TestUTxO]) -> do
+        (digest, _) <-
+          S.each entries
+            & S.foldM_
+              ( \acc entry -> do
+                  (machine', _) <- interpretCommand acc (Append entry)
+                  return machine'
+              )
+              (mkMachine (16 * 1024 * 1024) ("utxo/v0", ChunkFormatRaw))
+              (\m -> interpretCommand m Finalize)
+        let digest' =
+              Digest $
+                MT.merkleRootHash $
+                  MT.finalize $
+                    foldl'
+                      (\acc -> MT.addWithPrefix acc (asBytes "utxo/v0") . packByteString)
+                      (MT.empty undefined)
+                      entries
+        digest `shouldBe` digest'
