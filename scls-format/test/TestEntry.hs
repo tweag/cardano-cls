@@ -7,6 +7,8 @@
 module TestEntry (
   TestEntry (..),
   TestEntryKey (..),
+  TestUTxO,
+  TestBlock,
   NamespacedTestEntry (..),
   chunkEntryFromBlock,
   chunkEntryFromUTxO,
@@ -22,8 +24,8 @@ import Cardano.SCLS.NamespaceCodec (CanonicalCBOREntryDecoder (decodeEntry), Can
 import Cardano.SCLS.Versioned (Versioned (Versioned))
 import Data.ByteString qualified as BS
 import Data.Data (Proxy (Proxy))
-import Data.MemPack (packByteStringM, unpackByteStringM)
-import Data.MemPack.Extra (ByteStringSized (ByteStringSized))
+import Data.MemPack (MemPack (packM, packedByteCount, unpackM), packByteStringM, unpackByteStringM)
+import Data.MemPack.Extra (ByteStringSized (ByteStringSized), MemPackHeaderOffset (headerSizeOffset))
 import Test.QuickCheck
 
 -- | Example data type for testing
@@ -43,6 +45,20 @@ instance Arbitrary TestUTxO where
   arbitrary =
     TestUTxO . unNamespacedTestEntry <$> genEntry (Proxy @"utxo/v0")
 
+instance MemPack TestUTxO where
+  packedByteCount (TestUTxO (TestEntry _ v)) = keySize @TestUTxOKey + packedByteCount v
+  packM (TestUTxO (TestEntry k v)) = do
+    packKeyM (TestUTxOKey k)
+    packM v
+
+  unpackM = do
+    TestUTxOKey k <- unpackKeyM
+    v <- unpackM
+    pure $ TestUTxO (TestEntry k v)
+
+instance MemPackHeaderOffset TestUTxO where
+  headerSizeOffset = 0
+
 newtype TestUTxOKey = TestUTxOKey BS.ByteString
   deriving (Eq, Ord)
 
@@ -61,6 +77,20 @@ newtype TestBlock = TestBlock TestEntry
 instance Arbitrary TestBlock where
   arbitrary =
     TestBlock . unNamespacedTestEntry <$> genEntry (Proxy @"blocks/v0")
+
+instance MemPack TestBlock where
+  packedByteCount (TestBlock (TestEntry _ v)) = keySize @TestBlockKey + packedByteCount v
+  packM (TestBlock (TestEntry k v)) = do
+    packKeyM (TestBlockKey k)
+    packM v
+
+  unpackM = do
+    TestBlockKey k <- unpackKeyM
+    v <- unpackM
+    pure $ TestBlock (TestEntry k v)
+
+instance MemPackHeaderOffset TestBlock where
+  headerSizeOffset = 0
 
 newtype TestBlockKey = TestBlockKey BS.ByteString
   deriving (Eq, Ord)
