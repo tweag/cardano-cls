@@ -58,12 +58,13 @@ serializeTestData fileName namespaceData = do
                 | (ns, entries) <- namespaceData
                 ]
             )
-  runResourceT $
-    Reference.serialize
-      fileName
-      (SlotNo 1)
-      (Map.fromList [(asString ns, keySize @TestKey) | (ns, _) <- namespaceData])
-      plan
+  _ <-
+    runResourceT $
+      Reference.serialize
+        fileName
+        (SlotNo 1)
+        (Map.fromList [(asString ns, keySize @TestKey) | (ns, _) <- namespaceData])
+        plan
   return ()
 
 queryTests :: Spec
