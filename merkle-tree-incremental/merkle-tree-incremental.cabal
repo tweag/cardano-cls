@@ -21,6 +21,7 @@ library
   import: warnings
   exposed-modules:
     Crypto.Hash.MerkleTree.Incremental
+    Crypto.Hash.MerkleTree.Incremental.Internal
 
   other-modules:
     Paths_merkle_tree_incremental
