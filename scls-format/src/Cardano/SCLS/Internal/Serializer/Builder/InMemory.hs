@@ -145,7 +145,7 @@ freezeByteArrayPinned !src !off !len = do
   copyMutableByteArray dst 0 src off len
   unsafeFreezeByteArray dst
 
-unsafeAppendEntryToBuffer :: forall u b. (MemPack u, Typeable u, MemPackHeaderOffset u, ByteArrayAccess b) => b -> MT.MerkleTreeState Blake2b_224 -> MutableByteArray (PrimState IO) -> Int -> Entry u -> IO (MT.MerkleTreeState Blake2b_224, Int)
+unsafeAppendEntryToBuffer :: forall u b. (MemPack (Entry u), Typeable u, MemPackHeaderOffset u, ByteArrayAccess b) => b -> MT.MerkleTreeState Blake2b_224 -> MutableByteArray (PrimState IO) -> Int -> Entry u -> IO (MT.MerkleTreeState Blake2b_224, Int)
 unsafeAppendEntryToBuffer hashPrefix !merkleTreeState !storage !offset u = do
   newOffset <- unsafeAppendToBuffer storage offset u
   let l = newOffset - offset
