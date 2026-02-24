@@ -39,12 +39,13 @@ generateSplitTestFiles dir = do
     let fileName = dir </> Namespace.humanFileNameFor ns
         mkStream = S.yield (ns S.:> S.each (map RawBytes entries))
 
-    runResourceT $
-      Reference.serialize @RawBytes
-        fileName
-        (SlotNo 1)
-        (Map.fromList [(Namespace.asString ns, 1)])
-        (defaultSerializationPlan & addChunks mkStream)
+    _ <-
+      runResourceT $
+        Reference.serialize @RawBytes
+          fileName
+          (SlotNo 1)
+          (Map.fromList [(Namespace.asString ns, 1)])
+          (defaultSerializationPlan & addChunks mkStream)
 
     pure (fileName, ns)
 
@@ -80,12 +81,13 @@ generateOverlappingNsSplitTestFiles dir = do
           S.each nsEntries
             & S.map \(ns, entries) -> ns S.:> S.each (map RawBytes entries)
 
-    runResourceT $
-      Reference.serialize @RawBytes
-        fileName
-        (SlotNo 1)
-        (Map.fromList [(Namespace.asString ns, 1) | (ns, _) <- nsEntries])
-        (defaultSerializationPlan & addChunks stream)
+    _ <-
+      runResourceT $
+        Reference.serialize @RawBytes
+          fileName
+          (SlotNo 1)
+          (Map.fromList [(Namespace.asString ns, 1) | (ns, _) <- nsEntries])
+          (defaultSerializationPlan & addChunks stream)
 
     pure (fileName, map fst nsEntries)
 

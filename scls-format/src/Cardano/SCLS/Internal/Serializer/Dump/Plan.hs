@@ -24,6 +24,9 @@ module Cardano.SCLS.Internal.Serializer.Dump.Plan (
   -- * Sorted plan
   SortedSerializationPlan (..),
   mkSortedSerializationPlan,
+
+  -- * Re-exports
+  RawBytes,
 ) where
 
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry, SomeChunkEntry (SomeChunkEntry), encodeChunkEntry)

@@ -26,6 +26,7 @@ import Cardano.SCLS.Internal.Record.Chunk
 import Cardano.SCLS.Internal.Serializer.Builder.InMemory qualified as B
 
 import Cardano.SCLS.Internal.Serializer.Builder.InMemory (BuilderItem (Parameters))
+import Cardano.Types.Namespace (Namespace, asBytes)
 import Data.Primitive.ByteArray
 
 data ChunkItem = ChunkItem
@@ -35,13 +36,14 @@ data ChunkItem = ChunkItem
   }
 
 instance B.BuilderItem ChunkItem where
-  type Parameters ChunkItem = ChunkFormat
+  type Parameters ChunkItem = (Namespace, ChunkFormat)
   bItemData = chunkItemData
   bItemEntriesCount = chunkItemEntriesCount
-  bMkItem chunkItemFormat data_ count = ChunkItem{chunkItemData = data_, chunkItemEntriesCount = count, chunkItemFormat}
-  bEncodeEntry ChunkFormatRaw entry = entry
-  bEncodeEntry ChunkFormatZstd _entry = error "Chunk format zstd is not implemented yet"
-  bEncodeEntry ChunkFormatZstdE _entry = error "Chunk format zstd-e is not implemented yet"
+  bMkItem (_, chunkItemFormat) data_ count = ChunkItem{chunkItemData = data_, chunkItemEntriesCount = count, chunkItemFormat}
+  bEncodeEntry (_, ChunkFormatRaw) entry = entry
+  bEncodeEntry (_, ChunkFormatZstd) _entry = error "Chunk format zstd is not implemented yet"
+  bEncodeEntry (_, ChunkFormatZstdE) _entry = error "Chunk format zstd-e is not implemented yet"
+  bHashPrefix (namespace, _) = asBytes namespace
 
 type BuilderMachine = B.BuilderMachine ChunkItem
 

@@ -52,7 +52,7 @@ instance (Typeable k, IsKey k, MemPack v, Typeable v) => MemPack (ChunkEntry k v
     return (ChunkEntry k v)
 
 instance (Typeable k, IsKey k, Typeable v, MemPack v) => MemPackHeaderOffset (ChunkEntry k v) where
-  headerSizeOffset = 4
+  headerSizeOffset = 0
 
 data SomeChunkEntry a = forall n. (KnownNat n) => SomeChunkEntry (ChunkEntry (ByteStringSized n) a)
 

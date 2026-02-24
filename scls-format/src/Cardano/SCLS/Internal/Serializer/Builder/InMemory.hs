@@ -29,6 +29,8 @@ import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.MemPack
 import Data.MemPack.Extra
 
+import Data.ByteArray (ByteArrayAccess)
+import Data.ByteString (ByteString)
 import Data.Kind (Type)
 import Data.Primitive.ByteArray
 import Data.Typeable
@@ -51,6 +53,8 @@ class BuilderItem item where
 
   -- | Encode an entry for the item using the provided parameters
   bEncodeEntry :: (MemPack a, Typeable a) => Parameters item -> a -> a
+
+  bHashPrefix :: Parameters item -> ByteString
 
 -- | Command for the state machine
 data Command item type_ where
@@ -103,11 +107,12 @@ mkMachine bufferSize params = do
                     pure (final, Just (bMkItem params frozenData entriesCount))
               Append (input :: a) -> do
                 let entry = Entry $ bEncodeEntry @item params input
-                let l = packedByteCount entry
+                    l = packedByteCount entry
+                    hashPrefix = bHashPrefix @item params
                 if offset + l <= bufferSize -- if we fit the current buffer we just need to write data and continue
                   then do
                     (merkleTreeState', newOffset) <-
-                      unsafeAppendEntryToBuffer merkleTreeState storage offset entry
+                      unsafeAppendEntryToBuffer hashPrefix merkleTreeState storage offset entry
                     pure (machine (entriesCount + 1) newOffset merkleTreeState', [])
                   else do
                     -- We have no space in the current buffer, so we need to emit it first
@@ -115,14 +120,14 @@ mkMachine bufferSize params = do
                     if l > bufferSize
                       then do
                         let !tmpBuffer = pack entry
-                            !merkleTreeState' = MT.add merkleTreeState (uncheckedByteArrayEntryContents @a tmpBuffer)
+                            !merkleTreeState' = MT.addWithPrefix merkleTreeState hashPrefix (uncheckedByteArrayEntryContents @(Entry a) tmpBuffer)
                         return
                           ( machine 0 0 merkleTreeState'
                           , mkDataToEmit [(params, frozenBuffer, entriesCount), (params, tmpBuffer, 1)]
                           )
                       else do
                         (merkleTreeState', newOffset) <-
-                          unsafeAppendEntryToBuffer merkleTreeState storage 0 entry
+                          unsafeAppendEntryToBuffer hashPrefix merkleTreeState storage 0 entry
                         pure
                           ( machine 1 newOffset merkleTreeState'
                           , mkDataToEmit [(params, frozenBuffer, entriesCount)]
@@ -140,13 +145,14 @@ freezeByteArrayPinned !src !off !len = do
   copyMutableByteArray dst 0 src off len
   unsafeFreezeByteArray dst
 
-unsafeAppendEntryToBuffer :: forall u. (MemPack u, Typeable u, MemPackHeaderOffset u) => MT.MerkleTreeState Blake2b_224 -> MutableByteArray (PrimState IO) -> Int -> Entry u -> IO (MT.MerkleTreeState Blake2b_224, Int)
-unsafeAppendEntryToBuffer !merkleTreeState !storage !offset u = do
+unsafeAppendEntryToBuffer :: forall u b. (MemPack (Entry u), Typeable u, MemPackHeaderOffset u, ByteArrayAccess b) => b -> MT.MerkleTreeState Blake2b_224 -> MutableByteArray (PrimState IO) -> Int -> Entry u -> IO (MT.MerkleTreeState Blake2b_224, Int)
+unsafeAppendEntryToBuffer hashPrefix !merkleTreeState !storage !offset u = do
   newOffset <- unsafeAppendToBuffer storage offset u
   let l = newOffset - offset
+      headerOffset = headerSizeOffset @(Entry u)
   merkleTreeState' <- withMutableByteArrayContents storage $ \ptr -> do
-    let csb = CStringLenBuffer (ptr `plusPtr` (offset + headerSizeOffset @u), l - headerSizeOffset @u)
-    return $! MT.add merkleTreeState csb
+    let csb = CStringLenBuffer (ptr `plusPtr` (offset + headerOffset), l - headerOffset)
+    return $! MT.addWithPrefix merkleTreeState hashPrefix csb
   return (merkleTreeState', newOffset)
 
 {- | Helper to get access to the entry contents.
