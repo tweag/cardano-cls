@@ -61,7 +61,7 @@ proposal =
       , "expires_after" ==> epoch_no
       , "committee_votes" ==> mp [0 <+ asKey committee_cold_credential ==> vote]
       , "stake_pool_votes" ==> mp [0 <+ asKey pool_keyhash ==> vote]
-      , "proposal_procedure" ==> proposal_procedure
+      , "proposal_procedure" ==> VBytes `cbor` proposal_procedure
       ]
 
 vote :: Rule
@@ -70,11 +70,11 @@ vote = "vote" =:= (0 :: Integer) ... (2 :: Integer)
 proposal_procedure :: Rule
 proposal_procedure =
   "proposal_procedure"
-    =:= mp
-      [ "anchor" ==> anchor
-      , "deposit" ==> coin
-      , "gov_action" ==> gov_action
+    =:= arr
+      [ "deposit" ==> coin
       , "return_address" ==> reward_account
+      , "gov_action" ==> gov_action
+      , "anchor" ==> anchor
       ]
 
 gov_action :: Rule
@@ -107,7 +107,7 @@ gov_action =
           //- "Committee membership update"
       )
     / (arr [5, "purpose" ==> (gov_action_id / VNil), "constitution" ==> constitution] //- "New constitution")
-    / (arr [6, a VNil] //- "Info action")
+    / (arr [6] //- "Info action")
 
 gov_action_id :: Rule
 gov_action_id =
