@@ -155,7 +155,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: tweag/CIPs
-          ref: 5c1ce4bad0aa17621a3f90ba3181becf4ef09a56
+          ref: 7a3facc97defc9a73bd2f23e8c2126b713f929e0
           path: cips
       - name: set env for reference CDDL
         run: |

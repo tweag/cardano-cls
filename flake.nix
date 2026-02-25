@@ -11,7 +11,7 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
   inputs.cips = {
-    url = "github:tweag/CIPs/cip-canonical";
+    url = "github:tweag/CIPs/cip-canonical-next";
     flake = false;
   };
   outputs =
