@@ -1,20 +1,24 @@
 {-# LANGUAGE DataKinds #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 
 module ChunksBuilderSpec (chunksBuilderTests) where
 
 import Cardano.SCLS.Internal.Hash (Digest (..))
 
+import Cardano.SCLS.Entry.IsKey (IsKey (keySize))
 import Cardano.SCLS.Internal.Record.Chunk
 import Cardano.SCLS.Internal.Serializer.ChunksBuilder.InMemory
 import Cardano.Types.Namespace (asBytes)
 import Control.Monad
+import Crypto.Hash (Blake2b_224, hash, hashFinalize, hashInit, hashUpdate)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.ByteString qualified as BS
 import Data.Function ((&))
 import Data.Maybe
 import Data.MemPack (packByteString)
+import Data.MemPack.Buffer (pinnedByteArrayToByteString)
 import Data.MemPack.Extra
 import Data.Primitive.ByteArray
 import Streaming.Prelude qualified as S
@@ -23,7 +27,7 @@ import Test.Hspec
 import Test.Hspec.Expectations.Contrib
 import Test.Hspec.QuickCheck
 import Test.QuickCheck
-import TestEntry (TestUTxO)
+import TestEntry (TestUTxO, TestUTxOKey, chunkEntryFromUTxO)
 
 mkMachine' :: Int -> IO BuilderMachine
 mkMachine' = flip mkMachine ("test", ChunkFormatRaw)
@@ -231,7 +235,7 @@ finalizationTests =
 
 merkleRootHashTests :: Spec
 merkleRootHashTests =
-  describe "Merkle Root Hash Tests" $ do
+  describe "Hashses and Merkle Tree Tests" $ do
     prop "entry digest computed by chunks builder should be H(0x01 || ns_str || key || value)" $
       \(entries :: [TestUTxO]) -> do
         (digest, _) <-
@@ -252,3 +256,26 @@ merkleRootHashTests =
                       (MT.empty undefined)
                       entries
         digest `shouldBe` digest'
+
+    prop "chunk hash should be H(concat [ digest(e) | e in entries ])" $
+      forAll (listOf1 arbitrary) $
+        \(entries :: [TestUTxO]) -> do
+          (_, Just (ChunkItem{..})) <-
+            S.each entries
+              & S.foldM_
+                ( \acc entry -> do
+                    (machine', _) <- interpretCommand acc (Append entry)
+                    return machine'
+                )
+                (mkMachine (16 * 1024 * 1024) ("utxo/v0", ChunkFormatRaw))
+                (\m -> interpretCommand m Finalize)
+          let expectedChunkHash = Digest $ hashFinalize $ foldl' (\acc -> hashUpdate acc . hash @_ @Blake2b_224 . packByteString . chunkEntryFromUTxO) (hashInit) entries
+          let Chunk{..} =
+                mkChunk
+                  1
+                  ChunkFormatRaw
+                  "utxo/v0"
+                  (fromIntegral $ keySize @TestUTxOKey)
+                  (pinnedByteArrayToByteString chunkItemData)
+                  (fromIntegral chunkItemEntriesCount)
+          chunkHash `shouldBe` expectedChunkHash
