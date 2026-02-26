@@ -9,7 +9,7 @@ Stability   : experimental
 module Crypto.Hash.MerkleTree.Incremental.Internal
 where
 
-import Crypto.Hash (Digest, HashAlgorithm, hash, hashFinalize, hashInit, hashUpdate, hashUpdates)
+import Crypto.Hash (Digest, HashAlgorithm, hashFinalize, hashInit, hashUpdate, hashUpdates)
 import Data.ByteArray (ByteArrayAccess)
 import Data.ByteString qualified as B
 
