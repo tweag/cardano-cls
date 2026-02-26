@@ -12,9 +12,11 @@ module Cardano.SCLS.Internal.Record.Chunk (
   Chunk (..),
   ChunkFormat (..),
   DebugChunk (..),
-  mkChunk,
+  entryDigest,
 ) where
 
+import Crypto.Hash qualified as CH
+import Data.ByteArray (ByteArrayAccess)
 import Data.ByteString qualified as BS
 import Data.MemPack (MemPack (..), packByteStringM, packTagM, unpackByteStringM, unpackTagM)
 import Data.MemPack.ByteOrdered (packWord32beM, packWord64beM, unpackBigEndianM)
@@ -128,3 +130,12 @@ mkChunk seqno format namespace chunkKeySize chunkData entriesCount =
     , chunkEntriesCount = entriesCount
     , chunkHash = digest chunkData
     }
+
+{- | Compute the digest for a chunk entry given its namespace and raw data.
+The digest is computed as H(0x01 || ns_str || key || value), where:
+- 0x01 is a prefix byte to distinguish entry hashes from other types of hashes
+- ns_str is the namespace string (as bytes)
+- key and value are the raw bytes of the entry's key and value, respectively
+-}
+entryDigest :: (ByteArrayAccess ba) => Namespace -> ba -> Digest
+entryDigest ns b = Digest $ CH.hashFinalize $ CH.hashInit `CH.hashUpdate` BS.singleton 1 `CH.hashUpdate` Namespace.asBytes ns `CH.hashUpdate` b
