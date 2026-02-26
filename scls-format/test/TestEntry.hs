@@ -21,7 +21,6 @@ import Cardano.SCLS.Entry.IsKey (IsKey (keySize, packKeyM, unpackKeyM))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (ChunkEntry))
 import Cardano.SCLS.Internal.Serializer.HasKey (HasKey (Key, getKey))
 import Cardano.SCLS.NamespaceCodec (CanonicalCBOREntryDecoder (decodeEntry), CanonicalCBOREntryEncoder (encodeEntry), KnownNamespace (NamespaceEntry, NamespaceKey), NamespaceKeySize, namespaceKeySize)
-import Cardano.SCLS.Versioned (Versioned (Versioned))
 import Data.ByteString qualified as BS
 import Data.Data (Proxy (Proxy))
 import Data.MemPack (MemPack (packM, packedByteCount, unpackM), packByteStringM, unpackByteStringM)
@@ -114,17 +113,15 @@ instance HasKey TestBlock where
 
   getKey (TestBlock (TestEntry k _)) = TestBlockKey k
 
-instance CanonicalCBOREntryEncoder "utxo/v0" TestUTxO where
-  encodeEntry (TestUTxO TestEntry{key, value}) = toCanonicalCBOR (Proxy @"utxo/v0") (key, value)
+instance CanonicalCBOREntryEncoder "utxo/v0" Int where
+  encodeEntry = toCanonicalCBOR Proxy
 
-instance CanonicalCBOREntryDecoder "utxo/v0" TestUTxO where
-  decodeEntry = do
-    Versioned (key, value) <- fromCanonicalCBOR
-    pure $ Versioned $ TestUTxO $ TestEntry key value
+instance CanonicalCBOREntryDecoder "utxo/v0" Int where
+  decodeEntry = fromCanonicalCBOR
 
 instance KnownNamespace "utxo/v0" where
   type NamespaceKey "utxo/v0" = TestUTxOKey
-  type NamespaceEntry "utxo/v0" = TestUTxO
+  type NamespaceEntry "utxo/v0" = Int
 
 instance KnownNamespace "blocks/v0" where
   type NamespaceKey "blocks/v0" = TestBlockKey
@@ -148,9 +145,9 @@ genEntry p = do
   value <- arbitrary
   pure $ NamespacedTestEntry $ TestEntry key value
 
-chunkEntryFromUTxO :: TestUTxO -> ChunkEntry TestUTxOKey TestUTxO
-chunkEntryFromUTxO (e@(TestUTxO (TestEntry k _))) =
-  ChunkEntry (TestUTxOKey k) e
+chunkEntryFromUTxO :: TestUTxO -> ChunkEntry TestUTxOKey Int
+chunkEntryFromUTxO (TestUTxO (TestEntry k v)) =
+  ChunkEntry (TestUTxOKey k) v
 
 chunkEntryFromBlock :: TestBlock -> ChunkEntry TestBlockKey Int
 chunkEntryFromBlock (TestBlock (TestEntry k v)) =
