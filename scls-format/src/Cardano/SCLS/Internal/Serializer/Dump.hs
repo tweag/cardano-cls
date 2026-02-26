@@ -163,6 +163,7 @@ dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
     mkMetadata
       (pinnedByteArrayToByteString metadataItemData)
       (fromIntegral metadataItemEntriesCount)
+      metadataItemHash
 
 -- | Serializes data to a file.
 serialize ::

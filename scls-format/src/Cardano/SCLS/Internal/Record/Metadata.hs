@@ -105,10 +105,9 @@ instance IsFrameRecord 0x31 Metadata where
     metadataFooter <- unpackM
     pure Metadata{..}
 
-mkMetadata :: BS.ByteString -> Word64 -> Metadata
-mkMetadata metadataBytes totalEntries = do
+mkMetadata :: BS.ByteString -> Word64 -> Digest -> Metadata
+mkMetadata metadataBytes totalEntries entriesHash = do
   let
-    entriesHash = digest metadataBytes
     metadataFooter = MetadataFooter{..}
     metadataEntries =
       fix
