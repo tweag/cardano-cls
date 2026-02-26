@@ -120,18 +120,6 @@ instance IsFrameRecord 0x10 Chunk where
     chunkHash <- unpackM
     pure Chunk{..}
 
-mkChunk :: Word64 -> ChunkFormat -> Namespace -> Word32 -> BS.ByteString -> Word32 -> Chunk
-mkChunk seqno format namespace chunkKeySize chunkData entriesCount =
-  Chunk
-    { chunkSeq = seqno
-    , chunkFormat = format
-    , chunkNamespace = namespace
-    , chunkKeySize = chunkKeySize
-    , chunkData = chunkData
-    , chunkEntriesCount = entriesCount
-    , chunkHash = digest chunkData
-    }
-
 {- | Compute the digest for a chunk entry given its namespace and raw data.
 The digest is computed as H(0x01 || ns_str || key || value), where:
 - 0x01 is a prefix byte to distinguish entry hashes from other types of hashes
