@@ -24,7 +24,7 @@ import Cardano.SCLS.CDDL (namespaceSymbolFromText)
 import Cardano.SCLS.CDDL.Validate (invalidSpecs, validSpecs)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (..))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
-import Cardano.SCLS.Internal.Hash (Digest (..), digest, digestToString)
+import Cardano.SCLS.Internal.Hash (Digest (..), digestToString)
 import Cardano.SCLS.Internal.Reader (extractNamespaceList, streamChunkEntries, withRecordData)
 import Cardano.SCLS.Internal.Record.Chunk (Chunk (..))
 import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
@@ -171,7 +171,7 @@ validateChunk Chunk{..} = do
       isKnown = isJust nsSymbol
 
   -- Check 1: Validate checksum
-  let computedHash = digest chunkData
+  let computedHash = undefined -- FIXME: compute the hash of the chunk data
       checksumError =
         if computedHash /= chunkHash
           then [ChecksumMismatch chunkHash computedHash]
