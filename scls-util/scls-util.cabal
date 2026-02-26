@@ -36,6 +36,8 @@ library
     Cardano.SCLS.Util.Verify
 
   build-depends:
+    QuickCheck,
+    antigen,
     base >=4.18 && <5,
     base16-bytestring,
     bytestring,

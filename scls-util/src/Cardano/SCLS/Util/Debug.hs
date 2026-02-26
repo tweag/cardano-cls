@@ -21,7 +21,7 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
   buildResolvedCTree,
  )
 import Codec.CBOR.Cuddle.Huddle
-import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
+import Codec.CBOR.Cuddle.IndexMappable (IndexMappable (..), mapCDDLDropExt)
 import Control.Monad (replicateM_)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.ByteString.Base16 qualified as Base16
@@ -34,6 +34,8 @@ import Data.Text qualified as T
 import GHC.TypeNats (KnownNat)
 import Streaming.Prelude qualified as S
 import System.Random.Stateful (globalStdGen, uniformByteStringM)
+import Test.AntiGen (runAntiGen)
+import Test.QuickCheck (generate)
 
 import Cardano.SCLS.CBOR.Canonical.Encoder (canonicalizeTerm)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (GenericCBOREntry), SomeCBOREntry (SomeCBOREntry))
@@ -42,6 +44,8 @@ import Cardano.SCLS.NamespaceCodec (NamespaceKeySize, namespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (KnownSpec (namespaceSpec), SomeNamespaceSymbol (SomeNamespaceSymbol))
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
+import Codec.CBOR.Cuddle.CBOR.Gen (generateFromName)
+import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Control.Monad.Trans.Resource (runResourceT)
 
 -- | Generate a scls file with random data for debugging purposes.
@@ -72,10 +76,10 @@ generateDebugFile outputFile namespaceEntries = liftIO do
   pure Ok
 
 generateNamespaceEntries :: (KnownNat (NamespaceKeySize ns), MonadIO m, MonadFail m) => proxy ns -> Int -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry (NamespaceKeySize ns))) m ()
-generateNamespaceEntries (p :: proxy ns) count _spec = replicateM_ count do
+generateNamespaceEntries (p :: proxy ns) count spec = replicateM_ count do
   let size = namespaceKeySize @ns
   keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
-  term <- undefined -- liftIO $ applyAtomicGen (generateFromName spec (Name (T.pack "record_entry"))) globalStdGen
+  term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
   Right canonicalTerm <- pure $ canonicalizeTerm p term
   S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
 
