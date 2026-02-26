@@ -19,7 +19,6 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (MonoReferenced)
 import Codec.CBOR.Cuddle.IndexMappable (mapIndex)
 import Codec.CBOR.Term (encodeTerm)
 import Codec.CBOR.Write (toStrictByteString)
-import Control.Monad.IO.Class (MonadIO (..))
 import Data.ByteString qualified as BS
 import Data.ByteString.Base16 qualified as Base16
 import Data.Text (Text)
