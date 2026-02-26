@@ -12,12 +12,16 @@ module Cardano.SCLS.Internal.Serializer.MetadataBuilder.InMemory (
   B.interpretCommand,
 ) where
 
+import Cardano.SCLS.Internal.Hash (Digest)
+import Cardano.SCLS.Internal.Record.Metadata (entryDigest)
 import Cardano.SCLS.Internal.Serializer.Builder.InMemory qualified as B
+
 import Data.Primitive.ByteArray
 
 data MetadataItem = MetadataItem
   { metadataItemData :: ByteArray
   , metadataItemEntriesCount :: Int
+  , metadataItemHash :: Digest
   }
 
 instance B.BuilderItem MetadataItem where
@@ -25,8 +29,8 @@ instance B.BuilderItem MetadataItem where
   bEncodeEntry _ = id
   bItemData = metadataItemData
   bItemEntriesCount = metadataItemEntriesCount
-  bMkItem _ data_ count = MetadataItem{metadataItemData = data_, metadataItemEntriesCount = count}
-  bHashPrefix _ = mempty
+  bMkItem _ = MetadataItem
+  bEntryDigest _ = entryDigest
 
 type BuilderMachine = (B.BuilderMachine MetadataItem)
 
