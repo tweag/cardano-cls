@@ -1,6 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-import Crypto.Hash.Algorithms (Blake2b_224 (..), SHA3_256 (..))
+import Crypto.Hash (Blake2b_224 (..), SHA3_256 (..), hashFinalize, hashUpdate)
 import Crypto.Hash.MerkleTree.Incremental (
   add,
   empty,
@@ -8,7 +8,7 @@ import Crypto.Hash.MerkleTree.Incremental (
   merkleRootHash,
  )
 import Crypto.Hash.MerkleTree.Incremental.Internal (
-  leafHash,
+  leafHashInit,
   nodeHash,
  )
 import Reference (mkMerkleTree, mtHash)
@@ -33,7 +33,7 @@ main = do
           merkleRootHash merkleTree1 `shouldBe` mtHash merkleTree2
       prop "leaf hash of (prefix, entry) should H(0x01 || prefix || entry)" $ do
         \(prefix :: ByteString) (entry :: ByteString) -> do
-          let computedHash = leafHash prefix entry
+          let computedHash = hashFinalize $ leafHashInit `hashUpdate` prefix `hashUpdate` entry
               expectedHash :: Digest Blake2b_224 = hash (singleton 0x01 <> prefix <> entry)
           computedHash `shouldBe` expectedHash
       prop "node hash of (left, right) should H(0x00 || H(left) || H(right))" $ do

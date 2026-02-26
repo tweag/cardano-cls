@@ -17,7 +17,8 @@ import Cardano.SCLS.Internal.Record.Internal.Class
 
 import Control.Monad.Fix (fix)
 import Control.Monad.Trans.Fail (errorFail)
-import Crypto.Hash qualified as CH
+import Crypto.Hash (hashFinalize, hashUpdate)
+import Crypto.Hash.MerkleTree.Incremental.Internal (leafHashInit)
 import Data.ByteArray (ByteArrayAccess)
 import Data.ByteString qualified as BS
 import Data.Foldable (for_)
@@ -128,4 +129,4 @@ The digest is computed as H(0x01 || entry_bytes), where:
 - entry_bytes is the raw bytes of the metadata entry (including both subject and value)
 -}
 entryDigest :: (ByteArrayAccess ba) => ba -> Digest
-entryDigest b = Digest $ CH.hashFinalize $ CH.hashInit `CH.hashUpdate` BS.singleton 1 `CH.hashUpdate` b
+entryDigest = Digest . hashFinalize . hashUpdate leafHashInit

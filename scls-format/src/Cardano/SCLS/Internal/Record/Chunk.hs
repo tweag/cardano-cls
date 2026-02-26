@@ -15,7 +15,8 @@ module Cardano.SCLS.Internal.Record.Chunk (
   entryDigest,
 ) where
 
-import Crypto.Hash qualified as CH
+import Crypto.Hash (hashFinalize, hashUpdate)
+import Crypto.Hash.MerkleTree.Incremental.Internal (leafHashInit)
 import Data.ByteArray (ByteArrayAccess)
 import Data.ByteString qualified as BS
 import Data.MemPack (MemPack (..), packByteStringM, packTagM, unpackByteStringM, unpackTagM)
@@ -138,4 +139,4 @@ The digest is computed as H(0x01 || ns_str || key || value), where:
 - key and value are the raw bytes of the entry's key and value, respectively
 -}
 entryDigest :: (ByteArrayAccess ba) => Namespace -> ba -> Digest
-entryDigest ns b = Digest $ CH.hashFinalize $ CH.hashInit `CH.hashUpdate` BS.singleton 1 `CH.hashUpdate` Namespace.asBytes ns `CH.hashUpdate` b
+entryDigest ns b = Digest $ hashFinalize $ leafHashInit `hashUpdate` (Namespace.asBytes ns) `hashUpdate` b

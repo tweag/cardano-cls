@@ -51,12 +51,11 @@ module Crypto.Hash.MerkleTree.Incremental (
   merkleRootHash,
   empty,
   add,
-  addWithPrefix,
   finalize,
 )
 where
 
-import Crypto.Hash (HashAlgorithm, hash)
+import Crypto.Hash (HashAlgorithm, hash, hashFinalize, hashUpdate)
 import Crypto.Hash.MerkleTree.Incremental.Internal
 import Data.ByteArray (ByteArrayAccess)
 import Data.ByteString qualified as B
@@ -97,25 +96,8 @@ add ::
   b ->
   -- | The updated tree construction state with the element incorporated
   MerkleTreeState a
-add (MerkleTreeState state) bytes =
-  addWithPrefix (MerkleTreeState state) B.empty bytes
-
-{- | Add a new element with a prefix to the incremental Merkle tree construction.
-This function is similar to 'add' but allows you to specify a prefix (e.g. a namespace) that is included in the leaf hash computation. The prefix can be used to create
-distinct namespaces within the same tree, ensuring that elements with the same content but different prefixes produce different hashes.
--}
-addWithPrefix ::
-  (HashAlgorithm a, ByteArrayAccess b1, ByteArrayAccess b2) =>
-  -- | The current tree construction state
-  MerkleTreeState a ->
-  -- | A prefix (e.g. namespace) (must implement 'ByteArrayAccess')
-  b1 ->
-  -- | The element to add (must implement 'ByteArrayAccess')
-  b2 ->
-  -- | The updated tree construction state with the element incorporated
-  MerkleTreeState a
-addWithPrefix (MerkleTreeState state) prefix bytes =
-  join (MerkleTreeState (MerkleTreeStateNode{cLevel = 0, cHash = leafHash prefix bytes} : state))
+add state =
+  addLeaf state . hashFinalize . hashUpdate leafHashInit
 
 {- | Convert an incremental construction state into a completed Merkle tree.
 
