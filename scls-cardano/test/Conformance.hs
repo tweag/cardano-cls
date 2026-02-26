@@ -10,21 +10,23 @@ module Conformance (
   Direction (..),
 ) where
 
-import Cardano.SCLS.Util.Verify (prettyError)
+import Codec.CBOR.Cuddle.CBOR.Gen (generateFromName)
 import Codec.CBOR.Cuddle.CBOR.Validator (validateCBOR)
-import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced (..), SValidity (..))
+import Codec.CBOR.Cuddle.CBOR.Validator.Trace (Evidenced (..), SValidity (..), showValidationTrace)
 import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.CTree (CTreeRoot)
 import Codec.CBOR.Cuddle.CDDL.Resolve (MonoReferenced)
 import Codec.CBOR.Cuddle.IndexMappable (mapIndex)
 import Codec.CBOR.Term (encodeTerm)
 import Codec.CBOR.Write (toStrictByteString)
+import Control.Monad.IO.Class (MonadIO (..))
 import Data.ByteString qualified as BS
 import Data.ByteString.Base16 qualified as Base16
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as TE
-import System.Random.Stateful (applyAtomicGen, globalStdGen)
+import Test.AntiGen (runAntiGen)
+import Test.QuickCheck (generate)
 
 -- | Direction of conformance test
 data Direction
@@ -47,7 +49,7 @@ generateCBORFromCDDL ::
   CTreeRoot MonoReferenced ->
   IO BS.ByteString
 generateCBORFromCDDL spec = do
-  term <- applyAtomicGen (generateCBORTerm' spec (Name (T.pack "record_entry"))) globalStdGen
+  term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
   pure $ toStrictByteString $ encodeTerm term
 
 -- | Test if a reference CDDL accepts CBOR generated from another spec
@@ -67,4 +69,4 @@ propReferenceAcceptsCBOR genSpec validateSpec direction = do
     Evidenced SValid _ ->
       pure $ Right ()
     Evidenced SInvalid trc ->
-      pure $ Left $ FailureInfo direction (TE.decodeUtf8 $ Base16.encode cbor) (prettyError trc)
+      pure $ Left $ FailureInfo direction (TE.decodeUtf8 $ Base16.encode cbor) (T.pack $ showValidationTrace trc)
