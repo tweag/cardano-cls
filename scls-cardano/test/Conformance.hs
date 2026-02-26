@@ -49,7 +49,7 @@ generateCBORFromCDDL ::
   CTreeRoot MonoReferenced ->
   IO BS.ByteString
 generateCBORFromCDDL spec = do
-  term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
+  term <- generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
   pure $ toStrictByteString $ encodeTerm term
 
 -- | Test if a reference CDDL accepts CBOR generated from another spec
