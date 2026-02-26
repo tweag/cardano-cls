@@ -7,7 +7,8 @@
 module TestEntry (
   TestEntry (..),
   TestEntryKey (..),
-  TestUTxO,
+  TestUTxO (..),
+  TestUTxOKey,
   TestBlock,
   NamespacedTestEntry (..),
   chunkEntryFromBlock,
