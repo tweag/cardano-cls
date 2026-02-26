@@ -24,7 +24,7 @@ import Cardano.SCLS.NamespaceSymbol (KnownSpec (namespaceSpec), SomeNamespaceSym
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.SlotNo (SlotNo (..))
-import Codec.CBOR.Cuddle.CBOR.Gen (generateCBORTerm')
+import Codec.CBOR.Cuddle.CBOR.Gen (generateFromName)
 import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Codec.CBOR.Cuddle.CDDL.Resolve (
   asMap,
@@ -33,8 +33,9 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
   buildResolvedCTree,
  )
 import Codec.CBOR.Cuddle.Huddle (toCDDL)
-import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt)
+import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt, mapIndex)
 import Control.Monad (replicateM)
+import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (ResIO, runResourceT)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
@@ -47,9 +48,11 @@ import Data.Time.Format.ISO8601 (ISO8601 (iso8601Format), formatParseM)
 import Streaming.Prelude qualified as S
 import System.FilePath ((</>))
 import System.IO.Temp (withSystemTempDirectory)
-import System.Random.Stateful (applyAtomicGen, globalStdGen, uniformByteStringM)
+import System.Random.Stateful (globalStdGen, uniformByteStringM)
+import Test.AntiGen (runAntiGen)
 import Test.Hspec
 import Test.Hspec.Expectations.Contrib
+import Test.QuickCheck (generate)
 
 tests :: Spec
 tests =
@@ -112,7 +115,7 @@ mkRoundtripTestsFor groupName serialize =
         entries <-
           fmap nubByKey $ replicateM 1024 $ do
             key <- uniformByteStringM kSize globalStdGen
-            term <- applyAtomicGen (generateCBORTerm' mt (Name (T.pack "record_entry"))) globalStdGen
+            term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex mt) (Name (T.pack "record_entry"))
             Right canonicalTerm <- pure $ canonicalizeTerm p term
             pure $! SomeCBOREntry (GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) key) (mkCBORTerm canonicalTerm))
         mEntries <-

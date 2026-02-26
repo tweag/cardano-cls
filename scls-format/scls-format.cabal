@@ -111,6 +111,7 @@ test-suite scls-format-test
   build-depends:
     HUnit,
     QuickCheck,
+    antigen,
     base >=4.18 && <5,
     bytestring,
     cborg >=0.2,
