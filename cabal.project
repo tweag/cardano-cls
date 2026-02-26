@@ -40,10 +40,3 @@ allow-newer:
   quickcheck-instances-0.3.33:containers,
   quickcheck-instances-0.3.33:QuickCheck,
   uuid-types-1.0.6:template-haskell,
-
--- Contains hotfix for cuddle dependency needed for conformance tests
-source-repository-package
-  type: git
-  location: https://github.com/input-output-hk/cuddle.git
-  tag: c2003efc96a803db5ba4835ad0c9df6d40c5e1d5
-  --sha256: sha256-0000000000000000000000000000000000000000000=
