@@ -11,7 +11,7 @@ import Cardano.SCLS.Internal.Record.Chunk
 import Cardano.SCLS.Internal.Serializer.ChunksBuilder.InMemory
 import Cardano.Types.Namespace (asBytes)
 import Control.Monad
-import Crypto.Hash (Blake2b_224, hash, hashFinalize, hashInit, hashUpdate)
+import Crypto.Hash (hash, hashFinalize, hashInit, hashUpdate)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Crypto.Hash.MerkleTree.Incremental.Internal qualified as MT
 import Data.ByteString qualified as BS
@@ -238,7 +238,7 @@ hashTests =
     prop "entry digest is H(0x01 || ns_str || key || value)" $
       \(entry@(TestUTxO (TestEntry k v)) :: TestUTxO) -> do
         let ns = "utxo/v0"
-            expectedHash = Digest (hash @_ @Blake2b_224 $ BS.singleton 1 <> asBytes ns <> k <> packByteString v)
+            expectedHash = Digest (hash $ BS.singleton 1 <> asBytes ns <> k <> packByteString v)
         entryDigest ns (packByteString $ chunkEntryFromUTxO entry) `shouldBe` expectedHash
     prop "entry digest used by chunks is H(0x01 || ns_str || key || value)" $
       \(entries :: [TestUTxO]) -> do
