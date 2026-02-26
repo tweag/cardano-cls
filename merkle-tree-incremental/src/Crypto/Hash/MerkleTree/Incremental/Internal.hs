@@ -105,7 +105,7 @@ leafHashInit =
   hashUpdate hashInit $ B.singleton 1
 
 -- | Add a precomputed leaf hash to the incremental Merkle tree construction.
-addLeaf ::
+addLeafHash ::
   (HashAlgorithm a) =>
   -- | The current tree construction state
   MerkleTreeState a ->
@@ -113,7 +113,7 @@ addLeaf ::
   MerkleHash a ->
   -- | The updated tree construction state with the element incorporated
   MerkleTreeState a
-addLeaf (MerkleTreeState state) cHash =
+addLeafHash (MerkleTreeState state) cHash =
   join (MerkleTreeState (MerkleTreeStateNode{cLevel = 0, cHash} : state))
 
 {- | Combine adjacent subtrees of the same level in the construction state.

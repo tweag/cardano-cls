@@ -123,7 +123,7 @@ mkMachine bufferSize params = do
                         let !tmpBuffer = pack entry
                             Digest !entryDigest = bEntryDigest @item params (uncheckedByteArrayEntryContents @a tmpBuffer)
                             !frozenBufferDigest = Digest $ hashFinalize chunkHashCtx
-                            !merkleTreeState' = MT.addLeaf merkleTreeState entryDigest
+                            !merkleTreeState' = MT.addLeafHash merkleTreeState entryDigest
                         return
                           ( machine 0 0 (hashInit, merkleTreeState')
                           , mkDataToEmit [(params, frozenBuffer, entriesCount, frozenBufferDigest), (params, tmpBuffer, 1, Digest $ hash entryDigest)]
@@ -157,7 +157,7 @@ unsafeAppendEntryToBuffer entryDigest !chunkHashCtx !merkleTreeState !storage !o
   (chunkHashCtx', merkleTreeState') <- withMutableByteArrayContents storage $ \ptr -> do
     let csb = CStringLenBuffer (ptr `plusPtr` (offset + headerOffset), l - headerOffset)
         Digest entryHash = entryDigest csb
-    return $! (hashUpdate chunkHashCtx entryHash, MT.addLeaf merkleTreeState entryHash)
+    return $! (hashUpdate chunkHashCtx entryHash, MT.addLeafHash merkleTreeState entryHash)
   return (chunkHashCtx', merkleTreeState', newOffset)
 
 {- | Helper to get access to the entry contents.

@@ -257,7 +257,7 @@ hashTests =
                 MT.merkleRootHash $
                   MT.finalize $
                     foldl'
-                      (\acc (TestUTxO (TestEntry k v)) -> MT.addLeaf acc $ hash $ BS.singleton 1 <> asBytes ns <> k <> packByteString v)
+                      (\acc (TestUTxO (TestEntry k v)) -> MT.addLeafHash acc $ hash $ BS.singleton 1 <> asBytes ns <> k <> packByteString v)
                       (MT.empty undefined)
                       entries
         computedMerkleHash `shouldBe` expectedMerkleHash

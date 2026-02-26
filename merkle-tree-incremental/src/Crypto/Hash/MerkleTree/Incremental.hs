@@ -97,7 +97,7 @@ add ::
   -- | The updated tree construction state with the element incorporated
   MerkleTreeState a
 add state =
-  addLeaf state . hashFinalize . hashUpdate leafHashInit
+  addLeafHash state . hashFinalize . hashUpdate leafHashInit
 
 {- | Convert an incremental construction state into a completed Merkle tree.
 
