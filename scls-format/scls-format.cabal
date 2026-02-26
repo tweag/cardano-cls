@@ -122,6 +122,7 @@ test-suite scls-format-test
     mempack-scls,
     merkle-tree-incremental,
     primitive,
+    random >=1.2,
     resourcet,
     scls-cardano,
     scls-cardano:testlib,
