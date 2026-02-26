@@ -28,7 +28,7 @@ spec :: Spec
 spec = do
   describe "CanonicalCBOREncoder" $ do
     prop "should roundtrip encode/decode TestEntry successfully" $
-      \(val :: TestUTxO) -> do
+      \(TestUTxO (TestEntry _k val)) -> do
         let encoded = toLazyByteString $ getRawEncoding $ encodeEntry @"utxo/v0" val
         Right (_, Versioned decoded) <- pure $ deserialiseFromBytes (getRawDecoder $ decodeEntry @"utxo/v0") encoded
 
