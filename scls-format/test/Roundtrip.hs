@@ -115,7 +115,7 @@ mkRoundtripTestsFor groupName serialize =
         entries <-
           fmap nubByKey $ replicateM 1024 $ do
             key <- uniformByteStringM kSize globalStdGen
-            term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex mt) (Name (T.pack "record_entry"))
+            term <- generate . runAntiGen $ generateFromName (mapIndex mt) (Name (T.pack "record_entry"))
             Right canonicalTerm <- pure $ canonicalizeTerm p term
             pure $! SomeCBOREntry (GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) key) (mkCBORTerm canonicalTerm))
         mEntries <-
