@@ -95,7 +95,7 @@ mkMachine bufferSize params = do
   storage <- newPinnedByteArray bufferSize
 
   -- Use fix? We love fixed point combinators do we not?
-  let machine (!entriesCount :: Int) (!offset :: Int) chunkHashCtx !merkleTreeState =
+  let machine (!entriesCount :: Int) (!offset :: Int) !chunkHashCtx !merkleTreeState =
         BuilderMachine
           { interpretCommand = \case
               Finalize -> do
