@@ -150,13 +150,14 @@ dumpToHandle handle slotNo hdr namespaceKeySizes sortedPlan = do
   chunkToRecord :: Namespace -> Word32 -> (Word64, CB.ChunkItem) -> Chunk
   chunkToRecord namespace keySize (seqno, CB.ChunkItem{..}) =
     Chunk
-      seqno
-      chunkItemFormat
-      namespace
-      keySize
-      (pinnedByteArrayToByteString chunkItemData)
-      (fromIntegral chunkItemEntriesCount)
-      chunkItemHash
+      { chunkSeq = seqno
+      , chunkFormat = chunkItemFormat
+      , chunkNamespace = namespace
+      , chunkKeySize = keySize
+      , chunkData = (pinnedByteArrayToByteString chunkItemData)
+      , chunkEntriesCount = (fromIntegral chunkItemEntriesCount)
+      , chunkHash = chunkItemHash
+      }
 
   metadataToRecord :: MB.MetadataItem -> Metadata
   metadataToRecord MB.MetadataItem{..} =
