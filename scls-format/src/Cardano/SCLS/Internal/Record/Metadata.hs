@@ -5,13 +5,21 @@
 {- |
 Record to hold metadata information.
 -}
-module Cardano.SCLS.Internal.Record.Metadata (Metadata (..), MetadataEntry (..), mkMetadata) where
+module Cardano.SCLS.Internal.Record.Metadata (
+  Metadata (..),
+  MetadataEntry (..),
+  mkMetadata,
+  entryDigest,
+) where
 
-import Cardano.SCLS.Internal.Hash (Digest, digest, hashDigestSize)
+import Cardano.SCLS.Internal.Hash (Digest (Digest), hashDigestSize)
 import Cardano.SCLS.Internal.Record.Internal.Class
 
 import Control.Monad.Fix (fix)
 import Control.Monad.Trans.Fail (errorFail)
+import Crypto.Hash (hashFinalize, hashUpdate)
+import Crypto.Hash.MerkleTree.Incremental.Internal (leafHashInit)
+import Data.ByteArray (ByteArrayAccess)
 import Data.ByteString qualified as BS
 import Data.Foldable (for_)
 import Data.MemPack
@@ -97,10 +105,9 @@ instance IsFrameRecord 0x31 Metadata where
     metadataFooter <- unpackM
     pure Metadata{..}
 
-mkMetadata :: BS.ByteString -> Word64 -> Metadata
-mkMetadata metadataBytes totalEntries = do
+mkMetadata :: BS.ByteString -> Word64 -> Digest -> Metadata
+mkMetadata metadataBytes totalEntries entriesHash = do
   let
-    entriesHash = digest metadataBytes
     metadataFooter = MetadataFooter{..}
     metadataEntries =
       fix
@@ -114,3 +121,11 @@ mkMetadata metadataBytes totalEntries = do
         metadataBytes
 
   Metadata{..}
+
+{- | Compute the digest for a metadata entry given its raw data.
+The digest is computed as H(0x01 || entry_bytes), where:
+- 0x01 is a prefix byte to distinguish entry hashes from other types of hashes
+- entry_bytes is the raw bytes of the metadata entry (including both subject and value)
+-}
+entryDigest :: (ByteArrayAccess ba) => ba -> Digest
+entryDigest = Digest . hashFinalize . hashUpdate leafHashInit

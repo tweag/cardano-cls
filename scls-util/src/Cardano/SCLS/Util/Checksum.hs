@@ -97,6 +97,6 @@ computeNamespaceHash filePath namespace = do
   withNamespacedData filePath namespace \stream -> do
     stream
       & S.fold_
-        (\acc (RawBytes bs) -> MT.addWithPrefix acc (Namespace.asBytes namespace) bs)
+        (\acc (RawBytes bs) -> MT.add acc $ Namespace.asBytes namespace <> bs)
         (MT.empty undefined)
         (Digest . MT.merkleRootHash . MT.finalize)

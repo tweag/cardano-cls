@@ -1,6 +1,5 @@
 module Cardano.SCLS.Internal.Hash (
   Digest (..),
-  digest,
   hashDigestSize,
   digestFromByteString,
   digestToString,
@@ -41,6 +40,3 @@ instance MemPack Digest where
     case digestFromByteString bs of
       Just d -> pure d
       Nothing -> fail "Invalid digest"
-
-digest :: (BA.ByteArrayAccess ba) => ba -> Digest
-digest = Digest . CH.hash
