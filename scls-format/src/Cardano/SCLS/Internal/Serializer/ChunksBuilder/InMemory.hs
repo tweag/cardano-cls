@@ -22,28 +22,30 @@ module Cardano.SCLS.Internal.Serializer.ChunksBuilder.InMemory (
   B.interpretCommand,
 ) where
 
+import Cardano.SCLS.Internal.Hash (Digest)
 import Cardano.SCLS.Internal.Record.Chunk
-import Cardano.SCLS.Internal.Serializer.Builder.InMemory qualified as B
-
 import Cardano.SCLS.Internal.Serializer.Builder.InMemory (BuilderItem (Parameters))
-import Cardano.Types.Namespace (Namespace, asBytes)
+import Cardano.SCLS.Internal.Serializer.Builder.InMemory qualified as B
+import Cardano.Types.Namespace (Namespace)
+
 import Data.Primitive.ByteArray
 
 data ChunkItem = ChunkItem
   { chunkItemFormat :: ChunkFormat
   , chunkItemData :: ByteArray
   , chunkItemEntriesCount :: Int
+  , chunkItemHash :: Digest
   }
 
 instance B.BuilderItem ChunkItem where
   type Parameters ChunkItem = (Namespace, ChunkFormat)
   bItemData = chunkItemData
   bItemEntriesCount = chunkItemEntriesCount
-  bMkItem (_, chunkItemFormat) data_ count = ChunkItem{chunkItemData = data_, chunkItemEntriesCount = count, chunkItemFormat}
+  bMkItem (_, chunkItemFormat) = ChunkItem chunkItemFormat
   bEncodeEntry (_, ChunkFormatRaw) entry = entry
   bEncodeEntry (_, ChunkFormatZstd) _entry = error "Chunk format zstd is not implemented yet"
   bEncodeEntry (_, ChunkFormatZstdE) _entry = error "Chunk format zstd-e is not implemented yet"
-  bHashPrefix (namespace, _) = asBytes namespace
+  bEntryDigest (namespace, _) = entryDigest namespace
 
 type BuilderMachine = B.BuilderMachine ChunkItem
 

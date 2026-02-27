@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE GADTs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards #-}
@@ -24,9 +25,9 @@ import Cardano.SCLS.CDDL (namespaceSymbolFromText)
 import Cardano.SCLS.CDDL.Validate (invalidSpecs, validSpecs)
 import Cardano.SCLS.Internal.Entry.CBOREntry (GenericCBOREntry (..))
 import Cardano.SCLS.Internal.Entry.ChunkEntry (ChunkEntry (..))
-import Cardano.SCLS.Internal.Hash (Digest (..), digest, digestToString)
+import Cardano.SCLS.Internal.Hash (Digest (..), digestToString)
 import Cardano.SCLS.Internal.Reader (extractNamespaceList, streamChunkEntries, withRecordData)
-import Cardano.SCLS.Internal.Record.Chunk (Chunk (..))
+import Cardano.SCLS.Internal.Record.Chunk (Chunk (..), entryDigest)
 import Cardano.SCLS.NamespaceKey (NamespaceKeySize)
 import Cardano.SCLS.NamespaceSymbol (SomeNamespaceSymbol (SomeNamespaceSymbol), toString)
 import Cardano.SCLS.Util.Result
@@ -47,12 +48,14 @@ import Codec.CBOR.Write (toLazyByteString)
 import Control.Monad (unless, when)
 import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
+import Crypto.Hash (hashFinalize, hashInit, hashUpdate)
 import Data.Foldable (for_)
 import Data.Function ((&))
 import Data.List (intercalate)
 import Data.List.NonEmpty qualified as NE
 import Data.Map.Strict qualified as Map
 import Data.Maybe (isJust, isNothing)
+import Data.MemPack (packByteString)
 import Data.MemPack.Extra (CBORTerm (..), Entry (..), RawBytes (..))
 import Data.Proxy
 import Data.Text (Text)
@@ -167,49 +170,61 @@ check filePath = do
       then pure VerifyFailure
       else pure Ok
 
+computeHashOfChunkEntries :: (Monad m) => (u -> Digest) -> S.Stream (S.Of u) m r -> m (S.Of Digest r)
+computeHashOfChunkEntries entryHash =
+  S.fold
+    (\chunkHashCtx -> hashUpdate chunkHashCtx . entryHash)
+    hashInit
+    (Digest . hashFinalize)
+
 -- | Validate a single chunk.
 validateChunk :: Chunk -> IO ChunkCheckResult
 validateChunk Chunk{..} = do
   let nsSymbol = namespaceSymbolFromText (Namespace.asText chunkNamespace)
       isKnown = isJust nsSymbol
 
-  -- Check 1: Validate checksum
-  let computedHash = digest chunkData
-      checksumError =
-        if computedHash /= chunkHash
-          then [ChecksumMismatch chunkHash computedHash]
-          else []
-
   dataErrors <- case nsSymbol >>= (\p -> fmap ((,) p) (Map.lookup p validSpecs)) of
     Nothing -> do
       -- We do not known how to decode values inside, so we just read the data
       -- this way we can calculate count and check digest
-      actualCount <-
-        streamChunkEntries @(Entry RawBytes) chunkData & S.length_
-      pure $
-        if actualCount /= fromIntegral chunkEntriesCount
-          then [EntryCountMismatch chunkEntriesCount actualCount]
-          else []
-    Just ((SomeNamespaceSymbol (_ :: proxy ns)), spec) -> do
-      (actualCount S.:> formatErrors S.:> ()) <-
-        streamChunkEntries @(GenericCBOREntry (NamespaceKeySize ns)) chunkData
-          & S.copy
-          & S.zip (S.enumFrom 1)
-          & S.mapMaybe (validateAgainst spec)
-          & S.toList
-          & S.length
+      (computedHash S.:> actualCount) <-
+        streamChunkEntries @(Entry RawBytes) chunkData
+          & S.length_
+          & computeHashOfChunkEntries (\(Entry (RawBytes b)) -> entryDigest chunkNamespace b)
       let countErrors =
             if actualCount /= fromIntegral chunkEntriesCount
               then [EntryCountMismatch chunkEntriesCount actualCount]
               else []
-      pure (formatErrors <> countErrors)
+      let checksumError =
+            if computedHash /= chunkHash
+              then [ChecksumMismatch chunkHash computedHash]
+              else []
+      pure (countErrors <> checksumError)
+    Just ((SomeNamespaceSymbol (_ :: proxy ns)), spec) -> do
+      (formatErrors S.:> computedHash S.:> actualCount) <-
+        streamChunkEntries @(GenericCBOREntry (NamespaceKeySize ns)) chunkData
+          & S.copy
+          & S.length_
+          & computeHashOfChunkEntries (entryDigest chunkNamespace . packByteString . unGenericCBOREntry)
+          & S.zip (S.enumFrom 1)
+          & S.mapMaybe (validateAgainst spec)
+          & S.toList
+      let countErrors =
+            if actualCount /= fromIntegral chunkEntriesCount
+              then [EntryCountMismatch chunkEntriesCount actualCount]
+              else []
+      let checksumError =
+            if computedHash /= chunkHash
+              then [ChecksumMismatch chunkHash computedHash]
+              else []
+      pure (formatErrors <> countErrors <> checksumError)
 
   pure
     ChunkCheckResult
       { chunkSeqNum = chunkSeq
       , chunkNamespaceName = chunkNamespace
       , chunkIsKnown = isKnown
-      , chunkErrors = checksumError <> dataErrors
+      , chunkErrors = dataErrors
       }
 
 validateAgainst :: forall n. CTreeRoot MonoReferenced -> (Int, GenericCBOREntry n) -> Maybe CheckError

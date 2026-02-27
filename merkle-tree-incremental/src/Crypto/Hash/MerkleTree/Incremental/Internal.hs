@@ -9,8 +9,7 @@ Stability   : experimental
 module Crypto.Hash.MerkleTree.Incremental.Internal
 where
 
-import Crypto.Hash (Digest, HashAlgorithm, hash, hashFinalize, hashInit, hashUpdate, hashUpdates)
-import Data.ByteArray (ByteArrayAccess)
+import Crypto.Hash (Context, Digest, HashAlgorithm, hashFinalize, hashInit, hashUpdate, hashUpdates)
 import Data.ByteString qualified as B
 
 -- ----------------------------------------------------------------
@@ -39,22 +38,6 @@ data MerkleTree a
   | -- | A tree with the given root hash
     MerkleTreeRoot !(MerkleHash a)
   deriving (Show, Eq)
-
-{- | Compute the hash for a leaf node (single element).
-
-This function creates a hash for leaf nodes by:
-
-1. Initializing a hash context
-2. Adding a prefix byte 1 to distinguish leaves from internal nodes
-3. Adding the element data
-4. Finalizing the hash
-
-The prefix byte ensures that leaf hashes are distinct from internal node
-hashes, preventing certain types of attacks on the tree structure.
--}
-leafHash :: (HashAlgorithm a, ByteArrayAccess b1, ByteArrayAccess b2) => b1 -> b2 -> MerkleHash a
-leafHash prefix b =
-  hashFinalize $ flip hashUpdate b $ flip hashUpdate prefix $ hashUpdate hashInit $ B.singleton 1
 
 {- | Compute the hash for an internal node from two child hashes.
 
@@ -113,6 +96,14 @@ data MerkleTreeStateNode a = MerkleTreeStateNode
   }
   deriving (Show)
 
+{- This context has the prefix byte for leaf nodes already applied.
+The prefix byte ensures that leaf hashes are distinct from internal node
+hashes, preventing certain types of attacks on the tree structure.
+-}
+leafHashInit :: (HashAlgorithm a) => Context a
+leafHashInit =
+  hashUpdate hashInit $ B.singleton 1
+
 -- | Add a precomputed leaf hash to the incremental Merkle tree construction.
 addLeafHash ::
   (HashAlgorithm a) =>
@@ -123,7 +114,7 @@ addLeafHash ::
   -- | The updated tree construction state with the element incorporated
   MerkleTreeState a
 addLeafHash (MerkleTreeState state) cHash =
-  MerkleTreeState (MerkleTreeStateNode{cLevel = 0, cHash} : state)
+  join (MerkleTreeState (MerkleTreeStateNode{cLevel = 0, cHash} : state))
 
 {- | Combine adjacent subtrees of the same level in the construction state.
 

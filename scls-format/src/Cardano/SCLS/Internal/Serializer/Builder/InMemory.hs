@@ -22,15 +22,15 @@ module Cardano.SCLS.Internal.Serializer.Builder.InMemory (
   BuilderMachine (..),
 ) where
 
-import Cardano.SCLS.Internal.Hash
+import Cardano.SCLS.Internal.Hash (Digest (..))
 import Control.Monad.Primitive
-import Crypto.Hash (Blake2b_224 (Blake2b_224))
+import Crypto.Hash (Blake2b_224 (Blake2b_224), Context, hash, hashFinalize, hashInit, hashUpdate)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
+import Crypto.Hash.MerkleTree.Incremental.Internal qualified as MT
 import Data.MemPack
 import Data.MemPack.Extra
 
 import Data.ByteArray (ByteArrayAccess)
-import Data.ByteString (ByteString)
 import Data.Kind (Type)
 import Data.Primitive.ByteArray
 import Data.Typeable
@@ -49,12 +49,13 @@ class BuilderItem item where
   bItemEntriesCount :: item -> Int
 
   -- | Construct an item from build parameters, data and entry count
-  bMkItem :: Parameters item -> ByteArray -> Int -> item
+  bMkItem :: Parameters item -> ByteArray -> Int -> Digest -> item
 
   -- | Encode an entry for the item using the provided parameters
   bEncodeEntry :: (MemPack a, Typeable a) => Parameters item -> a -> a
 
-  bHashPrefix :: Parameters item -> ByteString
+  -- | Compute the digest for an entry
+  bEntryDigest :: (ByteArrayAccess b) => Parameters item -> b -> Digest
 
 -- | Command for the state machine
 data Command item type_ where
@@ -94,7 +95,7 @@ mkMachine bufferSize params = do
   storage <- newPinnedByteArray bufferSize
 
   -- Use fix? We love fixed point combinators do we not?
-  let machine (!entriesCount :: Int) (!offset :: Int) !merkleTreeState =
+  let machine (!entriesCount :: Int) (!offset :: Int) !chunkHashCtx !merkleTreeState =
         BuilderMachine
           { interpretCommand = \case
               Finalize -> do
@@ -104,36 +105,39 @@ mkMachine bufferSize params = do
                     pure (final, Nothing)
                   else do
                     frozenData <- freezeByteArrayPinned storage 0 offset
-                    pure (final, Just (bMkItem params frozenData entriesCount))
+                    let chunkHash = Digest $ hashFinalize chunkHashCtx
+                    pure (final, Just (bMkItem params frozenData entriesCount chunkHash))
               Append (input :: a) -> do
                 let entry = Entry $ bEncodeEntry @item params input
                     l = packedByteCount entry
-                    hashPrefix = bHashPrefix @item params
                 if offset + l <= bufferSize -- if we fit the current buffer we just need to write data and continue
                   then do
-                    (merkleTreeState', newOffset) <-
-                      unsafeAppendEntryToBuffer hashPrefix merkleTreeState storage offset entry
-                    pure (machine (entriesCount + 1) newOffset merkleTreeState', [])
+                    (chunkHashCtx', merkleTreeState', newOffset) <-
+                      unsafeAppendEntryToBuffer (bEntryDigest @item params) chunkHashCtx merkleTreeState storage offset entry
+                    pure (machine (entriesCount + 1) newOffset chunkHashCtx' merkleTreeState', [])
                   else do
                     -- We have no space in the current buffer, so we need to emit it first
                     frozenBuffer <- freezeByteArrayPinned storage 0 offset
+                    let frozenBufferDigest = Digest $ hashFinalize chunkHashCtx
+                        frozenDataToEmit = (frozenBuffer, entriesCount, frozenBufferDigest)
                     if l > bufferSize
                       then do
                         let !tmpBuffer = pack entry
-                            !merkleTreeState' = MT.addWithPrefix merkleTreeState hashPrefix (uncheckedByteArrayEntryContents @(Entry a) tmpBuffer)
+                            Digest !entryDigest = bEntryDigest @item params (uncheckedByteArrayEntryContents @a tmpBuffer)
+                            !merkleTreeState' = MT.addLeafHash merkleTreeState entryDigest
                         return
-                          ( machine 0 0 merkleTreeState'
-                          , mkDataToEmit [(params, frozenBuffer, entriesCount), (params, tmpBuffer, 1)]
+                          ( machine 0 0 hashInit merkleTreeState'
+                          , mkDataToEmit params [frozenDataToEmit, (tmpBuffer, 1, Digest $ hash entryDigest)]
                           )
                       else do
-                        (merkleTreeState', newOffset) <-
-                          unsafeAppendEntryToBuffer hashPrefix merkleTreeState storage 0 entry
+                        (chunkHashCtx', merkleTreeState', newOffset) <-
+                          unsafeAppendEntryToBuffer (bEntryDigest @item params) hashInit merkleTreeState storage 0 entry
                         pure
-                          ( machine 1 newOffset merkleTreeState'
-                          , mkDataToEmit [(params, frozenBuffer, entriesCount)]
+                          ( machine 1 newOffset chunkHashCtx' merkleTreeState'
+                          , mkDataToEmit params [frozenDataToEmit]
                           )
           }
-  return $! machine 0 0 (MT.empty Blake2b_224)
+  return $! machine 0 0 (hashInit @Blake2b_224) (MT.empty Blake2b_224)
 
 {- | Freeze a bytearray to the pinned immutable bytearray by copying its contents.
 
@@ -145,15 +149,16 @@ freezeByteArrayPinned !src !off !len = do
   copyMutableByteArray dst 0 src off len
   unsafeFreezeByteArray dst
 
-unsafeAppendEntryToBuffer :: forall u b. (MemPack (Entry u), Typeable u, MemPackHeaderOffset u, ByteArrayAccess b) => b -> MT.MerkleTreeState Blake2b_224 -> MutableByteArray (PrimState IO) -> Int -> Entry u -> IO (MT.MerkleTreeState Blake2b_224, Int)
-unsafeAppendEntryToBuffer hashPrefix !merkleTreeState !storage !offset u = do
+unsafeAppendEntryToBuffer :: forall u. (MemPack (Entry u), Typeable u, MemPackHeaderOffset u) => (CStringLenBuffer -> Digest) -> Context Blake2b_224 -> MT.MerkleTreeState Blake2b_224 -> MutableByteArray (PrimState IO) -> Int -> Entry u -> IO (Context Blake2b_224, MT.MerkleTreeState Blake2b_224, Int)
+unsafeAppendEntryToBuffer entryDigest !chunkHashCtx !merkleTreeState !storage !offset u = do
   newOffset <- unsafeAppendToBuffer storage offset u
   let l = newOffset - offset
       headerOffset = headerSizeOffset @(Entry u)
-  merkleTreeState' <- withMutableByteArrayContents storage $ \ptr -> do
+  (chunkHashCtx', merkleTreeState') <- withMutableByteArrayContents storage $ \ptr -> do
     let csb = CStringLenBuffer (ptr `plusPtr` (offset + headerOffset), l - headerOffset)
-    return $! MT.addWithPrefix merkleTreeState hashPrefix csb
-  return (merkleTreeState', newOffset)
+        Digest entryHash = entryDigest csb
+    return $! (hashUpdate chunkHashCtx entryHash, MT.addLeafHash merkleTreeState entryHash)
+  return (chunkHashCtx', merkleTreeState', newOffset)
 
 {- | Helper to get access to the entry contents.
 This method should be used on the pinned 'ByteArray' only, but the function does
@@ -177,15 +182,15 @@ unsafeAppendToBuffer !storage !offset u = stToPrim $ do
     runStateT (runPack (packM u) uInST) offset
   pure offset'
 
-{- | Helper to create the list of items to emit from the list of
-  (data, count) tuples.
+{- | Helper to create the list of items to emit from a set of parameters and the list of
+  (data, count, digest) tuples.
 
   This function filters out items with 0 entries.
 -}
-mkDataToEmit :: (BuilderItem item) => [(Parameters item, ByteArray, Int)] -> [item]
-mkDataToEmit = mkDataToEmit' []
+mkDataToEmit :: (BuilderItem item) => Parameters item -> [(ByteArray, Int, Digest)] -> [item]
+mkDataToEmit params = mkDataToEmit' []
  where
   mkDataToEmit' acc [] = reverse acc
-  mkDataToEmit' acc ((_, _, 0) : xs) = mkDataToEmit' acc xs
-  mkDataToEmit' acc ((params, u, count) : xs) =
-    mkDataToEmit' (bMkItem params u count : acc) xs
+  mkDataToEmit' acc ((_, 0, _) : xs) = mkDataToEmit' acc xs
+  mkDataToEmit' acc ((u, count, digest) : xs) =
+    mkDataToEmit' (bMkItem params u count digest : acc) xs
