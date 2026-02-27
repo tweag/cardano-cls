@@ -35,7 +35,6 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
 import Codec.CBOR.Cuddle.Huddle (toCDDL)
 import Codec.CBOR.Cuddle.IndexMappable (mapCDDLDropExt, mapIndex)
 import Control.Monad (replicateM)
-import Control.Monad.IO.Class (liftIO)
 import Control.Monad.Trans.Resource (ResIO, runResourceT)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Data.Function ((&))
