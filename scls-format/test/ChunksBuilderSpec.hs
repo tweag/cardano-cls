@@ -9,7 +9,7 @@ import Cardano.SCLS.Internal.Hash (Digest (..))
 
 import Cardano.SCLS.Internal.Record.Chunk
 import Cardano.SCLS.Internal.Serializer.ChunksBuilder.InMemory
-import Cardano.Types.Namespace (asBytes)
+import Cardano.Types.Namespace (Namespace, asBytes)
 import Control.Monad
 import Crypto.Hash (hash, hashFinalize, hashInit, hashUpdate)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
@@ -28,8 +28,11 @@ import Test.Hspec.QuickCheck
 import Test.QuickCheck
 import TestEntry (TestEntry (TestEntry), TestUTxO (..), chunkEntryFromUTxO)
 
+testNamespace :: Namespace
+testNamespace = "test"
+
 mkMachine' :: Int -> IO BuilderMachine
-mkMachine' = flip mkMachine ("test", ChunkFormatRaw)
+mkMachine' = flip mkMachine (testNamespace, ChunkFormatRaw)
 
 chunksBuilderTests :: Spec
 chunksBuilderTests =
