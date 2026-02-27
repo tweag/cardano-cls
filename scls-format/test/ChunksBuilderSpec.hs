@@ -90,9 +90,11 @@ bufferBoundaryTests =
       forAll bufferFittingChunks $ \(bufferLength, chunkLengths) -> do
         machine <- mkMachine' bufferLength
         let entries = map (RawBytes . flip BS.replicate 0x43) chunkLengths
-        (_machine, emittedChunks) <-
+        (machine', emittedChunks) <-
           foldAppendChunks machine entries
         annotate "no chunks should be emitted since all data fits" $ length emittedChunks `shouldBe` 0
+        validateRootHash entries machine'
+        validateChunksHashes entries emittedChunks
 
     prop "should not emit chunk when data exactly fills buffer, only after" $
       forAll bufferFillingChunks $ \(bufferLength, chunkLengths) ->
@@ -102,14 +104,18 @@ bufferBoundaryTests =
           (machine', emittedChunks) <-
             foldAppendChunks machine entries
           annotate "after appending exact fit data should not emit" $ length emittedChunks `shouldBe` 0
+          validateRootHash entries machine'
+          validateChunksHashes entries emittedChunks
           let oneByteData = RawBytes (BS.singleton 0x45)
-          (_machine, chunks') <- interpretCommand machine' (Append oneByteData)
+          (machine'', chunks') <- interpretCommand machine' (Append oneByteData)
           case chunks' of
             [chunk] -> do
               chunkItemEntriesCount chunk `shouldBe` length chunkLengths
               chunkItemFormat chunk `shouldBe` ChunkFormatRaw
               (sizeofByteArray $ chunkItemData chunk) `shouldBe` (sum chunkLengths + 4 * length chunkLengths)
             l -> length l `shouldBe` 1
+          validateRootHash (entries ++ [oneByteData]) machine''
+          validateChunksHashes (entries ++ [oneByteData]) chunks'
 
     describe "oversized append when buffer empty" $ do
       forM_ [0, 1, 4, 31, 128] $ \chunkDataLength -> do
@@ -117,12 +123,14 @@ bufferBoundaryTests =
           let bufferLength = chunkDataLength + 3
           machine <- mkMachine' bufferLength
           let chunkData = RawBytes (BS.replicate chunkDataLength 0x46)
-          (_machine, chunks) <- interpretCommand machine (Append chunkData)
+          (machine', chunks) <- interpretCommand machine (Append chunkData)
           case chunks of
             [oversizedChunk] -> do
               annotate "oversized chunk should have one entry" $ chunkItemEntriesCount oversizedChunk `shouldBe` 1
               annotate "oversized chunk size should match input size" $ (sizeofByteArray $ chunkItemData oversizedChunk) `shouldBe` chunkDataLength + 4
             l -> annotate "should emit one chunk" $ length l `shouldBe` 1
+          validateRootHash [chunkData] machine'
+          validateChunksHashes [chunkData] chunks
 
     prop "should emit oversized chunk and buffer when buffer is not empty" $
       forAll bufferFittingAndOversizedChunks $
@@ -133,10 +141,12 @@ bufferBoundaryTests =
           (machine', chunks) <- interpretCommand machine (Append smallData)
           annotate "after adding small data should not emit" $
             length chunks `shouldBe` 0
+          validateRootHash [smallData] machine'
+          validateChunksHashes [smallData] chunks
 
           -- Now add oversized data
           let largeData = RawBytes (BS.replicate largeDataLength 0x48)
-          (_machine, chunks') <- interpretCommand machine' (Append largeData)
+          (machine'', chunks') <- interpretCommand machine' (Append largeData)
           case chunks' of
             [firstChunk, secondChunk] -> do
               -- First chunk should contain the small data
@@ -146,6 +156,8 @@ bufferBoundaryTests =
               annotate "second chunk should have correct entries count" $ chunkItemEntriesCount secondChunk `shouldBe` 1
               annotate "second chunk data should match large input size" $ (sizeofByteArray $ chunkItemData secondChunk) `shouldBe` largeDataLength + 4
             l -> annotate "after adding oversized data should emit two chunks" $ length l `shouldBe` 2
+          validateRootHash [smallData, largeData] machine''
+          validateChunksHashes [smallData, largeData] chunks'
 
     it "should handle multiple boundary crossings correctly" $ do
       let bufferLength = 50
@@ -162,6 +174,7 @@ bufferBoundaryTests =
       -- First add: 0 + 26 = 26, fits (total = 26)
       annotate "first addition" $ do
         annotate "should not emit" $ length chunks1 `shouldBe` 0
+        validateRootHash [dataChunk1] machine1
 
       (machine2, chunks2) <- interpretCommand machine1 (Append dataChunk1)
       -- Second add: 26 + 26 = 52 > 50, so emit buffer with one entry (total = 26)
@@ -173,11 +186,14 @@ bufferBoundaryTests =
             annotate "should emit one chunk with one entry" $ chunkItemEntriesCount chunk `shouldBe` 1
             validateChunkDataSize chunkEntries chunk
           l -> annotate "should emit one chunk" $ length l `shouldBe` 1
+        validateRootHash [dataChunk1, dataChunk1] machine2
+        validateChunksHashes [dataChunk1] chunks2
 
       (machine3, chunks3) <- interpretCommand machine2 (Append dataChunk2)
       -- Third add: 26 + 14 = 40, fits (total = 40)
       annotate "third addition" $ do
         annotate "should not emit" $ length chunks3 `shouldBe` 0
+        validateRootHash [dataChunk1, dataChunk1, dataChunk2] machine3
 
       (machine4, chunks4) <- interpretCommand machine3 (Append dataChunk2)
       -- Fourth add: 40 + 14 = 54 > 50, so emit buffer with two entries (total = 40)
@@ -189,16 +205,20 @@ bufferBoundaryTests =
             annotate "should emit one chunk with two entries" $ chunkItemEntriesCount chunk `shouldBe` 2
             validateChunkDataSize chunkEntries chunk
           l -> annotate "should emit one chunk" $ length l `shouldBe` 1
+        validateRootHash [dataChunk1, dataChunk1, dataChunk2, dataChunk2] machine4
+        validateChunksHashes [dataChunk1, dataChunk2] chunks4
 
       (machine5, chunks5) <- interpretCommand machine4 (Append dataChunk2)
       -- Fifth add: 14 + 14 = 28, fits (total = 28)
       annotate "fifth addition" $ do
         annotate "should not emit" $ length chunks5 `shouldBe` 0
+        validateRootHash [dataChunk1, dataChunk1, dataChunk2, dataChunk2, dataChunk2] machine5
 
       (machine6, chunks6) <- interpretCommand machine5 (Append dataChunk2)
       -- Sixth add: 28 + 14 = 42, fits (total = 42)
       annotate "sixth addition" $ do
         annotate "should not emit" $ length chunks6 `shouldBe` 0
+        validateRootHash [dataChunk1, dataChunk1, dataChunk2, dataChunk2, dataChunk2, dataChunk2] machine6
       (_digest, finalChunk) <- interpretCommand machine6 Finalize
       annotate "final chunk" $ do
         let chunkEntries = [dataChunk2, dataChunk2, dataChunk2]
@@ -206,6 +226,7 @@ bufferBoundaryTests =
           Just chunk -> do
             annotate "should have three entries" $ chunkItemEntriesCount chunk `shouldBe` 3
             validateChunkDataSize chunkEntries chunk
+            validateChunkHash chunkEntries chunk
           Nothing -> assertFailure "Expected final chunk on finalization"
 
     describe "zero buffer length should always emit" $
@@ -214,12 +235,14 @@ bufferBoundaryTests =
           let bufferLength = 0
           let dataChunk = RawBytes (BS.replicate dataChunkLength 0x4B)
           machine <- mkMachine' bufferLength
-          (_machine', chunks) <- interpretCommand machine (Append dataChunk)
+          (machine', chunks) <- interpretCommand machine (Append dataChunk)
           case chunks of
             [chunk] -> do
               annotate "should emit one chunk with one entry" $ chunkItemEntriesCount chunk `shouldBe` 1
               annotate "chunk data size should match" $ (sizeofByteArray $ chunkItemData chunk) `shouldBe` dataChunkLength + 4
             l -> annotate "should emit one chunk" $ length l `shouldBe` 1
+          validateRootHash [dataChunk] machine'
+          validateChunksHashes [dataChunk] chunks
 
 finalizationTests :: Spec
 finalizationTests =
@@ -298,3 +321,37 @@ validateChunkDataSize entries chunk =
  where
   computedSize = sizeofByteArray $ chunkItemData chunk
   expectedSize = sum (map (\(RawBytes b) -> BS.length b + 4) entries)
+
+validateRootHash :: [RawBytes] -> BuilderMachine -> IO ()
+validateRootHash entries machine = do
+  (computedRootHash, _) <- interpretCommand machine Finalize
+  let expectedRootHash =
+        Digest $
+          MT.merkleRootHash $
+            MT.finalize $
+              foldl'
+                ( \acc (RawBytes b) ->
+                    MT.add acc $ asBytes testNamespace <> b
+                )
+                (MT.empty undefined)
+                entries
+  annotate "root hash should match expected" $ computedRootHash `shouldBe` expectedRootHash
+
+validateChunkHash :: [RawBytes] -> ChunkItem -> IO ()
+validateChunkHash entries (ChunkItem{..}) = do
+  let expectedChunkHash =
+        Digest $
+          hashFinalize $
+            foldl'
+              (\acc (RawBytes b) -> hashUpdate acc $ entryDigest testNamespace b)
+              (hashInit)
+              entries
+  annotate "chunk item hash should match expected" $ chunkItemHash `shouldBe` expectedChunkHash
+
+validateChunksHashes :: [RawBytes] -> [ChunkItem] -> IO ()
+validateChunksHashes =
+  foldM_ $
+    \entries chunkItem -> do
+      let (chunkEntries, remainingEntries) = splitAt (chunkItemEntriesCount chunkItem) entries
+      validateChunkHash chunkEntries chunkItem
+      pure remainingEntries
