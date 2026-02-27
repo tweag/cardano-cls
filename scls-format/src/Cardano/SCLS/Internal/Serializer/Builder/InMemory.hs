@@ -95,7 +95,7 @@ mkMachine bufferSize params = do
   storage <- newPinnedByteArray bufferSize
 
   -- Use fix? We love fixed point combinators do we not?
-  let machine (!entriesCount :: Int) (!offset :: Int) (chunkHashCtx, !merkleTreeState) =
+  let machine (!entriesCount :: Int) (!offset :: Int) chunkHashCtx !merkleTreeState =
         BuilderMachine
           { interpretCommand = \case
               Finalize -> do
@@ -114,30 +114,30 @@ mkMachine bufferSize params = do
                   then do
                     (chunkHashCtx', merkleTreeState', newOffset) <-
                       unsafeAppendEntryToBuffer (bEntryDigest @item params) chunkHashCtx merkleTreeState storage offset entry
-                    pure (machine (entriesCount + 1) newOffset (chunkHashCtx', merkleTreeState'), [])
+                    pure (machine (entriesCount + 1) newOffset chunkHashCtx' merkleTreeState', [])
                   else do
                     -- We have no space in the current buffer, so we need to emit it first
                     frozenBuffer <- freezeByteArrayPinned storage 0 offset
+                    let frozenBufferDigest = Digest $ hashFinalize chunkHashCtx
+                        frozenDataToEmit = (frozenBuffer, entriesCount, frozenBufferDigest)
                     if l > bufferSize
                       then do
                         let !tmpBuffer = pack entry
                             Digest !entryDigest = bEntryDigest @item params (uncheckedByteArrayEntryContents @a tmpBuffer)
-                            !frozenBufferDigest = Digest $ hashFinalize chunkHashCtx
                             !merkleTreeState' = MT.addLeafHash merkleTreeState entryDigest
                         return
-                          ( machine 0 0 (hashInit, merkleTreeState')
-                          , mkDataToEmit [(params, frozenBuffer, entriesCount, frozenBufferDigest), (params, tmpBuffer, 1, Digest $ hash entryDigest)]
+                          ( machine 0 0 hashInit merkleTreeState'
+                          , mkDataToEmit params [frozenDataToEmit, (tmpBuffer, 1, Digest $ hash entryDigest)]
                           )
                       else do
                         (chunkHashCtx', merkleTreeState', newOffset) <-
-                          unsafeAppendEntryToBuffer (bEntryDigest @item params) chunkHashCtx merkleTreeState storage 0 entry
-                        let !chunkHash = Digest $ hashFinalize chunkHashCtx'
+                          unsafeAppendEntryToBuffer (bEntryDigest @item params) hashInit merkleTreeState storage 0 entry
                         pure
-                          ( machine 1 newOffset (chunkHashCtx', merkleTreeState')
-                          , mkDataToEmit [(params, frozenBuffer, entriesCount, chunkHash)]
+                          ( machine 1 newOffset chunkHashCtx' merkleTreeState'
+                          , mkDataToEmit params [frozenDataToEmit]
                           )
           }
-  return $! machine 0 0 (hashInit @Blake2b_224, MT.empty Blake2b_224)
+  return $! machine 0 0 (hashInit @Blake2b_224) (MT.empty Blake2b_224)
 
 {- | Freeze a bytearray to the pinned immutable bytearray by copying its contents.
 
@@ -182,15 +182,15 @@ unsafeAppendToBuffer !storage !offset u = stToPrim $ do
     runStateT (runPack (packM u) uInST) offset
   pure offset'
 
-{- | Helper to create the list of items to emit from the list of
-  (data, count) tuples.
+{- | Helper to create the list of items to emit from a set of parameters and the list of
+  (data, count, digest) tuples.
 
   This function filters out items with 0 entries.
 -}
-mkDataToEmit :: (BuilderItem item) => [(Parameters item, ByteArray, Int, Digest)] -> [item]
-mkDataToEmit = mkDataToEmit' []
+mkDataToEmit :: (BuilderItem item) => Parameters item -> [(ByteArray, Int, Digest)] -> [item]
+mkDataToEmit params = mkDataToEmit' []
  where
   mkDataToEmit' acc [] = reverse acc
-  mkDataToEmit' acc ((_, _, 0, _) : xs) = mkDataToEmit' acc xs
-  mkDataToEmit' acc ((params, u, count, digest) : xs) =
+  mkDataToEmit' acc ((_, 0, _) : xs) = mkDataToEmit' acc xs
+  mkDataToEmit' acc ((u, count, digest) : xs) =
     mkDataToEmit' (bMkItem params u count digest : acc) xs
