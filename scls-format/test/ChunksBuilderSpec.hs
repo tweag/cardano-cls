@@ -89,16 +89,18 @@ bufferBoundaryTests =
     prop "should not emit chunks when data fits" $
       forAll bufferFittingChunks $ \(bufferLength, chunkLengths) -> do
         machine <- mkMachine' bufferLength
+        let entries = map (RawBytes . flip BS.replicate 0x43) chunkLengths
         (_machine, emittedChunks) <-
-          foldAppendChunks machine (map (RawBytes . flip BS.replicate 0x43) chunkLengths)
+          foldAppendChunks machine entries
         annotate "no chunks should be emitted since all data fits" $ length emittedChunks `shouldBe` 0
 
     prop "should not emit chunk when data exactly fills buffer, only after" $
       forAll bufferFillingChunks $ \(bufferLength, chunkLengths) ->
         do
           machine <- mkMachine' bufferLength
+          let entries = map (RawBytes . flip BS.replicate 0x43) chunkLengths
           (machine', emittedChunks) <-
-            foldAppendChunks machine (map (RawBytes . flip BS.replicate 0x43) chunkLengths)
+            foldAppendChunks machine entries
           annotate "after appending exact fit data should not emit" $ length emittedChunks `shouldBe` 0
           let oneByteData = RawBytes (BS.singleton 0x45)
           (_machine, chunks') <- interpretCommand machine' (Append oneByteData)
@@ -158,44 +160,53 @@ bufferBoundaryTests =
 
       (machine1, chunks1) <- interpretCommand machine (Append dataChunk1)
       -- First add: 0 + 26 = 26, fits (total = 26)
-      annotate "first addition should not emit" $ length chunks1 `shouldBe` 0
+      annotate "first addition" $ do
+        annotate "should not emit" $ length chunks1 `shouldBe` 0
 
       (machine2, chunks2) <- interpretCommand machine1 (Append dataChunk1)
       -- Second add: 26 + 26 = 52 > 50, so emit buffer with one entry (total = 26)
       -- Start new buffer with new data (total = 26)
-      case chunks2 of
-        [chunk] -> do
-          annotate "second addition should emit one chunk with one entry" $ chunkItemEntriesCount chunk `shouldBe` 1
-          annotate "chunk data size should match" $ (sizeofByteArray $ chunkItemData chunk) `shouldBe` dataChunk1Length + 4
-        l -> annotate "second addition should emit one chunk" $ length l `shouldBe` 1
+      annotate "second addition" $ do
+        let chunkEntries = [dataChunk1]
+        case chunks2 of
+          [chunk] -> do
+            annotate "should emit one chunk with one entry" $ chunkItemEntriesCount chunk `shouldBe` 1
+            validateChunkDataSize chunkEntries chunk
+          l -> annotate "should emit one chunk" $ length l `shouldBe` 1
 
       (machine3, chunks3) <- interpretCommand machine2 (Append dataChunk2)
       -- Third add: 26 + 14 = 40, fits (total = 40)
-      annotate "third addition should not emit" $ length chunks3 `shouldBe` 0
+      annotate "third addition" $ do
+        annotate "should not emit" $ length chunks3 `shouldBe` 0
 
       (machine4, chunks4) <- interpretCommand machine3 (Append dataChunk2)
       -- Fourth add: 40 + 14 = 54 > 50, so emit buffer with two entries (total = 40)
       -- Start new buffer with new data (total = 14)
-      case chunks4 of
-        [chunk] -> do
-          annotate "fourth addition should emit one chunk with two entries" $ chunkItemEntriesCount chunk `shouldBe` 2
-          annotate "chunk data size should match" $ (sizeofByteArray $ chunkItemData chunk) `shouldBe` (dataChunk1Length + 4 + dataChunk2Length + 4)
-        l -> annotate "fourth addition should emit one chunk" $ length l `shouldBe` 1
+      annotate "fourth addition" $ do
+        let chunkEntries = [dataChunk1, dataChunk2]
+        case chunks4 of
+          [chunk] -> do
+            annotate "should emit one chunk with two entries" $ chunkItemEntriesCount chunk `shouldBe` 2
+            validateChunkDataSize chunkEntries chunk
+          l -> annotate "should emit one chunk" $ length l `shouldBe` 1
 
       (machine5, chunks5) <- interpretCommand machine4 (Append dataChunk2)
       -- Fifth add: 14 + 14 = 28, fits (total = 28)
-      annotate "fifth addition should not emit" $ length chunks5 `shouldBe` 0
+      annotate "fifth addition" $ do
+        annotate "should not emit" $ length chunks5 `shouldBe` 0
 
       (machine6, chunks6) <- interpretCommand machine5 (Append dataChunk2)
       -- Sixth add: 28 + 14 = 42, fits (total = 42)
-      annotate "sixth addition should not emit" $ length chunks6 `shouldBe` 0
-
+      annotate "sixth addition" $ do
+        annotate "should not emit" $ length chunks6 `shouldBe` 0
       (_digest, finalChunk) <- interpretCommand machine6 Finalize
-      case finalChunk of
-        Just chunk -> do
-          annotate "final chunk should have three entries" $ chunkItemEntriesCount chunk `shouldBe` 3
-          annotate "final chunk data size should match" $ (sizeofByteArray $ chunkItemData chunk) `shouldBe` (dataChunk2Length + 4) * 3
-        Nothing -> assertFailure "Expected final chunk on finalization"
+      annotate "final chunk" $ do
+        let chunkEntries = [dataChunk2, dataChunk2, dataChunk2]
+        case finalChunk of
+          Just chunk -> do
+            annotate "should have three entries" $ chunkItemEntriesCount chunk `shouldBe` 3
+            validateChunkDataSize chunkEntries chunk
+          Nothing -> assertFailure "Expected final chunk on finalization"
 
     describe "zero buffer length should always emit" $
       forM_ [0, 1, 4, 64, 255] $ \dataChunkLength ->
@@ -280,3 +291,10 @@ hashTests =
                 (\m -> interpretCommand m Finalize)
           let expectedChunkHash = Digest $ hashFinalize $ foldl' (\acc -> hashUpdate acc . entryDigest ns . packByteString . chunkEntryFromUTxO) (hashInit) entries
           chunkItemHash `shouldBe` expectedChunkHash
+
+validateChunkDataSize :: [RawBytes] -> ChunkItem -> IO ()
+validateChunkDataSize entries chunk =
+  annotate "chunk data size should match" $ computedSize `shouldBe` expectedSize
+ where
+  computedSize = sizeofByteArray $ chunkItemData chunk
+  expectedSize = sum (map (\(RawBytes b) -> BS.length b + 4) entries)
