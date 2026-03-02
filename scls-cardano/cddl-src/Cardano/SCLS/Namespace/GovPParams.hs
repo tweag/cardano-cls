@@ -44,15 +44,15 @@ record_entry =
         |           cases:
         |             '"prev"': kprev
         |             '"curr"': kcurr
-        |             '"fut0"': kfut0
-        |             '"fut1"': kfut1
+        |             '"fut0"': pfut
+        |             '"fut1"': dfut
         |   kprev:
         |     doc: previous values
         |   kcurr:
         |     doc: current values
-        |   kfut0:
+        |   pfut:
         |     doc: possible future
-        |   kfut1:
+        |   dfut:
         |     doc: definitive future
         | ```
         |
