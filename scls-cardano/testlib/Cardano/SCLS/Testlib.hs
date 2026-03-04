@@ -51,7 +51,6 @@ type ConstrNS a = (KnownNamespace a, Arbitrary (NamespaceEntry a), Eq (Namespace
 testAllNS ::
   ( ConstrNS "blocks/v0"
   , ConstrNS "utxo/v0"
-  , ConstrNS "pool_stake/v0"
   , ConstrNS "snapshots/v0"
   , ConstrNS "gov/committee/v0"
   , ConstrNS "gov/constitution/v0"
@@ -62,7 +61,6 @@ testAllNS ::
 testAllNS = describe "scls/conformance" $ do
   testNS @"blocks/v0"
   testNS @"utxo/v0"
-  testNS @"pool_stake/v0"
   testNS @"snapshots/v0"
   testNS @"gov/committee/v0"
   testNS @"gov/constitution/v0"
