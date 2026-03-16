@@ -52,6 +52,9 @@ record_entry =
         |     seq:
         |       - id: keyhash_data
         |         size: 28
+        |       - id: dummy
+        |         type: u1
+        |         const: 0
         |
         | enums:
         |   snapshot_value:
