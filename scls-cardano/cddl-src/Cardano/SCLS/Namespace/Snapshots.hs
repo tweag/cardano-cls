@@ -73,9 +73,9 @@ record_key =
 snapshot_out :: Rule
 snapshot_out =
   comment
-    [str| Value maybe be one of the following:
+    [str| Value may be one of the following:
          |  - Coin value
-         |  - Keyhash of an delegation address
+         |  - Keyhash of a delegation address
          |]
     $ "snapshot_out"
       =:= arr [0, a coin]
