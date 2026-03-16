@@ -39,7 +39,13 @@ instance KnownSpec "utxo/v0" where
 instance KnownSpec "blocks/v0" where
   namespaceSpec _ = mkDefinition Blocks.record_entry
 
-instance KnownSpec "snapshots/v0" where
+instance KnownSpec "snapshots/mark/v0" where
+  namespaceSpec _ = mkDefinition Snapshots.record_entry
+
+instance KnownSpec "snapshots/set/v0" where
+  namespaceSpec _ = mkDefinition Snapshots.record_entry
+
+instance KnownSpec "snapshots/go/v0" where
   namespaceSpec _ = mkDefinition Snapshots.record_entry
 
 instance KnownSpec "nonces/v0" where
@@ -68,7 +74,9 @@ knownNamespaces :: [SomeNamespaceSymbol]
 knownNamespaces =
   [ mkNamespaceSymbol @"utxo/v0"
   , mkNamespaceSymbol @"blocks/v0"
-  , mkNamespaceSymbol @"snapshots/v0"
+  , mkNamespaceSymbol @"snapshots/mark/v0"
+  , mkNamespaceSymbol @"snapshots/set/v0"
+  , mkNamespaceSymbol @"snapshots/go/v0"
   , mkNamespaceSymbol @"nonces/v0"
   , mkNamespaceSymbol @"gov/committee/v0"
   , mkNamespaceSymbol @"gov/constitution/v0"
@@ -79,7 +87,9 @@ knownNamespaces =
 type instance Spec.NamespaceKeySize "utxo/v0" = 34
 type instance Spec.NamespaceKeySize "blocks/v0" = 36 -- 28 bytes for key, and 8 for epoch in BE
 type instance Spec.NamespaceKeySize "nonces/v0" = 1 -- Just zero
-type instance Spec.NamespaceKeySize "snapshots/v0" = 32 -- 1 byte for hash type, 1 byte for stage, 29 bytes for hash (cred 29, key 28+1),  1 for value type
+type instance Spec.NamespaceKeySize "snapshots/mark/v0" = 31 -- 1 byte for hash type, 1 byte for padding, 29 bytes for hash (cred 29, key 28+1),  1 for value type
+type instance Spec.NamespaceKeySize "snapshots/set/v0" = 31 -- 1 byte for hash type, 1 byte for padding, 29 bytes for hash (cred 29, key 28+1),  1 for value type
+type instance Spec.NamespaceKeySize "snapshots/go/v0" = 31 -- 1 byte for hash type, 1 byte for padding, 29 bytes for hash (cred 29, key 28+1),  1 for value type
 type instance Spec.NamespaceKeySize "gov/committee/v0" = 8
 type instance Spec.NamespaceKeySize "gov/constitution/v0" = 8
 type instance Spec.NamespaceKeySize "gov/pparams/v0" = 4
