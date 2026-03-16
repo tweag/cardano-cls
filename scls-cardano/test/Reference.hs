@@ -65,7 +65,9 @@ allReferenceCDDLs =
   -- This should match the CDDL files listed in CIP-0165
   [ ("utxo/v0", "utxo_v0.cddl")
   , ("blocks/v0", "blocks_v0.cddl")
-  , ("snapshots/v0", "snapshots_v0.cddl")
+  , ("snapshots/mark/v0", "snapshots_mark_v0.cddl")
+  , ("snapshots/set/v0", "snapshots_set_v0.cddl")
+  , ("snapshots/go/v0", "snapshots_go_v0.cddl")
   , ("nonces/v0", "nonces_v0.cddl")
   , ("gov/committee/v0", "gov_committee_v0.cddl")
   , ("gov/constitution/v0", "gov_constitution_v0.cddl")
