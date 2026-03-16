@@ -72,7 +72,7 @@ library
     crypton,
     directory,
     filepath,
-    memory,
+    ram >=0.20.1,
     mempack-scls,
     merkle-tree-incremental,
     mtl,
