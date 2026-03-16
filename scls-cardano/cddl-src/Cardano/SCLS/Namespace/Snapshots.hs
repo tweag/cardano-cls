@@ -80,29 +80,3 @@ snapshot_out =
     $ "snapshot_out"
       =:= arr [0, a coin]
       / arr [1, a keyhash28]
-
-relay :: Rule
-relay =
-  "relay"
-    =:= sarr [0, a single_host_addr]
-    / sarr [1, a single_host_name]
-    / sarr [2, a multi_host_name]
-
-single_host_addr :: GroupDef
-single_host_addr =
-  comment [str| A single host address relay |] $
-    "single_host_addr"
-      =:~ grp
-        [ a (port / VNil)
-        , a (ipv4 / VNil)
-        , a (ipv6 / VNil)
-        ]
-
-single_host_name :: GroupDef
-single_host_name =
-  "single_host_name"
-    =:~ grp [a (port / VNil), a dns_name]
-
-multi_host_name :: GroupDef
-multi_host_name =
-  "multi_host_name" =:~ grp [a dns_name]
