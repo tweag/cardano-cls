@@ -39,9 +39,6 @@ record_entry =
         |           cases:
         |             0: credential
         |             1: keyhash
-        |       - id: stage
-        |         type: u1
-        |         enum: snapshot_value
         |       - id: value_type
         |         type: u1
         |         enum: snapshot_value
@@ -56,17 +53,13 @@ record_entry =
         |       - id: keyhash_data
         |         size: 28
         |       - id: dummy
-        |         size: 1
+        |         type: u1
+        |         const: 0
         |
         | enums:
-        |   snapshot_stage:
-        |     0: mark
-        |     1: set
-        |     2: go
         |   snapshot_value:
         |     0: coin
         |     1: address
-        |     2: pool_params
         | ```
         |]
     $ "record_entry" =:= snapshot_out
@@ -80,62 +73,10 @@ record_key =
 snapshot_out :: Rule
 snapshot_out =
   comment
-    [str| Value maybe be one of the following:
+    [str| Value may be one of the following:
          |  - Coin value
-         |  - Keyhash of an delegation address
-         |  - Pool parameters
+         |  - Keyhash of a delegation address
          |]
     $ "snapshot_out"
       =:= arr [0, a coin]
       / arr [1, a keyhash28]
-      / arr [2, a pool_params]
-
-pool_params :: Rule
-pool_params =
-  "pool_params"
-    =:= mp
-      [ "cost" ==> coin
-      , "margin" ==> unit_interval
-      , "pledge" ==> coin
-      , "relays" ==> arr [0 <+ a relay]
-      , "operator" ==> pool_keyhash
-      , "pool_owners" ==> set addr_keyhash
-      , "vrf_keyhash" ==> vrf_keyhash
-      , "pool_metadata" ==> (pool_metadata / VNil)
-      , "reward_account" ==> reward_account
-      ]
-
-network_id :: Rule
-network_id = "network_id" =:= int 0 / int 1
-
-relay :: Rule
-relay =
-  "relay"
-    =:= sarr [0, a single_host_addr]
-    / sarr [1, a single_host_name]
-    / sarr [2, a multi_host_name]
-
-single_host_addr :: GroupDef
-single_host_addr =
-  comment [str| A single host address relay |] $
-    "single_host_addr"
-      =:~ grp
-        [ a (port / VNil)
-        , a (ipv4 / VNil)
-        , a (ipv6 / VNil)
-        ]
-
-single_host_name :: GroupDef
-single_host_name =
-  "single_host_name"
-    =:~ grp [a (port / VNil), a dns_name]
-
-multi_host_name :: GroupDef
-multi_host_name =
-  "multi_host_name" =:~ grp [a dns_name]
-
-pool_metadata :: Rule
-pool_metadata = "pool_metadata" =:= arr [a url, a pool_metadata_hash]
-
-pool_metadata_hash :: Rule
-pool_metadata_hash = "pool_metadata_hash" =:= VBytes
