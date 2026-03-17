@@ -50,7 +50,8 @@ type ConstrNS a = (KnownNamespace a, Arbitrary (NamespaceEntry a), Eq (Namespace
 
 -- | Test all supported NS for conformance with SCLS.
 testAllNS ::
-  ( ConstrNS "blocks/v0"
+  ( ConstrNS "accounts/v0"
+  , ConstrNS "blocks/v0"
   , ConstrNS "utxo/v0"
   , ConstrNS "snapshots/go/v0"
   , ConstrNS "snapshots/mark/v0"
