@@ -48,6 +48,7 @@ in {
       fourmolu = fourmoluVersion;
       weeder = "2.10.0";
       cabal-gild = cabalGildVersion;
+      implicit-hie = "0.1.4.0";
     };
 
     # Non-Haskell shell tools go here
