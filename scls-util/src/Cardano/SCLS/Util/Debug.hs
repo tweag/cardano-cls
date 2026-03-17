@@ -76,12 +76,15 @@ generateDebugFile outputFile namespaceEntries = liftIO do
   pure Ok
 
 generateNamespaceEntries :: (KnownNat (NamespaceKeySize ns), MonadIO m, MonadFail m) => proxy ns -> Int -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry (NamespaceKeySize ns))) m ()
-generateNamespaceEntries (p :: proxy ns) count spec = replicateM_ count do
-  let size = namespaceKeySize @ns
-  keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
-  term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
-  Right canonicalTerm <- pure $ canonicalizeTerm p term
-  S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
+generateNamespaceEntries (p :: proxy ns) count spec =
+  ( replicateM_ count do
+      let size = namespaceKeySize @ns
+      keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
+      term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
+      Right canonicalTerm <- pure $ canonicalizeTerm p term
+      S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
+  )
+    & S.nubOrdOn (\(GenericCBOREntry e) -> chunkEntryKey e)
 
 printHexEntries :: (MonadIO m) => FilePath -> T.Text -> Int -> m Result
 printHexEntries filePath ns_name@(Namespace.fromText -> ns) entryNo = liftIO do
