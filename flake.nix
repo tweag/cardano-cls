@@ -34,7 +34,7 @@
 
         inherit (pkgs) lib;
 
-        supportedGhcVersions = [ "ghc910" "ghc912" ];
+        supportedGhcVersions = [ "ghc910" "ghc912" "ghc9141" ];
 
         referenceCDDLDir = pkgs.runCommand "reference-cddl" { } ''
           mkdir -p $out
