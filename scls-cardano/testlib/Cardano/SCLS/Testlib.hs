@@ -63,6 +63,7 @@ testAllNS ::
   ) =>
   Spec
 testAllNS = describe "scls/conformance" $ do
+  testNS @"accounts/v0"
   testNS @"blocks/v0"
   testNS @"utxo/v0"
   testNS @"snapshots/go/v0"
