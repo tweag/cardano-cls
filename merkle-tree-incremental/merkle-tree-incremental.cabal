@@ -40,8 +40,9 @@ library
   build-depends:
     base >=4.7 && <5,
     bytestring >=0.11.0.0,
-    crypton >=1.0.0 && <1.1.0,
-    memory >=0.18.0,
+    crypton >=1.1.0,
+    ram >=0.20.1,
+
 
   default-language: GHC2021
 
@@ -62,9 +63,9 @@ test-suite merkle-tree-incremental-test
   build-depends:
     base >=4.7 && <5,
     bytestring >=0.11.0.0,
-    crypton >=1.0.0,
+    crypton >=1.1.0,
     hspec,
-    memory,
+    ram,
     merkle-tree-incremental,
     quickcheck-instances,
 
