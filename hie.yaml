@@ -1,0 +1,52 @@
+cradle:
+  cabal:
+    - path: "mempack-scls/mempack-1.0"
+      component: "lib:mempack-scls"
+
+    - path: "mempack-scls/mempack-2.0"
+      component: "lib:mempack-scls"
+
+    - path: "merkle-tree-incremental/src"
+      component: "lib:merkle-tree-incremental"
+
+    - path: "merkle-tree-incremental/test"
+      component: "merkle-tree-incremental:test:merkle-tree-incremental-test"
+
+    - path: "scls-cardano/cddl-src"
+      component: "lib:scls-cardano"
+
+    - path: "scls-cardano/cddl-validate"
+      component: "scls-cardano:lib:validate"
+
+    - path: "scls-cardano/testlib"
+      component: "scls-cardano:lib:testlib"
+
+    - path: "scls-cardano/gen-cddl/Main.hs"
+      component: "scls-cardano:exe:gen-cddl"
+
+    - path: "scls-cardano/test"
+      component: "scls-cardano:test:scls-cardano-test"
+
+    - path: "scls-cbor/src"
+      component: "lib:scls-cbor"
+
+    - path: "scls-cbor/test"
+      component: "scls-cbor:test:scls-cbor-test"
+
+    - path: "scls-core/src"
+      component: "lib:scls-core"
+
+    - path: "scls-format/src"
+      component: "lib:scls-format"
+
+    - path: "scls-format/test"
+      component: "scls-format:test:scls-format-test"
+
+    - path: "scls-util/src"
+      component: "lib:scls-util"
+
+    - path: "scls-util/app/Main.hs"
+      component: "scls-util:exe:scls-util"
+
+    - path: "scls-util/test"
+      component: "scls-util:test:scls-util-test"
