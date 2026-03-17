@@ -43,6 +43,7 @@ library
     crypton >=1.1.0,
     ram >=0.20.1,
 
+
   default-language: GHC2021
 
 test-suite merkle-tree-incremental-test
