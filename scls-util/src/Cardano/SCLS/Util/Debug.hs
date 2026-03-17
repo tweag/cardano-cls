@@ -23,6 +23,7 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
 import Codec.CBOR.Cuddle.Huddle
 import Codec.CBOR.Cuddle.IndexMappable (IndexMappable (..), mapCDDLDropExt)
 import Control.Monad (replicateM_)
+import Data.List (sort)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Char8 qualified as B8
@@ -50,7 +51,7 @@ import Control.Monad.Trans.Resource (runResourceT)
 
 -- | Generate a scls file with random data for debugging purposes.
 generateDebugFile :: (MonadIO m) => FilePath -> [(Namespace, Maybe Int)] -> m Result
-generateDebugFile outputFile namespaceEntries = liftIO do
+generateDebugFile outputFile (sort -> namespaceEntries) = liftIO do
   _ <-
     runResourceT $
       External.serialize
