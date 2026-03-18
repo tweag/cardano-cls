@@ -8,6 +8,7 @@ module Cardano.SCLS.CDDL (
   knownNamespaces,
 ) where
 
+import Cardano.SCLS.Namespace.Accounts qualified as Accounts
 import Cardano.SCLS.Namespace.Blocks qualified as Blocks
 import Cardano.SCLS.Namespace.GovCommittee qualified as GovCommittee
 import Cardano.SCLS.Namespace.GovConstitution qualified as GovConstitution
@@ -32,6 +33,9 @@ import GHC.TypeLits (symbolVal)
 namespaceSymbolFromText :: Text -> Maybe SomeNamespaceSymbol
 namespaceSymbolFromText t =
   find (\ns -> T.pack (toString ns) == t) knownNamespaces
+
+instance KnownSpec "accounts/v0" where
+  namespaceSpec _ = mkDefinition Accounts.record_entry
 
 instance KnownSpec "utxo/v0" where
   namespaceSpec _ = mkDefinition UTxO.record_entry
@@ -72,7 +76,8 @@ knownNamespaceKeySizes =
 
 knownNamespaces :: [SomeNamespaceSymbol]
 knownNamespaces =
-  [ mkNamespaceSymbol @"utxo/v0"
+  [ mkNamespaceSymbol @"accounts/v0"
+  , mkNamespaceSymbol @"utxo/v0"
   , mkNamespaceSymbol @"blocks/v0"
   , mkNamespaceSymbol @"snapshots/mark/v0"
   , mkNamespaceSymbol @"snapshots/set/v0"
@@ -84,6 +89,7 @@ knownNamespaces =
   , mkNamespaceSymbol @"gov/proposals/v0"
   ]
 
+type instance Spec.NamespaceKeySize "accounts/v0" = 1
 type instance Spec.NamespaceKeySize "utxo/v0" = 34
 type instance Spec.NamespaceKeySize "blocks/v0" = 36 -- 28 bytes for key, and 8 for epoch in BE
 type instance Spec.NamespaceKeySize "nonces/v0" = 1 -- Just zero

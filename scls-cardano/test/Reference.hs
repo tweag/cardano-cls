@@ -63,7 +63,8 @@ loadReferenceCDDL path namespace = do
 allReferenceCDDLs :: [(Text, FilePath)]
 allReferenceCDDLs =
   -- This should match the CDDL files listed in CIP-0165
-  [ ("utxo/v0", "utxo_v0.cddl")
+  [ ("accounts/v0", "accounts_v0.cddl")
+  , ("utxo/v0", "utxo_v0.cddl")
   , ("blocks/v0", "blocks_v0.cddl")
   , ("snapshots/mark/v0", "snapshots_mark_v0.cddl")
   , ("snapshots/set/v0", "snapshots_set_v0.cddl")

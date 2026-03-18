@@ -122,6 +122,9 @@ int64 = "int64" =:= toInteger (minBound @Int64) ... toInteger (maxBound @Int64)
 word64 :: Rule
 word64 = "word64" =:= VUInt `sized` (8 :: Word)
 
+word64_non_zero :: Rule
+word64_non_zero = "word64_non_zero" =:= (1 :: Integer) ... toInteger (maxBound @Word64)
+
 -------------------------------------------------------------------------------
 -- Utility
 --------------------------------------------------------------------------------

@@ -11,7 +11,7 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
   inputs.cips = {
-    url = "github:tweag/CIPs/snapshot-update";
+    url = "github:tweag/CIPs/accounts";
     flake = false;
   };
   outputs =
