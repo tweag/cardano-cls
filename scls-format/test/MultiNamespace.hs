@@ -93,7 +93,7 @@ mkTestsFor serialize = do
             )
       nsps <- extractNamespaceList fileName
       annotate "Namespaces are in lexicographic order" do
-        nsps `shouldBe` sort nsps
+        nsps `shouldBe` ["gov/constitution/v0", "utxo/v0"]
 
 type SerializeF = FilePath -> SlotNo -> Map.Map String Int -> SerializationPlan RawBytes ResIO -> ResIO (Either [Namespace] ())
 
