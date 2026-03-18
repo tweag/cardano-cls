@@ -30,6 +30,7 @@ import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Char8 qualified as B8
 import Data.Function ((&))
 import Data.Functor ((<&>))
+import Data.List (sortOn)
 import Data.Maybe (fromMaybe)
 import Data.MemPack.Extra
 import Data.Text qualified as T
@@ -52,7 +53,7 @@ import Control.Monad.Trans.Resource (runResourceT)
 
 -- | Generate a scls file with random data for debugging purposes.
 generateDebugFile :: (MonadIO m) => FilePath -> Bool -> [(Namespace, Maybe Int)] -> m Result
-generateDebugFile outputFile useRandomKeys namespaceEntries = liftIO do
+generateDebugFile outputFile useRandomKeys (sortOn fst -> namespaceEntries) = liftIO do
   _ <-
     runResourceT $
       External.serialize
@@ -80,15 +81,16 @@ generateDebugFile outputFile useRandomKeys namespaceEntries = liftIO do
 -- | Enumerate all byte strings of a given size in lexicographic order.
 enumerateKeys :: (Monad m) => Int -> S.Stream (S.Of BS.ByteString) m ()
 enumerateKeys size = S.unfoldr go 0
-  where
-    maxKey = 1 `shiftL` (8 * size) :: Integer
-    go i
-      | i >= maxKey = pure (Left ())
-      | otherwise = pure (Right (integerToByteString size i, i + 1))
+ where
+  maxKey = 1 `shiftL` (8 * size) :: Integer
+  go i
+    | i >= maxKey = pure (Left ())
+    | otherwise = pure (Right (integerToByteString size i, i + 1))
 
--- | Convert a non-negative integer to a big-endian byte string of exactly @n@ bytes.
--- Note: if @i >= 256^n@, the high bits of @i@ are silently discarded (overflow). This
--- cannot happen when called from 'enumerateKeys', where @i@ is always in @[0, 256^n)@.
+{- | Convert a non-negative integer to a big-endian byte string of exactly @n@ bytes.
+Note: if @i >= 256^n@, the high bits of @i@ are silently discarded (overflow). This
+cannot happen when called from 'enumerateKeys', where @i@ is always in @[0, 256^n)@.
+-}
 integerToByteString :: Int -> Integer -> BS.ByteString
 integerToByteString n i = BS.pack [fromIntegral ((i `shiftR` (8 * k)) .&. 0xFF) | k <- [n - 1, n - 2 .. 0]]
 
@@ -97,19 +99,19 @@ generateNamespaceEntries (p :: proxy ns) count useRandomKeys spec =
   keyStream
     & S.take count
     & S.mapM \keyIn -> do
-        term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
-        Right canonicalTerm <- pure $ canonicalizeTerm p term
-        pure $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
-  where
-    size = namespaceKeySize @ns
-    keyStream
-      | useRandomKeys =
-          ( forever $ do
-              keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
-              S.yield keyIn
-          )
-            & S.nubOrdOn id
-      | otherwise = enumerateKeys size
+      term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
+      Right canonicalTerm <- pure $ canonicalizeTerm p term
+      pure $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
+ where
+  size = namespaceKeySize @ns
+  keyStream
+    | useRandomKeys =
+        ( forever $ do
+            keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
+            S.yield keyIn
+        )
+          & S.nubOrdOn id
+    | otherwise = enumerateKeys size
 
 printHexEntries :: (MonadIO m) => FilePath -> T.Text -> Int -> m Result
 printHexEntries filePath ns_name@(Namespace.fromText -> ns) entryNo = liftIO do

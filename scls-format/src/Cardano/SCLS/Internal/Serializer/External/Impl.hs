@@ -20,6 +20,7 @@ import Control.Monad.ST (runST)
 import Data.ByteString qualified as B
 import Data.Function (fix, on, (&))
 
+import Data.List (sort)
 import Data.Map.Strict qualified as Map
 import Data.MemPack
 import Data.MemPack.Extra
@@ -201,7 +202,7 @@ sourceNs baseDir = DataStream do
     case Namespace.parseFilePath rawNs of
       Left e -> liftIO (throwIO e)
       Right ns -> pure ns
-  S.each ns & S.map (\n -> (n :> kMergeNs (baseDir </> Namespace.toFilePath n)))
+  S.each (sort ns) & S.map (\n -> (n :> kMergeNs (baseDir </> Namespace.toFilePath n)))
 
 {- | K-merge files from the multiple namespaces.
 

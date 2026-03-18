@@ -3,6 +3,7 @@
 module Main (main) where
 
 import ChecksumSpec
+import DebugSpec
 import DiffSpec
 import InfoSpec
 import MergeSpec
@@ -26,3 +27,4 @@ main = do
       diffCommandTests sclsUtilPath
       termDiffTests
       verifyCommandTests sclsUtilPath
+      debugCommandTests sclsUtilPath
