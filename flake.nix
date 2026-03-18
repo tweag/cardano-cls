@@ -34,7 +34,8 @@
 
         inherit (pkgs) lib;
 
-        supportedGhcVersions = [ "ghc910" "ghc912" ];
+        supportedGhcVersions =
+          [ "ghc967" "ghc984" "ghc9103" "ghc9122" "ghc9141" ];
 
         referenceCDDLDir = pkgs.runCommand "reference-cddl" { } ''
           mkdir -p $out
@@ -70,7 +71,29 @@
         project = cardanoCanonicalLedger;
         legacyPackages = { inherit cardanoCanonicalLedger pkgs; };
 
-        checks = {
+        checks = let
+          overridePreCheck = checkName: extraPreCheck:
+            flake.checks.${checkName}.overrideAttrs
+            (old: { preCheck = (old.preCheck or "") + extraPreCheck; });
+
+          testOverrides = {
+            "scls-util:test:scls-util-test" = ''
+              export SCLS_UTIL_PATH=${cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util}/bin/scls-util
+            '';
+            "scls-cardano:test:scls-cardano-test" = ''
+              export REFERENCE_CDDL_DIR=${referenceCDDLDir}
+            '';
+          };
+
+          defaultChecks = lib.mapAttrs overridePreCheck testOverrides;
+
+          perGhcChecks = lib.listToAttrs (lib.concatMap (compiler-nix-name:
+            map (checkName: {
+              name = "${compiler-nix-name}:${checkName}";
+              value = overridePreCheck "${compiler-nix-name}:${checkName}"
+                testOverrides.${checkName};
+            }) (lib.attrNames testOverrides)) supportedGhcVersions);
+        in {
           formatting = treefmtEval.config.build.check self;
           validate-scls-test = pkgs.runCommand "validate-scls-test" {
             buildInputs = with pkgs; [
@@ -82,20 +105,7 @@
             verify-scls 1.scls
             touch "$out"
           '';
-          "scls-util:test:scls-util-test" =
-            flake.checks."scls-util:test:scls-util-test".overrideAttrs (old: {
-              preCheck = (old.preCheck or "") + ''
-                export SCLS_UTIL_PATH=${cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util}/bin/scls-util
-              '';
-            });
-          "scls-cardano:test:scls-cardano-test" =
-            flake.checks."scls-cardano:test:scls-cardano-test".overrideAttrs
-            (old: {
-              preCheck = (old.preCheck or "") + ''
-                export REFERENCE_CDDL_DIR=${referenceCDDLDir}
-              '';
-            });
-        };
+        } // defaultChecks // perGhcChecks;
 
         devShells = let
           mkDevShells = p: {

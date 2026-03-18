@@ -22,13 +22,15 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
  )
 import Codec.CBOR.Cuddle.Huddle
 import Codec.CBOR.Cuddle.IndexMappable (IndexMappable (..), mapCDDLDropExt)
-import Control.Monad (replicateM_)
-import Data.List (sortOn)
+import Control.Monad (forever)
 import Control.Monad.IO.Class (MonadIO, liftIO)
+import Data.Bits (shiftL, shiftR, (.&.))
+import Data.ByteString qualified as BS
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Char8 qualified as B8
 import Data.Function ((&))
 import Data.Functor ((<&>))
+import Data.List (sortOn)
 import Data.Maybe (fromMaybe)
 import Data.MemPack.Extra
 import Data.Text qualified as T
@@ -50,8 +52,8 @@ import Codec.CBOR.Cuddle.CDDL (Name (..))
 import Control.Monad.Trans.Resource (runResourceT)
 
 -- | Generate a scls file with random data for debugging purposes.
-generateDebugFile :: (MonadIO m) => FilePath -> [(Namespace, Maybe Int)] -> m Result
-generateDebugFile outputFile (sortOn fst -> namespaceEntries) = liftIO do
+generateDebugFile :: (MonadIO m) => FilePath -> Bool -> [(Namespace, Maybe Int)] -> m Result
+generateDebugFile outputFile useRandomKeys (sortOn fst -> namespaceEntries) = liftIO do
   _ <-
     runResourceT $
       External.serialize
@@ -70,19 +72,45 @@ generateDebugFile outputFile (sortOn fst -> namespaceEntries) = liftIO do
                           Left err -> error $ "Failed to parse cuddle specification: " ++ show err
                           Right mt ->
                             ( namespace
-                                S.:> (generateNamespaceEntries p (fromMaybe 16 mCount) mt & S.map SomeCBOREntry)
+                                S.:> (generateNamespaceEntries p (fromMaybe 16 mCount) useRandomKeys mt & S.map SomeCBOREntry)
                             )
                 )
         )
   pure Ok
 
-generateNamespaceEntries :: (KnownNat (NamespaceKeySize ns), MonadIO m, MonadFail m) => proxy ns -> Int -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry (NamespaceKeySize ns))) m ()
-generateNamespaceEntries (p :: proxy ns) count spec = replicateM_ count do
-  let size = namespaceKeySize @ns
-  keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
-  term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
-  Right canonicalTerm <- pure $ canonicalizeTerm p term
-  S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
+-- | Enumerate all byte strings of a given size in lexicographic order.
+enumerateKeys :: (Monad m) => Int -> S.Stream (S.Of BS.ByteString) m ()
+enumerateKeys size = S.unfoldr go 0
+  where
+    maxKey = 1 `shiftL` (8 * size) :: Integer
+    go i
+      | i >= maxKey = pure (Left ())
+      | otherwise = pure (Right (integerToByteString size i, i + 1))
+
+-- | Convert a non-negative integer to a big-endian byte string of exactly @n@ bytes.
+-- Note: if @i >= 256^n@, the high bits of @i@ are silently discarded (overflow). This
+-- cannot happen when called from 'enumerateKeys', where @i@ is always in @[0, 256^n)@.
+integerToByteString :: Int -> Integer -> BS.ByteString
+integerToByteString n i = BS.pack [fromIntegral ((i `shiftR` (8 * k)) .&. 0xFF) | k <- [n - 1, n - 2 .. 0]]
+
+generateNamespaceEntries :: (KnownNat (NamespaceKeySize ns), MonadIO m, MonadFail m) => proxy ns -> Int -> Bool -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry (NamespaceKeySize ns))) m ()
+generateNamespaceEntries (p :: proxy ns) count useRandomKeys spec =
+  keyStream
+    & S.take count
+    & S.mapM \keyIn -> do
+        term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
+        Right canonicalTerm <- pure $ canonicalizeTerm p term
+        pure $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
+  where
+    size = namespaceKeySize @ns
+    keyStream
+      | useRandomKeys =
+          ( forever $ do
+              keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
+              S.yield keyIn
+          )
+            & S.nubOrdOn id
+      | otherwise = enumerateKeys size
 
 printHexEntries :: (MonadIO m) => FilePath -> T.Text -> Int -> m Result
 printHexEntries filePath ns_name@(Namespace.fromText -> ns) entryNo = liftIO do

@@ -48,14 +48,24 @@ jobs:
             compilerVersion: 9.14.1
             setup-method: ghcup
             allow-failure: true
-          - compiler: ghc-9.12.1
+          - compiler: ghc-9.12.2
             compilerKind: ghc
-            compilerVersion: 9.12.1
+            compilerVersion: 9.12.2
             setup-method: ghcup
             allow-failure: false
-          - compiler: ghc-9.10.2
+          - compiler: ghc-9.10.3
             compilerKind: ghc
-            compilerVersion: 9.10.2
+            compilerVersion: 9.10.3
+            setup-method: ghcup
+            allow-failure: false
+          - compiler: ghc-9.8.4
+            compilerKind: ghc
+            compilerVersion: 9.8.4
+            setup-method: ghcup
+            allow-failure: false
+          - compiler: ghc-9.6.7
+            compilerKind: ghc
+            compilerVersion: 9.6.7
             setup-method: ghcup
             allow-failure: false
       fail-fast: false
@@ -148,11 +158,11 @@ jobs:
           chmod a+x $HOME/.cabal/bin/cabal-plan
           cabal-plan --version
       - name: checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           path: source
       - name: checkout CIP
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: tweag/CIPs
           ref: 79ab917054f8398af4f81c0404b3a8bf698f06d5

@@ -1,6 +1,6 @@
 { pkgs, supportedGhcVersions, referenceCDDLDir }:
 let
-  defaultCompiler = "ghc910";
+  defaultCompiler = "ghc9103";
   fourmoluVersion = "0.19.0.0";
   cabalGildVersion = "1.6.0.2";
 in {
@@ -29,15 +29,7 @@ in {
           packages.scls-util.components.library.doCoverage = true;
           packages.merkle-tree-incremental.components.library.doCoverage = true;
         }];
-        "${compiler-nix-name}-mempack-1" = {
-          cabalProjectLocal = ''
-            constraints: mempack >=0.1 && <0.2
-          '';
-          modules = [{
-            packages.scls-format.configureFlags = [ "-f use-mempack-1" ];
-            packages.scls-format.flags.use-mempack-1 = true;
-          }];
-        };
+
       }) { } supportedGhcVersions;
 
     # Tools to include in the development shell
@@ -48,6 +40,7 @@ in {
       fourmolu = fourmoluVersion;
       weeder = "2.10.0";
       cabal-gild = cabalGildVersion;
+      implicit-hie = "0.1.4.0";
     };
 
     # Non-Haskell shell tools go here

@@ -19,42 +19,43 @@ jobs:
         strategy:
           matrix:
             os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
+            ghc: ["967", "984", "9103", "9122", "9141"]
         name: Test and build canonical-ledger-state using Nix
         runs-on: ${{ matrix.os }}
         steps:
         - name: git checkout
-          uses: actions/checkout@v3
+          uses: actions/checkout@v6
         - uses: cachix/install-nix-action@v31
           with:
             nix_path: nixpkgs=channel:nixos-unstable
             extra_nix_config: |
               experimental-features = nix-command flakes
               accept-flake-config = true
-        - uses: cachix/cachix-action@v15
+        - uses: cachix/cachix-action@v16
           with:
             name: tweag-cardano-cls
             authToken: "${{ secrets.CACHIX_AUTH_TOKEN }}"
         - name: Run `nix build`
           run: |
             nix build \
-              '.#"mempack-scls:lib:mempack-scls"' \
-              '.#"merkle-tree-incremental:lib:merkle-tree-incremental"' \
-              '.#"scls-cardano:exe:gen-cddl"' \
-              '.#"scls-cardano:lib:scls-cardano"' \
-              '.#"scls-cardano:lib:testlib"' \
-              '.#"scls-cardano:lib:validate"' \
-              '.#"scls-cbor:lib:scls-cbor"' \
-              '.#"scls-core:lib:scls-core"' \
-              '.#"scls-format:lib:scls-format"' \
-              '.#"scls-util:exe:scls-util"' \
-              '.#"scls-util:lib:scls-util"'
+              '.#"ghc${{ matrix.ghc }}:mempack-scls:lib:mempack-scls"' \
+              '.#"ghc${{ matrix.ghc }}:merkle-tree-incremental:lib:merkle-tree-incremental"' \
+              '.#"ghc${{ matrix.ghc }}:scls-cardano:exe:gen-cddl"' \
+              '.#"ghc${{ matrix.ghc }}:scls-cardano:lib:scls-cardano"' \
+              '.#"ghc${{ matrix.ghc }}:scls-cardano:lib:testlib"' \
+              '.#"ghc${{ matrix.ghc }}:scls-cardano:lib:validate"' \
+              '.#"ghc${{ matrix.ghc }}:scls-cbor:lib:scls-cbor"' \
+              '.#"ghc${{ matrix.ghc }}:scls-core:lib:scls-core"' \
+              '.#"ghc${{ matrix.ghc }}:scls-format:lib:scls-format"' \
+              '.#"ghc${{ matrix.ghc }}:scls-util:exe:scls-util"' \
+              '.#"ghc${{ matrix.ghc }}:scls-util:lib:scls-util"'
         - name: Run tests
           run: |
             current_system=$(nix eval --impure --expr 'builtins.currentSystem')
             nix build \
-              ".#checks.${current_system}.merkle-tree-incremental:test:merkle-tree-incremental-test" \
-              ".#checks.${current_system}.scls-cardano:test:scls-cardano-test" \
-              ".#checks.${current_system}.scls-cbor:test:scls-cbor-test" \
-              ".#checks.${current_system}.scls-format:test:scls-format-test" \
-              ".#checks.${current_system}.scls-util:test:scls-util-test" \
+              ".#checks.${current_system}.ghc${{ matrix.ghc }}:merkle-tree-incremental:test:merkle-tree-incremental-test" \
+              ".#checks.${current_system}.ghc${{ matrix.ghc }}:scls-cardano:test:scls-cardano-test" \
+              ".#checks.${current_system}.ghc${{ matrix.ghc }}:scls-cbor:test:scls-cbor-test" \
+              ".#checks.${current_system}.ghc${{ matrix.ghc }}:scls-format:test:scls-format-test" \
+              ".#checks.${current_system}.ghc${{ matrix.ghc }}:scls-util:test:scls-util-test" \
               ".#checks.${current_system}.validate-scls-test"
