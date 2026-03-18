@@ -22,7 +22,7 @@ import Codec.CBOR.Cuddle.CDDL.Resolve (
  )
 import Codec.CBOR.Cuddle.Huddle
 import Codec.CBOR.Cuddle.IndexMappable (IndexMappable (..), mapCDDLDropExt)
-import Control.Monad (replicateM_)
+import Control.Monad (forever)
 import Control.Monad.IO.Class (MonadIO, liftIO)
 import Data.ByteString.Base16 qualified as Base16
 import Data.ByteString.Char8 qualified as B8
@@ -77,7 +77,7 @@ generateDebugFile outputFile namespaceEntries = liftIO do
 
 generateNamespaceEntries :: (KnownNat (NamespaceKeySize ns), MonadIO m, MonadFail m) => proxy ns -> Int -> CTreeRoot MonoReferenced -> S.Stream (S.Of (GenericCBOREntry (NamespaceKeySize ns))) m ()
 generateNamespaceEntries (p :: proxy ns) count spec =
-  ( replicateM_ count do
+  ( forever do
       let size = namespaceKeySize @ns
       keyIn <- liftIO $ uniformByteStringM (fromIntegral size) globalStdGen
       term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
@@ -85,6 +85,7 @@ generateNamespaceEntries (p :: proxy ns) count spec =
       S.yield $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
   )
     & S.nubOrdOn (\(GenericCBOREntry e) -> chunkEntryKey e)
+    & S.take count
 
 printHexEntries :: (MonadIO m) => FilePath -> T.Text -> Int -> m Result
 printHexEntries filePath ns_name@(Namespace.fromText -> ns) entryNo = liftIO do
