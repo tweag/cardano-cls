@@ -10,6 +10,7 @@ import Cardano.SCLS.Internal.Reader
 import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
 import Cardano.Types.Namespace qualified as Namespace
+import Control.Monad (foldM)
 import Control.Monad.IO.Class
 import Control.Monad.Logger
 import Crypto.Hash (Blake2b_224)
@@ -57,12 +58,11 @@ checksumRoot filePath noVerify = do
 
 computeRootHash :: FilePath -> [Namespace] -> IO Digest
 computeRootHash filePath namespaces = do
-  finalState <- foldl' (combineNamespaceHash filePath) (pure $ MT.empty (undefined :: Blake2b_224)) namespaces
+  finalState <- foldM (combineNamespaceHash filePath) (MT.empty (undefined :: Blake2b_224)) namespaces
   pure $ Digest $ MT.merkleRootHash $ MT.finalize finalState
  where
-  combineNamespaceHash :: FilePath -> IO (MT.MerkleTreeState Blake2b_224) -> Namespace -> IO (MT.MerkleTreeState Blake2b_224)
-  combineNamespaceHash fp stateIO ns = do
-    state <- stateIO
+  combineNamespaceHash :: FilePath -> MT.MerkleTreeState Blake2b_224 -> Namespace -> IO (MT.MerkleTreeState Blake2b_224)
+  combineNamespaceHash fp state ns = do
     nsHash <- computeNamespaceHash fp ns
     pure $ MT.add state nsHash
 

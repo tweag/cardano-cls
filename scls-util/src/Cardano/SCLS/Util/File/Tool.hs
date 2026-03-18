@@ -28,6 +28,7 @@ import Control.Monad.IO.Class (MonadIO (..))
 import Control.Monad.Logger
 import Control.Monad.Trans.Resource (MonadResource (liftResourceT), MonadUnliftIO, allocate, runResourceT)
 import Data.ByteString.Lazy qualified as BL
+import Data.Foldable qualified as F
 import Data.Function ((&))
 import Data.List (nub)
 import Data.Map.Strict qualified as Map
@@ -189,7 +190,7 @@ mergeFiles namespaceKeySizes outputFile sourceFiles = do
   collectNamespaceFiles files = do
     foldM
       ( \acc f -> do
-          foldl'
+          F.foldl'
             ( \m ns -> do
                 let l = maybe [f] ((:) f) (Map.lookup ns m)
                 Map.insert ns l m

@@ -15,6 +15,7 @@ import Crypto.Hash (hash, hashFinalize, hashInit, hashUpdate)
 import Crypto.Hash.MerkleTree.Incremental qualified as MT
 import Crypto.Hash.MerkleTree.Incremental.Internal qualified as MT
 import Data.ByteString qualified as BS
+import Data.Foldable qualified as F
 import Data.Function ((&))
 import Data.Maybe
 import Data.MemPack (packByteString)
@@ -293,7 +294,7 @@ hashTests =
               Digest $
                 MT.merkleRootHash $
                   MT.finalize $
-                    foldl'
+                    F.foldl'
                       (\acc (TestUTxO (TestEntry k v)) -> MT.addLeafHash acc $ hash $ BS.singleton 1 <> asBytes ns <> k <> packByteString v)
                       (MT.empty undefined)
                       entries
@@ -312,7 +313,7 @@ hashTests =
                 )
                 (mkMachine (16 * 1024 * 1024) (ns, ChunkFormatRaw))
                 (\m -> interpretCommand m Finalize)
-          let expectedChunkHash = Digest $ hashFinalize $ foldl' (\acc -> hashUpdate acc . entryDigest ns . packByteString . chunkEntryFromUTxO) (hashInit) entries
+          let expectedChunkHash = Digest $ hashFinalize $ F.foldl' (\acc -> hashUpdate acc . entryDigest ns . packByteString . chunkEntryFromUTxO) (hashInit) entries
           chunkItemHash `shouldBe` expectedChunkHash
 
 validateChunkDataSize :: [RawBytes] -> ChunkItem -> IO ()
@@ -329,7 +330,7 @@ validateRootHash entries machine = do
         Digest $
           MT.merkleRootHash $
             MT.finalize $
-              foldl'
+              F.foldl'
                 ( \acc (RawBytes b) ->
                     MT.add acc $ asBytes testNamespace <> b
                 )
@@ -342,7 +343,7 @@ validateChunkHash entries (ChunkItem{..}) = do
   let expectedChunkHash =
         Digest $
           hashFinalize $
-            foldl'
+            F.foldl'
               (\acc (RawBytes b) -> hashUpdate acc $ entryDigest testNamespace b)
               (hashInit)
               entries

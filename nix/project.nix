@@ -1,6 +1,6 @@
 { pkgs, supportedGhcVersions, referenceCDDLDir }:
 let
-  defaultCompiler = "ghc910";
+  defaultCompiler = "ghc9103";
   fourmoluVersion = "0.19.0.0";
   cabalGildVersion = "1.6.0.2";
 in {
