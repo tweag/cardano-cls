@@ -53,8 +53,8 @@ debugCommandTests mSclsUtil = describe "debug generate command" do
           , "--namespace"
           , "gov/constitution/v0:1"
           , "--namespace"
-          , "accounts/v0:1"
+          , "blocks/v0:1"
           ]
       exitCode `shouldBe` ExitSuccess
       nsps <- extractNamespaceList fileName
-      nsps `shouldBe` ["accounts/v0", "gov/constitution/v0", "utxo/v0"]
+      nsps `shouldBe` ["blocks/v0", "gov/constitution/v0", "utxo/v0"]
