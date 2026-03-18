@@ -40,7 +40,7 @@ data Command
   | Info Info.InfoCmd
 
 data CommandDebug
-  = GenerateDebugFile FilePath [(Namespace, Maybe Int)]
+  = GenerateDebugFile FilePath [(Namespace, Maybe Int)] Bool
   | PrintHex FilePath Text Int
 
 parseOptions :: Parser Options
@@ -274,7 +274,7 @@ parseOptions =
       ( command
           "generate"
           ( info
-              (GenerateDebugFile <$> fileArg <*> namespaceEntriesOption)
+              (GenerateDebugFile <$> fileArg <*> namespaceEntriesOption <*> randomKeysSwitch)
               (progDesc "Generate a debug SCLS file with random data")
           )
           <> command
@@ -313,6 +313,11 @@ parseOptions =
             [(count, "")] -> Right (Namespace.fromText (T.strip ns), Just count)
             _ -> Left $ "Invalid count: " ++ T.unpack countText
         _ -> Left $ "Invalid namespace entry: " ++ arg
+    randomKeysSwitch =
+      switch
+        ( long "random-keys"
+            <> help "Generate random keys instead of enumerating them in order (may not terminate if more keys are requested than the namespace key space allows)"
+        )
 
 -- | Main entry point
 main :: IO ()
@@ -350,5 +355,5 @@ runCommand namespaceKeySizes = \case
   Info infoCmd -> Info.runInfoCmd infoCmd
   Verify file -> check file
   Debug debugCmd -> case debugCmd of
-    GenerateDebugFile outputFile namespaceEntries -> generateDebugFile outputFile namespaceEntries
+    GenerateDebugFile outputFile namespaceEntries useRandomKeys -> generateDebugFile outputFile useRandomKeys namespaceEntries
     PrintHex file chunkNo entryNo -> printHexEntries file chunkNo entryNo
