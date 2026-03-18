@@ -72,6 +72,29 @@ mkTestsFor serialize = do
     let input = [("ns0", []), ("ns1", ["data"]), ("ns2", [])]
     roundtrip serialize input
 
+  it "outputs namespaces in lexicographic order when input is out of order" do
+    withSystemTempDirectory "scls-format-test-XXXXXX" $ \fn -> do
+      let fileName = fn </> "input.data"
+          -- Deliberately supply namespaces in reverse lexicographic order
+          input = [("utxo/v0", ["a"]), ("gov/constitution/v0", ["b"])]
+      _ <-
+        runResourceT $
+          serialize
+            fileName
+            (SlotNo 1)
+            (Map.fromList [(Namespace.asString ns, 1) | (ns, _) <- input])
+            ( defaultSerializationPlan
+                & addChunks
+                  ( S.each
+                      [ n S.:> (S.each q & S.map RawBytes)
+                      | (n, q) <- input
+                      ]
+                  )
+            )
+      nsps <- extractNamespaceList fileName
+      annotate "Namespaces are in lexicographic order" do
+        nsps `shouldBe` sort nsps
+
 type SerializeF = FilePath -> SlotNo -> Map.Map String Int -> SerializationPlan RawBytes ResIO -> ResIO (Either [Namespace] ())
 
 roundtrip :: SerializeF -> [(Namespace, [ByteString])] -> IO ()
