@@ -1,9 +1,6 @@
 cradle:
   cabal:
-    - path: "mempack-scls/mempack-1.0"
-      component: "lib:mempack-scls"
-
-    - path: "mempack-scls/mempack-2.0"
+    - path: "mempack-scls/src"
       component: "lib:mempack-scls"
 
     - path: "merkle-tree-incremental/src"

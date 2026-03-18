@@ -29,15 +29,7 @@ in {
           packages.scls-util.components.library.doCoverage = true;
           packages.merkle-tree-incremental.components.library.doCoverage = true;
         }];
-        "${compiler-nix-name}-mempack-1" = {
-          cabalProjectLocal = ''
-            constraints: mempack >=0.1 && <0.2
-          '';
-          modules = [{
-            packages.scls-format.configureFlags = [ "-f use-mempack-1" ];
-            packages.scls-format.flags.use-mempack-1 = true;
-          }];
-        };
+
       }) { } supportedGhcVersions;
 
     # Tools to include in the development shell
