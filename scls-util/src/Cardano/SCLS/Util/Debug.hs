@@ -87,6 +87,8 @@ enumerateKeys size = S.unfoldr go 0
       | otherwise = pure (Right (integerToByteString size i, i + 1))
 
 -- | Convert a non-negative integer to a big-endian byte string of exactly @n@ bytes.
+-- Note: if @i >= 256^n@, the high bits of @i@ are silently discarded (overflow). This
+-- cannot happen when called from 'enumerateKeys', where @i@ is always in @[0, 256^n)@.
 integerToByteString :: Int -> Integer -> BS.ByteString
 integerToByteString n i = BS.pack [fromIntegral ((i `shiftR` (8 * k)) .&. 0xFF) | k <- [n - 1, n - 2 .. 0]]
 

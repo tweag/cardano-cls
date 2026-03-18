@@ -14,6 +14,7 @@ import Cardano.SCLS.Util.Result
 import Cardano.SCLS.Util.Verify
 import Cardano.Types.Namespace (Namespace (..))
 import Cardano.Types.Namespace qualified as Namespace
+import Control.Monad (when)
 import Control.Monad.Catch (MonadCatch, SomeException (..), catch)
 import Control.Monad.IO.Class (MonadIO (liftIO))
 import Control.Monad.Logger
@@ -355,5 +356,8 @@ runCommand namespaceKeySizes = \case
   Info infoCmd -> Info.runInfoCmd infoCmd
   Verify file -> check file
   Debug debugCmd -> case debugCmd of
-    GenerateDebugFile outputFile namespaceEntries useRandomKeys -> generateDebugFile outputFile useRandomKeys namespaceEntries
+    GenerateDebugFile outputFile namespaceEntries useRandomKeys -> do
+      when useRandomKeys $
+        logWarnN "--random-keys is enabled: generation may not terminate if the requested number of entries exceeds the namespace key space"
+      generateDebugFile outputFile useRandomKeys namespaceEntries
     PrintHex file chunkNo entryNo -> printHexEntries file chunkNo entryNo
