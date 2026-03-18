@@ -19,7 +19,7 @@ jobs:
         strategy:
           matrix:
             os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest]
-            ghc: ["910", "912", "9141"]
+            ghc: ["967", "984", "9103", "9122", "9141"]
         name: Test and build canonical-ledger-state using Nix
         runs-on: ${{ matrix.os }}
         steps:
