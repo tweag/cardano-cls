@@ -31,6 +31,7 @@ library
   other-modules:
     Cardano.SCLS.Common
     Cardano.SCLS.Namespace.Blocks
+    Cardano.SCLS.Namespace.EntitiesCommittee
     Cardano.SCLS.Namespace.GovCommittee
     Cardano.SCLS.Namespace.GovConstitution
     Cardano.SCLS.Namespace.GovPParams
