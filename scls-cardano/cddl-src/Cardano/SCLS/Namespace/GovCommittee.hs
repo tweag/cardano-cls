@@ -35,21 +35,15 @@ record_entry =
         |         type: u8
         | ```
         |]
-    $ "record_entry" =:= committee
+    $ "record_entry" =:= committee / VNil
 
 committee :: Rule
 committee =
   comment
     [str| Storage of the committee members
         |]
-    $ "committee" =:= (mp [0 <+ asKey credential ==> committee_authorization])
-
-committee_authorization :: Rule
-committee_authorization =
-  comment
-    [str| 0 - hot committee member
-              | 1 - resignation
-              |]
-    $ "committee_authorization"
-      =:= arr [0, a credential]
-      / arr [1, a (anchor / VNil)]
+    $ "committee"
+      =:= arr
+        [ a (mp [0 <+ asKey credential ==> epoch_no])
+        , a unit_interval
+        ]
