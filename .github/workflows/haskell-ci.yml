@@ -212,6 +212,7 @@ jobs:
           echo "packages: ${PKGDIR_scls_cardano}" >> cabal.project
           echo "packages: ${PKGDIR_scls_cbor}" >> cabal.project
           echo "packages: ${PKGDIR_scls_core}" >> cabal.project
+          echo "packages: ${PKGDIR_scls_util}" >> cabal.project
           echo "packages: ${PKGDIR_mempack_scls}" >> cabal.project
           echo "packages: ${PKGDIR_merkle_tree_incremental}" >> cabal.project
           echo "package scls-format" >> cabal.project
