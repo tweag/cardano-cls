@@ -20,6 +20,7 @@ on:
       - '**.cabal'
       - 'cabal.project'
       - 'cabal.project.*'
+      - '.github/workflows/haskell-ci.yml'
   pull_request:
     paths:
       - '**.hs'
