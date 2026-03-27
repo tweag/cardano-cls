@@ -69,6 +69,7 @@ allReferenceCDDLs =
   , ("snapshots/set/v0", "snapshots_set_v0.cddl")
   , ("snapshots/go/v0", "snapshots_go_v0.cddl")
   , ("nonces/v0", "nonces_v0.cddl")
+  , ("entities/accounts/v0", "entities_accounts_v0.cddl")
   , ("entities/committee/v0", "entities_committee_v0.cddl")
   , ("entities/dreps/v0", "entities_dreps_v0.cddl")
   , ("entities/stake_pools/v0", "entities_stake_pools_v0.cddl")

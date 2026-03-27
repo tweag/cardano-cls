@@ -31,6 +31,7 @@ library
   other-modules:
     Cardano.SCLS.Common
     Cardano.SCLS.Namespace.Blocks
+    Cardano.SCLS.Namespace.EntitiesAccounts
     Cardano.SCLS.Namespace.EntitiesCommittee
     Cardano.SCLS.Namespace.EntitiesDReps
     Cardano.SCLS.Namespace.EntitiesStakePools
