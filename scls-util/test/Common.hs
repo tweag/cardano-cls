@@ -9,6 +9,7 @@ import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString.Char8 qualified as BS8
 import Data.Function ((&))
+import Data.List (uncons)
 import Data.Map qualified as Map
 import Data.Maybe (fromMaybe)
 import Data.MemPack.Extra (RawBytes (..))
@@ -46,7 +47,7 @@ generateTestFile dir = do
 runSclsUtil :: Maybe FilePath -> [String] -> IO (ExitCode, String, String)
 runSclsUtil Nothing args = do
   cabalPath <- lookupEnv "CABAL"
-  let cabalCmd = fromMaybe "cabal" cabalPath
-  readProcessWithExitCode cabalCmd (["run", "scls-util", "--"] ++ args) ""
+  let (cabalCmd, cabalArgs) = fromMaybe ("cabal", []) $ cabalPath >>= uncons . words
+  readProcessWithExitCode cabalCmd (cabalArgs ++ ["run", "scls-util", "--"] ++ args) ""
 runSclsUtil (Just path) args = do
   readProcessWithExitCode path args ""
