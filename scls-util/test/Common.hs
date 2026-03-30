@@ -43,6 +43,8 @@ generateTestFile dir = do
 
 runSclsUtil :: Maybe FilePath -> [String] -> IO (ExitCode, String, String)
 runSclsUtil Nothing args = do
-  readProcessWithExitCode "cabal" (["run", "scls-util", "--"] ++ args) ""
+  cabalPath <- lookupEnv "CABAL"
+  let cabalCmd = fromMaybe "cabal" cabalPath
+  readProcessWithExitCode cabalCmd (["run", "scls-util", "--"] ++ args) ""
 runSclsUtil (Just path) args = do
   readProcessWithExitCode path args ""
