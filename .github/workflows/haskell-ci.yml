@@ -292,7 +292,7 @@ jobs:
       - name: tests
         run: |
           $CABAL v2-install $ARG_COMPILER --installdir ~/.local/bin scls-util:exe:scls-util
-          echo "SCLS_UTIL_PATH=~/.local/bin/scls-util" >> $GITHUB_ENV
+          export "SCLS_UTIL_PATH=~/.local/bin/scls-util"
           $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct
       # - name: cabal check
       #   run: |
