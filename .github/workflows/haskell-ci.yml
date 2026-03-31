@@ -291,8 +291,8 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --write-ghc-environment-files=always
       - name: tests
         run: |
-          $CABAL v2-install $ARG_COMPILER --installdir ~/.local/bin scls-util:exe:scls-util
-          export "SCLS_UTIL_PATH=~/.local/bin/scls-util"
+          $CABAL v2-install $ARG_COMPILER scls-util:exe:scls-util
+          export SCLS_UTIL_PATH="$CABAL_DIR/bin/scls-util"
           $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct
       # - name: cabal check
       #   run: |
