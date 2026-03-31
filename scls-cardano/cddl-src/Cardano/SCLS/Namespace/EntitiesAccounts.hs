@@ -38,15 +38,13 @@ record_entry =
 
 account_state :: Rule
 account_state =
-  comment
-    [str| Account state consists of the following:
-              | 1 - account balance
-              | 2 - account deposit
-              | 3 - stake pool delegation (if the account is delegated to a stake pool)
-              | 4 - drep delegation (if the account is delegated to a drep)
-        |]
-    $ "account_state"
-      =:= arr [a coin, a coin, a (pool_keyhash / VNil), a (drep / VNil)]
+  "account_state"
+    =:= mp
+      [ "balance" ==> coin
+      , "deposit" ==> coin
+      , "drep_delegation" ==> drep / VNil
+      , "stake_pool_delegation" ==> pool_keyhash / VNil
+      ]
 
 drep :: Rule
 drep =
