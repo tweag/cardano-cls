@@ -9,13 +9,10 @@ import Cardano.Types.SlotNo (SlotNo (SlotNo))
 import Control.Monad.Trans.Resource (runResourceT)
 import Data.ByteString.Char8 qualified as BS8
 import Data.Function ((&))
-import Data.List (uncons)
 import Data.Map qualified as Map
-import Data.Maybe (fromMaybe)
 import Data.MemPack.Extra (RawBytes (..))
 import Streaming qualified as S
 import Streaming.Prelude qualified as S
-import System.Environment (lookupEnv)
 import System.Exit (ExitCode (..))
 import System.FilePath ((</>))
 import System.Process (readProcessWithExitCode)
