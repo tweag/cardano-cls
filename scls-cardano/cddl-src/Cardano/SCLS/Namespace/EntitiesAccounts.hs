@@ -25,24 +25,16 @@ record_entry =
         |
         | seq:
         |   - id: key
-        |     type: entities_accounts
+        |     type: credential
         |
         | types:
-        |   entities_accounts:
+        |   credential:
         |     seq:
-        |       - id: epoch
-        |         doc: epoch
-        |         type: u8
+        |       - id: cred_data
+        |         size: 28
         | ```
         |]
-    $ "record_entry" =:= accounts
-
-accounts :: Rule
-accounts =
-  comment
-    [str| Storage of the accounts
-        |]
-    $ "accounts" =:= (mp [0 <+ asKey credential ==> account_state])
+    $ "record_entry" =:= account_state
 
 account_state :: Rule
 account_state =
