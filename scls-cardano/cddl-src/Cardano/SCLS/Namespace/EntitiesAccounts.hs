@@ -30,7 +30,9 @@ record_entry =
         | types:
         |   credential:
         |     seq:
-        |       - id: cred_data
+        |       - id: tag
+        |         size: 1
+        |       - id: hash
         |         size: 28
         | ```
         |]
