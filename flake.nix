@@ -11,7 +11,7 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
   inputs.cips = {
-    url = "github:tweag/CIPs?rev=7ef4dd5fb40e1acfe61f4c7530da2c8e59779cd5";
+    url = "github:tweag/CIPs?rev=157b1fd0d6be3eef14c6e148bc54f8733fc7a52f";
     flake = false;
   };
   outputs =
