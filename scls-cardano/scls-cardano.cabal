@@ -34,6 +34,7 @@ library
     Cardano.SCLS.Namespace.EntitiesAccounts
     Cardano.SCLS.Namespace.EntitiesCommittee
     Cardano.SCLS.Namespace.EntitiesDReps
+    Cardano.SCLS.Namespace.EntitiesStakePools
     Cardano.SCLS.Namespace.GovCommittee
     Cardano.SCLS.Namespace.GovConstitution
     Cardano.SCLS.Namespace.GovPParams
