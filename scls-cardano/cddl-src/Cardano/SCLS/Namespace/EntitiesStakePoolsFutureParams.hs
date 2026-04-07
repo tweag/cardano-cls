@@ -7,7 +7,7 @@
 {-# OPTIONS_GHC -Wno-unrecognised-pragmas #-}
 
 {-# HLINT ignore "Use camelCase" #-}
-module Cardano.SCLS.Namespace.EntitiesStakePools where
+module Cardano.SCLS.Namespace.EntitiesStakePoolsFutureParams where
 
 import Cardano.SCLS.Common
 import Codec.CBOR.Cuddle.Huddle
@@ -29,28 +29,19 @@ record_entry =
         |         size: 28
         | ```
         |]
-    $ "record_entry" =:= stake_pool
+    $ "record_entry" =:= stake_pool_params
 
-stake_pool :: Rule
-stake_pool =
-  "stake_pool"
+stake_pool_params :: Rule
+stake_pool_params =
+  "stake_pool_params"
     =:= mp
-      [ "stake_pool_state" ==> stake_pool_state / VNil
-      , "retiring_epoch_no" ==> epoch_no / VNil
-      ]
-
-stake_pool_state :: Rule
-stake_pool_state =
-  "stake_pool_state"
-    =:= mp
-      [ "vrf" ==> vrf_keyhash
+      [ "id" ==> pool_keyhash
+      , "vrf" ==> vrf_keyhash
       , "cost" ==> coin
       , "margin" ==> unit_interval
       , "owners" ==> set staking_keyhash
       , "pledge" ==> coin
       , "relays" ==> arr [0 <+ a relay]
-      , "deposit" ==> coin
       , "metadata" ==> pool_metadata / VNil
-      , "account_id" ==> account_id
-      , "delegators" ==> set credential
+      , "account_address" ==> address
       ]
