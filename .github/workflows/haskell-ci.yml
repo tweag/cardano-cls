@@ -20,6 +20,7 @@ on:
       - "**.cabal"
       - "cabal.project"
       - "cabal.project.*"
+      - ".github/workflows/haskell-ci.yml"
   pull_request:
     paths:
       - "**.hs"
@@ -211,6 +212,7 @@ jobs:
           echo "packages: ${PKGDIR_scls_cardano}" >> cabal.project
           echo "packages: ${PKGDIR_scls_cbor}" >> cabal.project
           echo "packages: ${PKGDIR_scls_core}" >> cabal.project
+          echo "packages: ${PKGDIR_scls_util}" >> cabal.project
           echo "packages: ${PKGDIR_mempack_scls}" >> cabal.project
           echo "packages: ${PKGDIR_merkle_tree_incremental}" >> cabal.project
           echo "package scls-format" >> cabal.project
@@ -288,6 +290,8 @@ jobs:
           $CABAL v2-build $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --write-ghc-environment-files=always
       - name: tests
         run: |
+          $CABAL v2-install $ARG_COMPILER scls-util:exe:scls-util
+          export SCLS_UTIL_PATH="$CABAL_DIR/bin/scls-util"
           $CABAL v2-test $ARG_COMPILER $ARG_TESTS $ARG_BENCH all --test-show-details=direct
       # - name: cabal check
       #   run: |
