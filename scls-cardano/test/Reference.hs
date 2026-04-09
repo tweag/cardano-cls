@@ -70,6 +70,7 @@ allReferenceCDDLs =
   , ("snapshots/go/v0", "snapshots_go_v0.cddl")
   , ("nonces/v0", "nonces_v0.cddl")
   , ("entities/committee/v0", "entities_committee_v0.cddl")
+  , ("entities/stake_pools/vrf_key_hashes/v0", "entities_stake_pools_vrf_key_hashes_v0.cddl")
   , ("gov/committee/v0", "gov_committee_v0.cddl")
   , ("gov/constitution/v0", "gov_constitution_v0.cddl")
   , ("gov/pparams/v0", "gov_pparams_v0.cddl")
