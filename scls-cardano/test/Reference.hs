@@ -74,6 +74,7 @@ allReferenceCDDLs =
   , ("entities/dreps/v0", "entities_dreps_v0.cddl")
   , ("entities/stake_pools/v0", "entities_stake_pools_v0.cddl")
   , ("entities/stake_pools/future_params/v0", "entities_stake_pools_future_params_v0.cddl")
+  , ("entities/stake_pools/vrf_key_hashes/v0", "entities_stake_pools_vrf_key_hashes_v0.cddl")
   , ("gov/committee/v0", "gov_committee_v0.cddl")
   , ("gov/constitution/v0", "gov_constitution_v0.cddl")
   , ("gov/pparams/v0", "gov_pparams_v0.cddl")
