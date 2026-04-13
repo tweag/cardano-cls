@@ -65,6 +65,7 @@ testAllNS ::
   , ConstrNS "gov/constitution/v0"
   , ConstrNS "gov/pparams/v0"
   , ConstrNS "gov/proposals/v0"
+  , ConstrNS "gov/proposals/roots/v0"
   ) =>
   Spec
 testAllNS = describe "scls/conformance" $ do
@@ -83,6 +84,7 @@ testAllNS = describe "scls/conformance" $ do
   testNS @"gov/constitution/v0"
   testNS @"gov/pparams/v0"
   testNS @"gov/proposals/v0"
+  testNS @"gov/proposals/roots/v0"
 
 -- | Validate concrete type against its definition in CDDL
 validateType :: forall ns a. (KnownSymbol ns, ToCanonicalCBOR ns a, Arbitrary a, Show a, Typeable a) => T.Text -> Spec
