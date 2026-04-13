@@ -267,3 +267,8 @@ pool_metadata =
   "pool_metadata"
     =:= arr
       [a url, a VBytes]
+
+gov_action_id :: Rule
+gov_action_id =
+  "gov_action_id"
+    =:= arr ["transaction_id" ==> hash32, "gov_action_index" ==> VUInt `sized` (2 :: Word64)]
