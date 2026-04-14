@@ -26,6 +26,7 @@ import Cardano.Types.Namespace qualified as Namespace
 import Cardano.Types.SlotNo (SlotNo (..))
 import Codec.CBOR.Cuddle.CBOR.Gen (generateFromName)
 import Codec.CBOR.Cuddle.CDDL (Name (..))
+import Codec.CBOR.Cuddle.CDDL.CBORGenerator (GenEnv (..), runCBORGen)
 import Codec.CBOR.Cuddle.CDDL.Resolve (
   asMap,
   buildMonoCTree,
@@ -114,7 +115,7 @@ mkRoundtripTestsFor groupName serialize =
         entries <-
           fmap nubByKey $ replicateM 1024 $ do
             key <- uniformByteStringM kSize globalStdGen
-            term <- generate . runAntiGen $ generateFromName (mapIndex mt) (Name (T.pack "record_entry"))
+            term <- generate . runAntiGen $ runCBORGen (GenEnv{geTwiddle = False, geRoot = mapIndex mt}) . generateFromName $ (Name (T.pack "record_entry"))
             Right canonicalTerm <- pure $ canonicalizeTerm p term
             pure $! SomeCBOREntry (GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) key) (mkCBORTerm canonicalTerm))
         mEntries <-
