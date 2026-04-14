@@ -1,5 +1,12 @@
 {
-  inputs.haskellNix.url = "github:input-output-hk/haskell.nix";
+  inputs.hackage = {
+    url = "github:input-output-hk/hackage.nix";
+    flake = false;
+  };
+  inputs.haskellNix = {
+    url = "github:input-output-hk/haskell.nix";
+    inputs.hackage.follows = "hackage";
+  };
   inputs.nixpkgs.follows = "haskellNix/nixpkgs-unstable";
   inputs.flake-utils.url = "github:numtide/flake-utils";
   inputs.git-hooks = {
@@ -14,8 +21,8 @@
     url = "github:tweag/CIPs?rev=5a4f49835b01695583830e01e2dfd11e9e582efc";
     flake = false;
   };
-  outputs =
-    { self, nixpkgs, flake-utils, haskellNix, git-hooks, treefmt-nix, cips }:
+  outputs = { self, nixpkgs, flake-utils, haskellNix, git-hooks, treefmt-nix
+    , cips, ... }:
     let
       supportedSystems =
         [ "x86_64-linux" "x86_64-darwin" "aarch64-linux" "aarch64-darwin" ];

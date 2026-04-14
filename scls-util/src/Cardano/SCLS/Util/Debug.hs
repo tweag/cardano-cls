@@ -49,6 +49,7 @@ import Cardano.SCLS.Util.Result
 import Cardano.Types.Namespace (Namespace)
 import Codec.CBOR.Cuddle.CBOR.Gen (generateFromName)
 import Codec.CBOR.Cuddle.CDDL (Name (..))
+import Codec.CBOR.Cuddle.CDDL.CBORGenerator (GenEnv (..), runCBORGen)
 import Control.Monad.Trans.Resource (runResourceT)
 
 -- | Generate a scls file with random data for debugging purposes.
@@ -99,7 +100,7 @@ generateNamespaceEntries (p :: proxy ns) count useRandomKeys spec =
   keyStream
     & S.take count
     & S.mapM \keyIn -> do
-      term <- liftIO . generate . runAntiGen $ generateFromName (mapIndex spec) (Name (T.pack "record_entry"))
+      term <- liftIO . generate . runAntiGen $ runCBORGen (GenEnv{geTwiddle = False, geRoot = mapIndex spec}) . generateFromName $ (Name (T.pack "record_entry"))
       Right canonicalTerm <- pure $ canonicalizeTerm p term
       pure $ GenericCBOREntry $ ChunkEntry (ByteStringSized @(NamespaceKeySize ns) keyIn) (mkCBORTerm canonicalTerm)
  where
