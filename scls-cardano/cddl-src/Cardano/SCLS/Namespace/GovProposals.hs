@@ -109,11 +109,6 @@ gov_action =
     / (arr [5, "purpose" ==> (gov_action_id / VNil), "constitution" ==> constitution] //- "New constitution")
     / (arr [6] //- "Info action")
 
-gov_action_id :: Rule
-gov_action_id =
-  "gov_action_id"
-    =:= arr ["transaction_id" ==> hash32, "gov_action_index" ==> VUInt `sized` (2 :: Word64)]
-
 gov_params_update :: Rule
 gov_params_update =
   comment
