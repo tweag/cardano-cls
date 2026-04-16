@@ -54,21 +54,3 @@ stake_pool_state =
       , "account_id" ==> account_id
       , "delegators" ==> set credential
       ]
-
-relay :: Rule
-relay =
-  "relay"
-    =:= arr
-      [ 0
-      , a (port / VNil)
-      , a (ipv4 / VNil)
-      , a (ipv6 / VNil)
-      ]
-    / arr [1, a (port / VNil), a dns_name]
-    / arr [2, a dns_name]
-
-pool_metadata :: Rule
-pool_metadata =
-  "pool_metadata"
-    =:= arr
-      [a url, a VBytes]
