@@ -12,6 +12,7 @@ import Cardano.SCLS.Namespace.Blocks qualified as Blocks
 import Cardano.SCLS.Namespace.EntitiesAccounts qualified as EntitiesAccounts
 import Cardano.SCLS.Namespace.EntitiesCommittee qualified as EntitiesCommittee
 import Cardano.SCLS.Namespace.EntitiesDReps qualified as EntitiesDReps
+import Cardano.SCLS.Namespace.EntitiesDormantEpochs qualified as EntitiesDormantEpochs
 import Cardano.SCLS.Namespace.EntitiesStakePools qualified as EntitiesStakePools
 import Cardano.SCLS.Namespace.EntitiesStakePoolsFutureParams qualified as EntitiesStakePoolsFutureParams
 import Cardano.SCLS.Namespace.EntitiesStakePoolsVRFKeyHashes qualified as EntitiesStakePoolsVRFKeyHashes
@@ -75,6 +76,9 @@ instance KnownSpec "entities/stake_pools/future_params/v0" where
 instance KnownSpec "entities/stake_pools/vrf_key_hashes/v0" where
   namespaceSpec _ = mkDefinition EntitiesStakePoolsVRFKeyHashes.record_entry
 
+instance KnownSpec "entities/dormant_epochs/v0" where
+  namespaceSpec _ = mkDefinition EntitiesDormantEpochs.record_entry
+
 instance KnownSpec "gov/committee/v0" where
   namespaceSpec _ = mkDefinition GovCommittee.record_entry
 
@@ -108,6 +112,7 @@ knownNamespaces =
   , mkNamespaceSymbol @"entities/stake_pools/v0"
   , mkNamespaceSymbol @"entities/stake_pools/future_params/v0"
   , mkNamespaceSymbol @"entities/stake_pools/vrf_key_hashes/v0"
+  , mkNamespaceSymbol @"entities/dormant_epochs/v0"
   , mkNamespaceSymbol @"gov/committee/v0"
   , mkNamespaceSymbol @"gov/constitution/v0"
   , mkNamespaceSymbol @"gov/pparams/v0"
@@ -126,6 +131,7 @@ type instance Spec.NamespaceKeySize "entities/dreps/v0" = 29 -- 1 byte for tag, 
 type instance Spec.NamespaceKeySize "entities/stake_pools/v0" = 28
 type instance Spec.NamespaceKeySize "entities/stake_pools/future_params/v0" = 28
 type instance Spec.NamespaceKeySize "entities/stake_pools/vrf_key_hashes/v0" = 32
+type instance Spec.NamespaceKeySize "entities/dormant_epochs/v0" = 1
 type instance Spec.NamespaceKeySize "gov/committee/v0" = 8
 type instance Spec.NamespaceKeySize "gov/constitution/v0" = 8
 type instance Spec.NamespaceKeySize "gov/pparams/v0" = 4
