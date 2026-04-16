@@ -243,3 +243,9 @@ protocol_version = "protocol_version" =:= arr [a major_protocol_version, a VUInt
 
 major_protocol_version :: Rule
 major_protocol_version = "major_protocol_version" =:= VUInt
+
+staking_keyhash :: Rule
+staking_keyhash = "staking_keyhash" =:= hash28
+
+account_id :: Rule
+account_id = "account_id" =:= credential
