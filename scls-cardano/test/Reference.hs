@@ -71,6 +71,7 @@ allReferenceCDDLs =
   , ("nonces/v0", "nonces_v0.cddl")
   , ("entities/accounts/v0", "entities_accounts_v0.cddl")
   , ("entities/committee/v0", "entities_committee_v0.cddl")
+  , ("entities/dreps/v0", "entities_dreps_v0.cddl")
   , ("gov/committee/v0", "gov_committee_v0.cddl")
   , ("gov/constitution/v0", "gov_constitution_v0.cddl")
   , ("gov/pparams/v0", "gov_pparams_v0.cddl")
