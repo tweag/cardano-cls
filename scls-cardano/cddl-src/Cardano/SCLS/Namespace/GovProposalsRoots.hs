@@ -29,7 +29,7 @@ record_entry =
         |     enum: gov_proposals_purpose:
         | 
         |   enums:
-        |     gov_proposals_purpose::
+        |     gov_proposals_purpose:
         |       0: pparams_update
         |       1: hard_fork
         |       2: committee
