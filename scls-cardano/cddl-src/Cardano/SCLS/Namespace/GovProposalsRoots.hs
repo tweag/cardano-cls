@@ -26,7 +26,7 @@ record_entry =
         | seq:
         |   - id: key
         |     type: u1
-        |     enum: gov_proposals_purpose:
+        |     enum: gov_proposals_purpose
         | 
         |   enums:
         |     gov_proposals_purpose:
