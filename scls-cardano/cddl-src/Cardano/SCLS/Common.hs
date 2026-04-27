@@ -248,3 +248,27 @@ gov_action_id :: Rule
 gov_action_id =
   "gov_action_id"
     =:= arr ["transaction_id" ==> hash32, "gov_action_index" ==> VUInt `sized` (2 :: Word64)]
+
+staking_keyhash :: Rule
+staking_keyhash = "staking_keyhash" =:= hash28
+
+account_id :: Rule
+account_id = "account_id" =:= credential
+
+relay :: Rule
+relay =
+  "relay"
+    =:= arr
+      [ 0
+      , a (port / VNil)
+      , a (ipv4 / VNil)
+      , a (ipv6 / VNil)
+      ]
+    / arr [1, a (port / VNil), a dns_name]
+    / arr [2, a dns_name]
+
+pool_metadata :: Rule
+pool_metadata =
+  "pool_metadata"
+    =:= arr
+      [a url, a VBytes]
