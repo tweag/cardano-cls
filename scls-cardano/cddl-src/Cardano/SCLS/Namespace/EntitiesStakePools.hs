@@ -37,6 +37,7 @@ stake_pool =
     =:= mp
       [ "stake_pool_state" ==> stake_pool_state / VNil
       , "retiring_epoch_no" ==> epoch_no / VNil
+      , "future_stake_pool_params" ==> stake_pool_params / VNil
       ]
 
 stake_pool_state :: Rule
@@ -53,4 +54,19 @@ stake_pool_state =
       , "metadata" ==> pool_metadata / VNil
       , "account_id" ==> account_id
       , "delegators" ==> set credential
+      ]
+
+stake_pool_params :: Rule
+stake_pool_params =
+  "stake_pool_params"
+    =:= mp
+      [ "id" ==> pool_keyhash
+      , "vrf" ==> vrf_keyhash
+      , "cost" ==> coin
+      , "margin" ==> unit_interval
+      , "owners" ==> set staking_keyhash
+      , "pledge" ==> coin
+      , "relays" ==> arr [0 <+ a relay]
+      , "metadata" ==> pool_metadata / VNil
+      , "account_address" ==> address
       ]
