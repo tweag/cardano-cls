@@ -24,8 +24,13 @@ record_entry =
         |   endian: be
         |
         | seq:
-        |   - id: keyhash_stakepool
-        |         doc: keyhash of the stake pool
+        |   - id: key
+        |     type: keyhash
+        |
+        | types:
+        |   keyhash:
+        |     seq:
+        |       - id: keyhash_data
         |         size: 28
         | ```
         |]
