@@ -134,5 +134,5 @@ type instance Spec.NamespaceKeySize "entities/dormant_epochs/v0" = 1
 type instance Spec.NamespaceKeySize "gov/committee/v0" = 8
 type instance Spec.NamespaceKeySize "gov/constitution/v0" = 8
 type instance Spec.NamespaceKeySize "gov/pparams/v0" = 4
-type instance Spec.NamespaceKeySize "gov/proposals/v0" = 34 -- 32 bytes txid+tx index + 2 bytes for proposal index
+type instance Spec.NamespaceKeySize "gov/proposals/v0" = 34 -- 28 bytes txid, 4 bytes tx index, 2 bytes for proposal index
 type instance Spec.NamespaceKeySize "gov/proposals/roots/v0" = 1 -- 1 byte for proposal purpose
