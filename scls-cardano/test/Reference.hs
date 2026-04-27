@@ -74,6 +74,7 @@ allReferenceCDDLs =
   , ("gov/constitution/v0", "gov_constitution_v0.cddl")
   , ("gov/pparams/v0", "gov_pparams_v0.cddl")
   , ("gov/proposals/v0", "gov_proposals_v0.cddl")
+  , ("gov/proposals/roots/v0", "gov_proposals_roots_v0.cddl")
   ]
 
 loadAllReferenceCDDLs :: IO (Maybe ([(Text, Either LoadError (CTreeRoot MonoReferenced))]))

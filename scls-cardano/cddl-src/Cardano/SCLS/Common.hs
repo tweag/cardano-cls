@@ -243,3 +243,8 @@ protocol_version = "protocol_version" =:= arr [a major_protocol_version, a VUInt
 
 major_protocol_version :: Rule
 major_protocol_version = "major_protocol_version" =:= VUInt
+
+gov_action_id :: Rule
+gov_action_id =
+  "gov_action_id"
+    =:= arr ["transaction_id" ==> hash32, "gov_action_index" ==> VUInt `sized` (2 :: Word64)]

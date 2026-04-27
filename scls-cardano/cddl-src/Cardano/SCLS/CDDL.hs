@@ -14,6 +14,7 @@ import Cardano.SCLS.Namespace.GovCommittee qualified as GovCommittee
 import Cardano.SCLS.Namespace.GovConstitution qualified as GovConstitution
 import Cardano.SCLS.Namespace.GovPParams qualified as GovPParams
 import Cardano.SCLS.Namespace.GovProposals qualified as GovProposals
+import Cardano.SCLS.Namespace.GovProposalsRoots qualified as GovProposalsRoots
 import Cardano.SCLS.Namespace.Nonces qualified as Nonces
 import Cardano.SCLS.Namespace.Snapshots qualified as Snapshots
 import Cardano.SCLS.Namespace.UTxO qualified as UTxO
@@ -67,6 +68,9 @@ instance KnownSpec "gov/pparams/v0" where
 instance KnownSpec "gov/proposals/v0" where
   namespaceSpec _ = mkDefinition GovProposals.record_entry
 
+instance KnownSpec "gov/proposals/roots/v0" where
+  namespaceSpec _ = mkDefinition GovProposalsRoots.record_entry
+
 mkDefinition :: Rule -> Huddle
 mkDefinition r = collectFromInit [HIRule r]
 
@@ -87,6 +91,7 @@ knownNamespaces =
   , mkNamespaceSymbol @"gov/constitution/v0"
   , mkNamespaceSymbol @"gov/pparams/v0"
   , mkNamespaceSymbol @"gov/proposals/v0"
+  , mkNamespaceSymbol @"gov/proposals/roots/v0"
   ]
 
 type instance Spec.NamespaceKeySize "utxo/v0" = 34
@@ -100,3 +105,4 @@ type instance Spec.NamespaceKeySize "gov/committee/v0" = 8
 type instance Spec.NamespaceKeySize "gov/constitution/v0" = 8
 type instance Spec.NamespaceKeySize "gov/pparams/v0" = 4
 type instance Spec.NamespaceKeySize "gov/proposals/v0" = 34 -- 32 bytes txid+tx index + 2 bytes for proposal index
+type instance Spec.NamespaceKeySize "gov/proposals/roots/v0" = 1 -- 1 byte for proposal purpose
