@@ -44,7 +44,7 @@ library
     cborg,
     containers,
     crypton,
-    cuddle >=1.5,
+    cuddle >=1.7,
     directory,
     filepath,
     mempack-scls,
