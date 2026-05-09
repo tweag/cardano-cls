@@ -61,7 +61,11 @@ serialize ::
   ResIO (Either [Namespace] ())
 serialize resultFilePath slotNo namespaceKeySizes plan =
   withTempDirectory (takeDirectory resultFilePath) "tmp.XXXXXX" \tmpDir ->
-    Dump.serialize resultFilePath slotNo namespaceKeySizes plan
+    Dump.serialize
+      resultFilePath
+      slotNo
+      namespaceKeySizes
+      plan
       ( \s -> do
           lift $ liftResourceT $ prepareExternalSortNamespaced tmpDir s
           runDataStream $ sourceNs tmpDir
