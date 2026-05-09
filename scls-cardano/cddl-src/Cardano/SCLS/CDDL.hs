@@ -13,6 +13,7 @@ import Cardano.SCLS.Namespace.EntitiesAccounts qualified as EntitiesAccounts
 import Cardano.SCLS.Namespace.EntitiesCommittee qualified as EntitiesCommittee
 import Cardano.SCLS.Namespace.EntitiesDReps qualified as EntitiesDReps
 import Cardano.SCLS.Namespace.EntitiesStakePools qualified as EntitiesStakePools
+import Cardano.SCLS.Namespace.EntitiesStakePoolsVRFKeyHashes qualified as EntitiesStakePoolsVRFKeyHashes
 import Cardano.SCLS.Namespace.GovCommittee qualified as GovCommittee
 import Cardano.SCLS.Namespace.GovConstitution qualified as GovConstitution
 import Cardano.SCLS.Namespace.GovPParams qualified as GovPParams
@@ -68,6 +69,9 @@ instance KnownSpec "entities/dreps/v0" where
 instance KnownSpec "entities/stake_pools/v0" where
   namespaceSpec _ = mkDefinition EntitiesStakePools.record_entry
 
+instance KnownSpec "entities/stake_pools/vrf_key_hashes/v0" where
+  namespaceSpec _ = mkDefinition EntitiesStakePoolsVRFKeyHashes.record_entry
+
 instance KnownSpec "gov/committee/v0" where
   namespaceSpec _ = mkDefinition GovCommittee.record_entry
 
@@ -102,6 +106,7 @@ knownNamespaces =
   , mkNamespaceSymbol @"entities/committee/v0"
   , mkNamespaceSymbol @"entities/dreps/v0"
   , mkNamespaceSymbol @"entities/stake_pools/v0"
+  , mkNamespaceSymbol @"entities/stake_pools/vrf_key_hashes/v0"
   , mkNamespaceSymbol @"gov/committee/v0"
   , mkNamespaceSymbol @"gov/constitution/v0"
   , mkNamespaceSymbol @"gov/pparams/v0"
@@ -119,6 +124,7 @@ type instance Spec.NamespaceKeySize "entities/accounts/v0" = 29 -- 1 byte for ta
 type instance Spec.NamespaceKeySize "entities/committee/v0" = 8
 type instance Spec.NamespaceKeySize "entities/dreps/v0" = 29 -- 1 byte for tag, 28 bytes for hash
 type instance Spec.NamespaceKeySize "entities/stake_pools/v0" = 28
+type instance Spec.NamespaceKeySize "entities/stake_pools/vrf_key_hashes/v0" = 32
 type instance Spec.NamespaceKeySize "gov/committee/v0" = 8
 type instance Spec.NamespaceKeySize "gov/constitution/v0" = 8
 type instance Spec.NamespaceKeySize "gov/pparams/v0" = 4
