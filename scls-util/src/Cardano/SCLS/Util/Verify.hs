@@ -245,8 +245,9 @@ validateCDDLAgainst :: CTreeRoot MonoReferenced -> (Int, GenericCBOREntry n) -> 
 validateCDDLAgainst cddl (seqNum, GenericCBOREntry (ChunkEntry _key cTerm)) =
   let name = Name (T.pack "record_entry")
    in case validateCBOR (getEncodedBytes cTerm) name (mapIndex cddl) of
-        Evidenced SValid _ -> Nothing
-        Evidenced SInvalid trc -> Just (CDDLValidationError seqNum trc)
+        Left e -> Just (CBORParseError seqNum . T.pack $ show e)
+        Right (Evidenced SValid _) -> Nothing
+        Right (Evidenced SInvalid trc) -> Just (CDDLValidationError seqNum trc)
 
 -- | Format an error for display.
 formatError :: CheckError -> String
