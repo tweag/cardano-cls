@@ -18,7 +18,7 @@
     inputs.nixpkgs.follows = "nixpkgs";
   };
   inputs.cips = {
-    url = "github:tweag/CIPs?rev=8b1b619bef7e11b37f21e2b39f3159ea5d48af23";
+    url = "github:tweag/CIPs?rev=f88508eda28602bce250972c117cc7ec9ffcce99";
     flake = false;
   };
   outputs = { self, nixpkgs, flake-utils, haskellNix, git-hooks, treefmt-nix

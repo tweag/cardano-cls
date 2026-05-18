@@ -47,7 +47,7 @@ record_entry =
         | ```
         |
         |]
-    $ "record_entry" =:= arr [a word64, a proposal]
+    $ "record_entry" =:= mp ["order" ==> word64, "proposal" ==> proposal]
 
 committee_cold_credential :: Rule
 committee_cold_credential = "committee_cold_credential" =:= credential
