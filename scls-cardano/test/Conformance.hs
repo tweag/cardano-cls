@@ -66,7 +66,8 @@ propReferenceAcceptsCBOR genSpec validateSpec direction = do
 
   let result = validateCBOR cbor (Name (T.pack "record_entry")) (mapIndex validateSpec)
   case result of
-    Evidenced SValid _ ->
+    Left e -> pure $ Left $ FailureInfo direction (TE.decodeUtf8 $ Base16.encode cbor) (T.pack $ show e)
+    Right (Evidenced SValid _) ->
       pure $ Right ()
-    Evidenced SInvalid trc ->
+    Right (Evidenced SInvalid trc) ->
       pure $ Left $ FailureInfo direction (TE.decodeUtf8 $ Base16.encode cbor) (T.pack $ showValidationTrace trc)
