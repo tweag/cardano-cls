@@ -43,5 +43,5 @@ library
     base >=4.18 && <5,
     bytestring,
     cborg,
-    cuddle >=1.8,
+    cuddle >=1.7,
     mempack-scls,

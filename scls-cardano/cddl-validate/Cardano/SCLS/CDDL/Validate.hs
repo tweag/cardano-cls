@@ -49,6 +49,4 @@ validSpecs :: Map.Map SomeNamespaceSymbol (CTreeRoot Codec.CBOR.Cuddle.CDDL.Reso
 validateBytesAgainst :: ByteString -> Text -> Text -> Maybe (Evidenced ValidationTrace)
 validateBytesAgainst bytes namespace name = do
   cddl <- namespaceSymbolFromText namespace >>= flip Map.lookup validSpecs
-  case validateCBOR bytes (Name name) (mapIndex cddl) of
-    Right res -> pure res
-    Left _ -> Nothing
+  pure $ validateCBOR bytes (Name name) (mapIndex cddl)
