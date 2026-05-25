@@ -93,12 +93,12 @@ encodeChunkEntry _ (ChunkEntry k v) =
    in ChunkEntry key value
 
 -- | Decode a chunk entry from raw bytes to namespace-specific types.
-decodeChunkEntry :: forall ns. (KnownNamespace ns) => Proxy ns -> ChunkEntry (ByteStringSized (NamespaceKeySize ns)) RawBytes -> Maybe (ChunkEntry (NamespaceKey ns) (NamespaceEntry ns))
+decodeChunkEntry :: forall ns m. (KnownNamespace ns, MonadFail m) => Proxy ns -> ChunkEntry (ByteStringSized (NamespaceKeySize ns)) RawBytes -> m (ChunkEntry (NamespaceKey ns) (NamespaceEntry ns))
 decodeChunkEntry _ (ChunkEntry (ByteStringSized k) (RawBytes v)) = do
-  let keyMaybe = decodeKeyFromBytes (Proxy @ns) k
+  let keyEither = decodeKeyFromBytes (Proxy @ns) k
   let valueEither = deserialiseFromBytes (getRawDecoder $ decodeEntry @ns) $ BSL.fromStrict v
-  case (keyMaybe, valueEither) of
-    (Nothing, _) -> Nothing
-    (_, Left _) -> Nothing
-    (Just key, Right (_, Versioned value)) ->
-      Just $ ChunkEntry key value
+  case (keyEither, valueEither) of
+    (Left err, _) -> fail $ "Failed to decode chunk key: " ++ show err
+    (_, Left err) -> fail $ "Failed to decode chunk value: " ++ show err
+    (Right key, Right (_, Versioned value)) ->
+      return $ ChunkEntry key value

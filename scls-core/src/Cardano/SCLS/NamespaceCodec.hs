@@ -28,11 +28,13 @@ import Cardano.SCLS.NamespaceKey
 import Cardano.SCLS.Versioned (Versioned (..))
 import Codec.CBOR.Read (DeserialiseFailure, deserialiseFromBytes)
 import Codec.CBOR.Write (toStrictByteString)
+import Data.Bifunctor (Bifunctor (second))
 import Data.ByteString (ByteString)
 import Data.ByteString.Lazy qualified as BSL
 import Data.Data (Proxy (Proxy), Typeable, typeRep)
 import Data.MemPack (StateT (runStateT), Unpack (runUnpack), packWithByteArray)
 import Data.MemPack.Buffer (pinnedByteArrayToByteString)
+import Data.MemPack.Error (SomeError)
 import Data.MemPack.Extra (ByteStringSized (..), RawBytes (RawBytes), runDecode)
 import GHC.TypeLits (KnownNat)
 
@@ -104,7 +106,7 @@ decodeKeyFromBytes ::
   ) =>
   Proxy ns ->
   ByteString ->
-  Maybe (NamespaceKey ns)
+  Either SomeError (NamespaceKey ns)
 decodeKeyFromBytes _ bs = do
   let unpacker = unpackKeyM
-  either (const Nothing) (Just . fst) $ runDecode $ runStateT (runUnpack unpacker bs) 0
+  second fst $ runDecode $ runStateT (runUnpack unpacker bs) 0
