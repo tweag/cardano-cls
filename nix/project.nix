@@ -24,7 +24,6 @@ in {
           packages.scls-format.components.library.doCoverage = true;
           packages.scls-core.components.library.doCoverage = true;
           packages.scls-cbor.components.library.doCoverage = true;
-          packages.scls-cardano.components.library.doCoverage = true;
           packages.mempack-scls.components.library.doCoverage = true;
           packages.scls-util.components.library.doCoverage = true;
           packages.merkle-tree-incremental.components.library.doCoverage = true;

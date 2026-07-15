@@ -1,6 +1,5 @@
 packages:
   scls-cbor
-  scls-cardano
   scls-core
   scls-format
   scls-util

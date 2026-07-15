@@ -175,7 +175,6 @@ jobs:
           touch cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/scls-format" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/scls-core" >> cabal.project
-          echo "packages: $GITHUB_WORKSPACE/source/scls-cardano" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/scls-cbor" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/scls-util" >> cabal.project
           echo "packages: $GITHUB_WORKSPACE/source/mempack-scls" >> cabal.project
@@ -193,8 +192,6 @@ jobs:
         run: |
           PKGDIR_scls_format="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/scls-format-[0-9.]*')"
           echo "PKGDIR_scls_format=${PKGDIR_scls_format}" >> "$GITHUB_ENV"
-          PKGDIR_scls_cardano="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/scls-cardano-[0-9.]*')"
-          echo "PKGDIR_scls_cardano=${PKGDIR_scls_cardano}" >> "$GITHUB_ENV"
           PKGDIR_scls_core="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/scls-core-[0-9.]*')"
           echo "PKGDIR_scls_core=${PKGDIR_scls_core}" >> "$GITHUB_ENV"
           PKGDIR_scls_cbor="$(find "$GITHUB_WORKSPACE/unpacked" -maxdepth 1 -type d -regex '.*/scls-cbor-[0-9.]*')"
@@ -209,15 +206,12 @@ jobs:
           touch cabal.project
           touch cabal.project.local
           echo "packages: ${PKGDIR_scls_format}" >> cabal.project
-          echo "packages: ${PKGDIR_scls_cardano}" >> cabal.project
           echo "packages: ${PKGDIR_scls_cbor}" >> cabal.project
           echo "packages: ${PKGDIR_scls_core}" >> cabal.project
           echo "packages: ${PKGDIR_scls_util}" >> cabal.project
           echo "packages: ${PKGDIR_mempack_scls}" >> cabal.project
           echo "packages: ${PKGDIR_merkle_tree_incremental}" >> cabal.project
           echo "package scls-format" >> cabal.project
-          echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
-          echo "package scls-cardano" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
           echo "package scls-cbor" >> cabal.project
           echo "    ghc-options: -Werror=missing-methods -Werror=missing-fields -Werror=unused-packages -Werror=incomplete-patterns -Werror=incomplete-uni-patterns" >> cabal.project
@@ -265,7 +259,7 @@ jobs:
             quickcheck-instances-0.3.33:QuickCheck,
             uuid-types-1.0.6:template-haskell,
           EOF
-          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(scls-cardano|scls-core|scls-format|scls-cbor|scls-util|mempack-scls|merkle-tree-incremental)$/; }' >> cabal.project.local
+          $HCPKG list --simple-output --names-only | perl -ne 'for (split /\s+/) { print "constraints: any.$_ installed\n" unless /^(scls-core|scls-format|scls-cbor|scls-util|mempack-scls|merkle-tree-incremental)$/; }' >> cabal.project.local
           cat cabal.project
           cat cabal.project.local
       - name: dump install plan

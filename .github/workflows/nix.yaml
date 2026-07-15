@@ -40,10 +40,6 @@ jobs:
             nix build \
               '.#"ghc${{ matrix.ghc }}:mempack-scls:lib:mempack-scls"' \
               '.#"ghc${{ matrix.ghc }}:merkle-tree-incremental:lib:merkle-tree-incremental"' \
-              '.#"ghc${{ matrix.ghc }}:scls-cardano:exe:gen-cddl"' \
-              '.#"ghc${{ matrix.ghc }}:scls-cardano:lib:scls-cardano"' \
-              '.#"ghc${{ matrix.ghc }}:scls-cardano:lib:testlib"' \
-              '.#"ghc${{ matrix.ghc }}:scls-cardano:lib:validate"' \
               '.#"ghc${{ matrix.ghc }}:scls-cbor:lib:scls-cbor"' \
               '.#"ghc${{ matrix.ghc }}:scls-core:lib:scls-core"' \
               '.#"ghc${{ matrix.ghc }}:scls-format:lib:scls-format"' \
@@ -54,7 +50,6 @@ jobs:
             current_system=$(nix eval --impure --expr 'builtins.currentSystem')
             nix build \
               ".#checks.${current_system}.ghc${{ matrix.ghc }}:merkle-tree-incremental:test:merkle-tree-incremental-test" \
-              ".#checks.${current_system}.ghc${{ matrix.ghc }}:scls-cardano:test:scls-cardano-test" \
               ".#checks.${current_system}.ghc${{ matrix.ghc }}:scls-cbor:test:scls-cbor-test" \
               ".#checks.${current_system}.ghc${{ matrix.ghc }}:scls-format:test:scls-format-test" \
               ".#checks.${current_system}.ghc${{ matrix.ghc }}:scls-util:test:scls-util-test" \

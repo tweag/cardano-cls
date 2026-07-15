@@ -87,9 +87,6 @@
             "scls-util:test:scls-util-test" = ''
               export SCLS_UTIL_PATH=${cardanoCanonicalLedger.hsPkgs.scls-util.components.exes.scls-util}/bin/scls-util
             '';
-            "scls-cardano:test:scls-cardano-test" = ''
-              export REFERENCE_CDDL_DIR=${referenceCDDLDir}
-            '';
           };
 
           defaultChecks = lib.mapAttrs overridePreCheck testOverrides;

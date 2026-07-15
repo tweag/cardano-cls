@@ -9,21 +9,6 @@ cradle:
     - path: "merkle-tree-incremental/test"
       component: "merkle-tree-incremental:test:merkle-tree-incremental-test"
 
-    - path: "scls-cardano/cddl-src"
-      component: "lib:scls-cardano"
-
-    - path: "scls-cardano/cddl-validate"
-      component: "scls-cardano:lib:validate"
-
-    - path: "scls-cardano/testlib"
-      component: "scls-cardano:lib:testlib"
-
-    - path: "scls-cardano/gen-cddl/Main.hs"
-      component: "scls-cardano:exe:gen-cddl"
-
-    - path: "scls-cardano/test"
-      component: "scls-cardano:test:scls-cardano-test"
-
     - path: "scls-cbor/src"
       component: "lib:scls-cbor"
 
