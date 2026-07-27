@@ -23,12 +23,12 @@ import Data.Bifunctor (first)
 import Data.ByteString qualified as BS
 import Data.ByteString.Base16 qualified as B16
 import Data.Char
+import Data.Proxy (Proxy)
 import Data.String
 import Data.Text (Text)
 import Data.Text qualified as T
 import Data.Text.Encoding qualified as T
 import Data.Text.Encoding.Error (UnicodeException)
-import Data.Typeable
 import GHC.TypeLits (KnownSymbol, symbolVal)
 
 -- | Simple newtype wrapper around Text for namespaces.
@@ -93,7 +93,7 @@ data DecodeError
     InvalidUtf8 UnicodeException
   | -- | Hex encoding contains invalid characters.
     InvalidHex String
-  deriving (Show, Typeable)
+  deriving (Show)
   deriving (Exception)
 
 {- | Decode a filename-safe 'Text' back into a 'Namespace'.
